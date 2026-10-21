@@ -1,6 +1,6 @@
 # builder-1 — m1-core-tokens
 
-**Status:** PENDING
+**Status:** BLOCKED
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -41,4 +41,14 @@ Conflicts resolved: (none)
 
 ## Blocker
 
-(none)
+The spec artifact (https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) has no readable content. Reading it with the Artifact tool (read, and read of `index.html`) returns only the Docs viewer shell titled "Claude Docs"; the 84 published files are the viewer's JS/fonts, with no spec text. The spec body is probably held in the Claude Docs connector, which this routine cannot reach.
+
+The tasks depend on spec sections I cannot see:
+- "APIs": the server and hub endpoint tables (task 7, Zod schemas for every endpoint).
+- "Data model": exact columns and constraints (task 6).
+- "Venue hub and sync protocol": the claim/exit SQL and the conflict rules (task 5).
+- "Scanner app": the validation order and device setup (tasks 4, 5).
+
+The token layout (task 3) can be derived from the inbox (34 B = 1+4+16+1+4+1+1+2+2+2, giving 194 chars with the `EVT1:` prefix), but guessing the other parts risks drift in formats that later milestones depend on.
+
+Needed from the planner: put the spec's text in the repo (e.g. `docs/spec.md`) or into this inbox file, then set Status back to PENDING and fire builder-1. No code was written.
