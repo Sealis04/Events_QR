@@ -361,6 +361,64 @@ describe.skipIf(!dbAvailable)("ticket issuance (MariaDB)", () => {
     ).toBe(404);
   });
 
+  describe("cancelling frees the place", () => {
+    const issued = async (idx: number) =>
+      (await env.handle.db.select().from(ticketTypes).where(eq(ticketTypes.eventId, eventId))).find(
+        (r) => r.idx === idx,
+      )!.issued;
+    const addCapped = async (capacity: number) =>
+      (
+        await call(addType, {
+          staff: admin,
+          params: { id: String(eventId) },
+          body: { name: `Capped ${capacity}-${newKey().slice(-4)}`, capacity },
+        })
+      ).json.idx as number;
+
+    it("lets one more ticket be generated on a sold-out type; the old QR stays cancelled", async () => {
+      const idx = await addCapped(1);
+      const first = (await gen({ ticket_type: idx, holder_name: "Sold" })).json.tickets[0];
+      expect((await gen({ ticket_type: idx, holder_name: "Over" })).status).toBe(409);
+      expect(
+        (await call(cancel, { staff: admin, params: { id: first.ticket_id }, body: {} })).status,
+      ).toBe(200);
+      expect(await issued(idx)).toBe(0);
+      const again = await gen({ ticket_type: idx, holder_name: "Reborn" });
+      expect(again.status).toBe(201);
+      expect(again.json.tickets[0].ticket_id).not.toBe(first.ticket_id);
+      const [old] = await env.handle.db
+        .select()
+        .from(tickets)
+        .where(eq(tickets.id, Buffer.from(hexToBytes(first.ticket_id))));
+      expect(old!.status).toBe("cancelled");
+    });
+
+    it("a repeat cancel does not free a second place", async () => {
+      const idx = await addCapped(2);
+      const a = (await gen({ ticket_type: idx, holder_name: "A" })).json.tickets[0];
+      await gen({ ticket_type: idx, holder_name: "B" });
+      for (let i = 0; i < 3; i++)
+        await call(cancel, { staff: admin, params: { id: a.ticket_id }, body: {} });
+      expect(await issued(idx)).toBe(1);
+      expect((await gen({ ticket_type: idx, holder_name: "C" })).status).toBe(201);
+      expect((await gen({ ticket_type: idx, holder_name: "D" })).status).toBe(409);
+    });
+
+    it("concurrent cancels of the same ticket free exactly one place", async () => {
+      const idx = await addCapped(3);
+      const a = (await gen({ ticket_type: idx, holder_name: "A" })).json.tickets[0];
+      await gen({ ticket_type: idx, holder_name: "B" });
+      await gen({ ticket_type: idx, holder_name: "C" });
+      const results = await Promise.all(
+        Array.from({ length: 10 }, () =>
+          call(cancel, { staff: admin, params: { id: a.ticket_id }, body: {} }),
+        ),
+      );
+      expect(results.every((r) => r.status === 200)).toBe(true);
+      expect(await issued(idx)).toBe(2);
+    });
+  });
+
   it("transfer cancels the old ticket and issues a new one without using extra capacity", async () => {
     const tiny = (
       await call(addType, {

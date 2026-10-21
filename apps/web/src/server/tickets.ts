@@ -341,15 +341,24 @@ async function replay(
   };
 }
 
+/**
+ * Cancelling frees the ticket's place on its type (`issued` - 1) in the same transaction, only when
+ * this call is the one that moves it to `cancelled`, so a repeat or concurrent cancel frees one.
+ */
 export async function cancelTicket(ctx: AppContext, idHexValue: string) {
   const row = await loadTicket(ctx.db, idHexValue);
-  if (row.status !== "cancelled") {
-    const now = Math.max(ctx.now(), row.updatedAt);
-    await ctx.db
+  await ctx.db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(tickets).where(eq(tickets.id, row.id)).for("update");
+    if (!locked || locked.status === "cancelled") return;
+    await tx
       .update(tickets)
-      .set({ status: "cancelled", updatedAt: now })
-      .where(and(eq(tickets.id, row.id), sql`${tickets.status} <> 'cancelled'`));
-  }
+      .set({ status: "cancelled", updatedAt: Math.max(ctx.now(), locked.updatedAt) })
+      .where(eq(tickets.id, row.id));
+    await tx
+      .update(ticketTypes)
+      .set({ issued: sql`${ticketTypes.issued} - 1` })
+      .where(and(eq(ticketTypes.eventId, row.eventId), eq(ticketTypes.idx, row.ticketType)));
+  });
   const after = await loadTicket(ctx.db, idHexValue);
   return {
     ticket_id: idHexValue,
@@ -427,6 +436,13 @@ export async function transferTicket(
 export async function resendTicket(ctx: AppContext, idHexValue: string, email?: string) {
   const row = await loadTicket(ctx.db, idHexValue);
   if (row.status === "cancelled") throw conflict("cancelled", "ticket is cancelled");
+  const event = await loadEvent(ctx.db, row.eventId);
+  if (!(await ctx.signer.canMint(event.signKeyId))) {
+    throw conflict(
+      "signing_key_retired",
+      "this ticket's signing key was retired after its event ended; the QR can no longer be re-sent",
+    );
+  }
   const to = email ?? row.holderEmail;
   if (!to) throw badRequest("the ticket has no email address; pass one in the request");
   const now = ctx.now();

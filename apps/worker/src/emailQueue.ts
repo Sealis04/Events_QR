@@ -2,6 +2,7 @@ import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { mysqlSchema, shortTicketId } from "@events-qr/core";
 import type { AppContext } from "@events-qr/web/server/context";
 import { affectedRows } from "@events-qr/web/server/dbutil";
+import { SigningKeyUnavailable } from "@events-qr/web/server/signing";
 import { eventConfig, loadEvent, loadType } from "@events-qr/web/server/events";
 import { renderQr } from "@events-qr/web/server/qr";
 import { tokenForRow } from "@events-qr/web/server/tickets";
@@ -103,7 +104,8 @@ export async function drainEmailQueue(deps: DrainDeps): Promise<DrainResult> {
       result.sent += 1;
     } catch (err) {
       const attempts = item.attempts + 1;
-      const permanent = err instanceof SendError && err.permanent;
+      const permanent =
+        (err instanceof SendError && err.permanent) || err instanceof SigningKeyUnavailable;
       const giveUp = permanent || attempts >= ctx.config.EMAIL_MAX_ATTEMPTS;
       await ctx.db
         .update(emailQueue)
