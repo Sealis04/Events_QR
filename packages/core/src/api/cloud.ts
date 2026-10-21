@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STAFF_ROLES } from "../db/shared";
 import {
   cursor,
   deviceDirection,
@@ -17,7 +18,7 @@ import {
 } from "./common";
 import { enrollExchangeRequest, enrollExchangeResponse } from "./hub";
 
-const ticketTypeInput = z.object({
+export const ticketTypeInput = z.object({
   idx: z.number().int().min(0).max(255),
   name: z.string().min(1).max(255),
   capacity: z.number().int().positive().nullable().optional(),
@@ -31,6 +32,8 @@ const ticketTypeInput = z.object({
 export const createEventRequest = z.object({
   name: z.string().min(1).max(255),
   venue: z.string().max(255).optional(),
+  /** IANA zone for "00:00 local on the first day" (slot minutes). Defaults to the server's. */
+  timezone: z.string().min(1).max(64).optional(),
   starts_at: unixSeconds,
   ends_at: unixSeconds,
   gates: z.array(gateName).min(1).max(16),
@@ -39,6 +42,38 @@ export const createEventRequest = z.object({
 export const createEventResponse = z.object({
   id: z.number().int(),
   sign_key_id: z.number().int(),
+});
+
+/** `PATCH /events/{id}` (admin). Gates are append-only once tickets exist. */
+export const updateEventRequest = z
+  .object({
+    name: z.string().min(1).max(255),
+    venue: z.string().max(255).nullable(),
+    starts_at: unixSeconds,
+    ends_at: unixSeconds,
+    gates: z.array(gateName).min(1).max(16),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "nothing to update" });
+
+/** `POST /events/{id}/ticket-types` (admin); `idx` defaults to the next free one. */
+export const addTicketTypeRequest = ticketTypeInput.partial({ idx: true });
+/** `PATCH /events/{id}/ticket-types/{idx}` (admin). Only affects tickets issued from now on. */
+export const updateTicketTypeRequest = ticketTypeInput
+  .omit({ idx: true })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "nothing to update" });
+
+/** `POST /auth/login`. */
+export const loginRequest = z.object({
+  name: z.string().min(1).max(255),
+  pin: z.string().min(1).max(128),
+});
+/** `POST /staff` (admin). */
+export const createStaffRequest = z.object({
+  name: z.string().min(1).max(255),
+  pin: z.string().min(6).max(128),
+  role: z.enum(STAFF_ROLES),
 });
 
 /** `POST /events/{id}/tickets` (staff, generator). Idempotency key required. */
@@ -59,9 +94,35 @@ export const createTicketsResponse = z.object({
       ticket_id: ticketIdHex,
       holder_name: z.string().nullable(),
       ticket_type: z.number().int(),
+      /** Last 6 hex characters of the ticket id, printed under the QR. */
+      short_id: z.string().length(6),
       token,
+      /** PNG data URL, level M, at least 300 px with a 4-module quiet zone. */
+      qr_png: z.string().startsWith("data:image/png;base64,"),
+      qr_svg: z.string().startsWith("<svg").or(z.string().startsWith("<?xml")),
     }),
   ),
+});
+
+/** `POST /tickets/{id}/transfer` (admin): cancels the ticket and issues a new one to someone else. */
+export const transferTicketRequest = z.object({
+  holder_name: z.string().min(1).max(255),
+  holder_email: z.string().email().optional(),
+});
+export const transferTicketResponse = z.object({
+  cancelled_ticket_id: ticketIdHex,
+  ticket: createTicketsResponse.shape.tickets.element,
+});
+
+/** `POST /events/{id}/tickets/import` (admin): CSV text in `csv`, one ticket per row. */
+export const importTicketsRequest = z.object({
+  csv: z.string().min(1).max(5_000_000),
+  /** Re-sending the same key does not issue the rows twice. */
+  idempotency_key: z.string().min(8).max(100).optional(),
+});
+export const importTicketsResponse = z.object({
+  created: z.number().int(),
+  errors: z.array(z.object({ row: z.number().int(), message: z.string() })),
 });
 
 /** `POST /tickets/{id}/cancel` (admin). */

@@ -6,8 +6,8 @@ Coordination now follows the Agent Team Protocol in `CLAUDE.md`: each milestone 
 
 | # | Milestone | Branch | State |
 |---|---|---|---|
-| M1 | Core tokens and shared contracts | `m1-core-tokens` | builder-1 fired 2026-10-21 |
-| M2 | Server issuance on the VM | `m2-cloud-issuance` | not started |
+| M1 | Core tokens and shared contracts | `m1-core-tokens` | merged 2026-10-21 (#1) |
+| M2 | Server issuance on the VM | `m2-cloud-issuance` | builder-1 fired 2026-10-21 |
 | M3 | Online scanner | `m3-scanner` | not started |
 | M4 | Venue hub and sync | `m4-hub` | not started |
 | M5 | Offline mode | `m5-offline` | not started |

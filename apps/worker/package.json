@@ -2,7 +2,19 @@
   "name": "@events-qr/worker",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo 'no tests yet'"
+    "start": "bun src/main.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@events-qr/core": "workspace:*",
+    "@events-qr/web": "workspace:*",
+    "drizzle-orm": "^0.38.3"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^6.0.5",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0"
   }
 }
