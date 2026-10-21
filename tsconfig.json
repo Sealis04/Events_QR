@@ -4,7 +4,16 @@
     "composite": false,
     "declaration": false,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "jsx": "preserve"
   },
-  "include": ["packages/*/src", "packages/*/test", "packages/*/*.ts", "apps/*/src", "apps/*/test"]
+  "include": [
+    "packages/*/src",
+    "packages/*/test",
+    "packages/*/*.ts",
+    "apps/*/src",
+    "apps/*/test",
+    "apps/*/*.ts",
+    "scripts"
+  ]
 }

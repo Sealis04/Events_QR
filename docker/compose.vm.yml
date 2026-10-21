@@ -1,0 +1,94 @@
+# The VM stack: app + worker + MariaDB. Run from the repo root:
+#   docker compose --env-file .env -f docker/compose.vm.yml up -d --build
+# See docs/deploy-vm.md.
+name: events-qr
+
+x-app-env: &app-env
+  DB_HOST: mariadb
+  DB_PORT: "3306"
+  # The key files are mounted read-only at /secrets.
+  SIGNING_KEY_PATH: /secrets/signing-key.json
+  GMAIL_SA_KEY_PATH: /secrets/gmail-sa.json
+  # TLS ends at Nginx Proxy Manager; browsers only get the session cookie over https.
+  COOKIE_SECURE: "true"
+
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-events_qr}
+      MARIADB_USER: ${DB_USER:-events_qr}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: applies the migrations, then exits. The app and worker wait for it.
+  migrate:
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    command: ["bun", "scripts/migrate.ts"]
+    env_file: ../.env
+    environment: *app-env
+    depends_on:
+      mariadb: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    build: { context: .., dockerfile: docker/Dockerfile, target: app }
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      <<: *app-env
+      APP_MODE: server
+    volumes:
+      - ${SECRETS_DIR:-../.secrets}:/secrets:ro
+    ports:
+      # Nginx Proxy Manager forwards to this. Keep it on loopback if NPM runs on this VM's host network;
+      # set APP_BIND=0.0.0.0 if NPM is on another machine or Docker network.
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: { context: .., dockerfile: docker/Dockerfile, target: worker }
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      <<: *app-env
+      APP_MODE: worker
+    volumes:
+      - ${SECRETS_DIR:-../.secrets}:/secrets:ro
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Admin scripts: docker compose -f docker/compose.vm.yml run --rm tools bun scripts/create-admin.ts --name Alex
+  tools:
+    profiles: ["tools"]
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    env_file: ../.env
+    environment: *app-env
+    # Not read-only: gen-signing-key writes the key file here once.
+    volumes:
+      - ${SECRETS_DIR:-../.secrets}:/secrets
+    depends_on:
+      mariadb: { condition: service_healthy }
+
+volumes:
+  mariadb-data:

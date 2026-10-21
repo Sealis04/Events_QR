@@ -49,9 +49,13 @@ describe("schemas", () => {
 
   it("have mysql migrations that create every table", () => {
     const dir = resolve(here, "../drizzle/mysql");
-    const file = readdirSync(dir).find((f) => f.endsWith(".sql"))!;
-    const sql = readFileSync(resolve(dir, file), "utf8");
+    const sql = readdirSync(dir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(resolve(dir, f), "utf8"))
+      .join("\n");
     for (const name of [
+      "idempotency_keys", // server-only: not in the SQLite hub schema
       "events",
       "staff",
       "ticket_types",

@@ -4,3 +4,5 @@ dist
 *.tsbuildinfo
 .env*
 !.env.demo
+next-env.d.ts
+.secrets

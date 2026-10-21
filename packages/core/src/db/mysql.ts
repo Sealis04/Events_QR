@@ -215,3 +215,20 @@ export const emailQueue = mysqlTable(
     check("ck_email_queue_status", sql`${t.status} IN (${sql.raw(sqlList(EMAIL_STATUSES))})`),
   ],
 );
+
+/** Server-only (the hub never issues tickets): replays of `POST /events/{id}/tickets` return the same tickets. */
+export const idempotencyKeys = mysqlTable(
+  "idempotency_keys",
+  {
+    eventId: int("event_id")
+      .notNull()
+      .references(() => events.id),
+    key: varchar("key", { length: 128 }).notNull(),
+    /** SHA-256 hex of the canonical request, so reusing a key for a different request is caught. */
+    requestHash: char("request_hash", { length: 64 }).notNull(),
+    /** Ticket ids (hex) the request created, in order. */
+    ticketIds: json("ticket_ids").$type<string[]>().notNull(),
+    createdAt: unixCol("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.key] })],
+);
