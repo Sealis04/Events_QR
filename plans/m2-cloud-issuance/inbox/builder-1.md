@@ -1,6 +1,6 @@
 # builder-1 — m2-cloud-issuance
 
-**Status:** DONE
+**Status:** PENDING
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -78,7 +78,7 @@ All of "Done when" for M2 in the plan holds; the tests above pass against MariaD
 
 ## Fix requests
 
-(none)
+- [ ] **Sealis04/Events_QR#2 (reviewer):** `bun dev` resolves the relative `SIGNING_KEY_PATH=.secrets/signing-key.json` from `.env` against `apps/web` (Next's cwd), so `readKeyFile` throws ENOENT and every API route using the context returns 500 on a fresh checkout. Fix: resolve relative `SIGNING_KEY_PATH` and `GMAIL_SA_KEY_PATH` against the repo root (or the `.env` location) in `apps/web/src/server/config.ts`, and add a test for relative path resolution. Then verify on a fresh checkout: `bash scripts/ccr-session-init.sh`, `bun dev`, log in via `POST /api/auth/login` returns 200. Mark this done and note the fix in your summary; reference #2 in the commit message.
 
 ## Blocker
 
