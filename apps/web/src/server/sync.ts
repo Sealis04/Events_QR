@@ -5,6 +5,7 @@ import type { AppContext } from "./context";
 import type { Db } from "./db";
 import { toBuffer } from "./dbutil";
 import type { AuthedDevice } from "./auth";
+import { loadTypes, scannerTypes } from "./events";
 
 const { tickets, scans, devices, staff } = mysqlSchema;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -191,4 +192,30 @@ async function recomputeTicket(ctx: AppContext, tx: Tx, idHexValue: string): Pro
       .set({ admitsUsed: admits, inside, status, updatedAt: Math.max(ctx.now(), ticket.updatedAt) })
       .where(eq(tickets.id, id));
   }
+}
+
+/** `GET /api/sync`: the scanner-facing page. Same shape the hub serves in M4. */
+export async function syncForDevice(
+  ctx: AppContext,
+  device: AuthedDevice,
+  query: z.infer<typeof api.hubSyncQuery>,
+): Promise<z.infer<typeof api.hubSyncResponse>> {
+  const page = await syncTickets(ctx, device, { cursor: query.cursor, limit: 1000 });
+  const types = await loadTypes(ctx.db, device.eventId);
+  return {
+    tickets: page.tickets,
+    // A revoked device is refused at authentication (401) and wipes itself, so only itself here.
+    devices: [
+      {
+        id: device.id,
+        gate: device.gate,
+        direction: device.direction as "entry" | "exit" | "both",
+        revoked: false,
+      },
+    ],
+    ticket_types: scannerTypes(types),
+    next_cursor: page.next_cursor,
+    has_more: page.has_more,
+    hub_time: ctx.now(),
+  };
 }

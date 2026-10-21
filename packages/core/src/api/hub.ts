@@ -5,6 +5,7 @@ import {
   firstScan,
   gateName,
   keyBundle,
+  scannerTicketType,
   scanRecord,
   syncTicket,
   ticketIdHex,
@@ -37,13 +38,18 @@ const claimBody = z.object({
   scanned_at: unixSeconds,
 });
 
-/** `POST /claim`: atomic entry check-and-mark. */
-export const claimRequest = claimBody;
+/**
+ * `POST /claim`: atomic entry check-and-mark. `override` is a supervisor admitting a ticket the
+ * device's list did not know (amber screen): `staff_id` must then be a supervisor, and the scan is
+ * recorded as `override`.
+ */
+export const claimRequest = claimBody.extend({ override: z.boolean().optional() });
 export const claimResponse = z.object({
   result: z.enum(["admitted", "rejected_used", "rejected_inside", "rejected_cancelled"]),
   admits_used: z.number().int().min(0).optional(),
   /** null = unlimited. */
   limit: z.number().int().nullable().optional(),
+  /** The ticket's most recent admission: where, when and on which device (for red screens). */
   first_scan: firstScan.optional(),
 });
 
@@ -61,6 +67,8 @@ export const hubSyncResponse = z.object({
   devices: z.array(
     z.object({ id: uuid, gate: gateName, direction: deviceDirection, revoked: z.boolean() }),
   ),
+  /** Current ticket types (early-entry minutes can change), so devices need not re-enrol. */
+  ticket_types: z.array(scannerTicketType).default([]),
   next_cursor: cursor.nullable(),
   has_more: z.boolean(),
   /** Hub time, Unix seconds, so devices can correct their clock. */

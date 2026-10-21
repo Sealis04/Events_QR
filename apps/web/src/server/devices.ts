@@ -4,7 +4,7 @@ import { api, encodeSetupCode, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { affectedRows, isDuplicate } from "./dbutil";
 import { badRequest, conflict, HttpError } from "./http";
-import { keyBundle, loadEvent } from "./events";
+import { keyBundle, loadEvent, loadTypes } from "./events";
 import { randomToken, sha256Hex } from "./secrets";
 
 const { devices, enrolmentCodes } = mysqlSchema;
@@ -105,7 +105,7 @@ export async function exchangeEnrolment(
   return {
     device_id: input.device_id,
     device_token: token,
-    key_bundle: keyBundle(ctx, event),
+    key_bundle: keyBundle(ctx, event, await loadTypes(ctx.db, event.id)),
     gate: result.gate,
     direction: result.direction as "entry" | "exit" | "both",
     label: result.label,

@@ -320,7 +320,11 @@ export async function updateTicketType(
 }
 
 /** Key material for an enrolled device: the event key, every public signing key, and event facts. */
-export function keyBundle(ctx: AppContext, event: EventRow): z.infer<typeof api.keyBundle> {
+export function keyBundle(
+  ctx: AppContext,
+  event: EventRow,
+  types: TicketTypeRow[],
+): z.infer<typeof api.keyBundle> {
   return {
     event_id: event.id,
     event_key: b64(eventKeyOf(ctx, event)),
@@ -331,7 +335,19 @@ export function keyBundle(ctx: AppContext, event: EventRow): z.infer<typeof api.
     starts_at: event.startsAt,
     ends_at: event.endsAt,
     day_zero: eventDayZero(ctx, event),
+    ticket_types: scannerTypes(types),
   };
+}
+
+export const scannerTypes = (types: TicketTypeRow[]) =>
+  types.map((t) => ({ idx: t.idx, name: t.name, early_entry_min: t.earlyEntryMin }));
+
+export async function loadTypes(db: Db | Tx, eventId: number): Promise<TicketTypeRow[]> {
+  return db
+    .select()
+    .from(ticketTypes)
+    .where(eq(ticketTypes.eventId, eventId))
+    .orderBy(asc(ticketTypes.idx));
 }
 
 export { HttpError };
