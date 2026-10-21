@@ -1,6 +1,6 @@
 # builder-1 — m1-core-tokens
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -30,10 +30,18 @@ All of "Done when" for M1 in the plan holds, and `bun run lint`, `bunx tsc --noE
 
 ## Summary for reviewer
 
-Files changed:
-What was done:
-What to check:
-Conflicts resolved: (none)
+**Files changed:** Root: `package.json`, `tsconfig.json`, `tsconfig.base.json`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.gitignore`, `.env.demo`, `bun.lock`, `docker/compose.dev.yml`, `scripts/ccr-session-init.sh`, `scripts/mint-verify.ts`, `apps/web` and `apps/worker` placeholders (package.json + .gitkeep). `packages/core`: `package.json`, `tsconfig.json`, `vitest.config.ts`, `drizzle.{mysql,sqlite}.config.ts`, `drizzle/{mysql,sqlite}/` (generated migrations), `src/{bytes,base45,index}.ts`, `src/token/*`, `src/setup/*`, `src/rules/*`, `src/db/*`, `src/api/*`, `test/*` (token, rules, setup, api, db + fixtures).
+**What was done:** Scaffold (bun workspaces, strict TS, ESLint with a no-Node-imports rule for core, Prettier, Vitest, MariaDB 11 dev compose, idempotent session-init script). Token lib (34-byte payload, Ed25519 + AES-256-GCM aad `EVT1`, Base45, `verifyToken` returns typed errors; known-answer vector asserts the 194-char token), `DEV1:` setup codec, entry_rule/gate_mask/slot helpers, pure `checkEntry`/`decideClaim`/`decideExit`, Drizzle schemas for MariaDB and SQLite with generated migrations, zod schemas for every cloud and hub endpoint (snake_case, ids as hex). 58 tests pass; lint and `tsc --noEmit` are clean. I also applied the MariaDB migration to the local MariaDB 10.11 by hand and confirmed the CHECKs fire.
+**What to check:**
+- `verifyToken(raw, publicKeys, eventKey, expectedEventId?)` has an optional 4th arg; without it `wrong_event` can't be reported. `payload` is returned alongside `wrong_event`.
+- Root `tsconfig.json` uses `include`, not project references: `tsc --noEmit` against a references-only root checks nothing. Package tsconfigs extend it.
+- Schemas are two typed files (`db/mysql.ts`, `db/sqlite.ts`) sharing enums/constants from `db/shared.ts`, not one dynamic builder (keeps Drizzle types usable). `test/db.test.ts` asserts identical tables, columns, checks and indexes.
+- Times in the DB are Unix seconds (bigint on MariaDB), per CLAUDE.md, not TIMESTAMPTZ. `staff.role` is staff|supervisor|admin (CLAUDE.md), not the spec's scanner. `tickets` gained a nullable `note`. `enrolment_codes` stores a SHA-256 of the code. Setup QR has no cert fingerprint (plan: Let's Encrypt).
+- `decideClaim` follows the spec's read-back order (inside before used_up), so a re-scanned single-entry ticket still inside says `rejected_inside`. It also refuses when `admitsUsed >= max` even if status is `valid` (offline case).
+- `libsodium-wrappers` is pinned to 0.7.15: 0.7.16's ESM build is missing `libsodium.mjs` and fails to import under Node.
+- The CHECK on `ticket_types.max_admits` needs `IS NOT NULL` explicitly; `NULL BETWEEN` evaluates to NULL and passes (caught by a test).
+- MariaDB migration was verified by hand only; the automated migration test covers SQLite (no mysql driver or DB service in the test run).
+**Conflicts resolved:** (none)
 
 ## Fix requests
 
