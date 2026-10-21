@@ -47,4 +47,4 @@ Trigger IDs live in env vars. Use them directly; never print or commit them.
 
 ## Log
 
-- 2026-10-21 — Planner: draft plan written; on hold pending the issuance decision.
+- 2026-10-21 — Planner: draft plan written; stack set (Next.js, MariaDB, self-hosted VM, venue hub, Gmail API); awaiting approval.
