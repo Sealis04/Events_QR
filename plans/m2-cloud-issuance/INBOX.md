@@ -19,7 +19,15 @@ Milestone M2 (server issuance on the VM) of `plans/offline-qr-ticketing/plan.md`
 
 ## reviewer
 
-(empty)
+- **Status:** APPROVED (re-review of the #2 fix, commit 9ffbbbc)
+- **Environment:** ready as-is; `scripts/ccr-session-init.sh` started MariaDB and set everything up, no manual fixes.
+- **E2E results (live `bun dev`, MariaDB):**
+  - PASS: fresh checkout, init script, `create-admin`, `bun dev`: `POST /api/auth/login` returns 200 for admin, supervisor and staff; no ENOENT in the dev log (issue #2 fixed).
+  - PASS: admin creates an event; staff generates a ticket (201); the same idempotency key replays (200); the 3rd ticket on a capacity-2 type returns 409 sold_out.
+  - PASS: role gating: staff gets 403 on create event and on cancel; unauthenticated gets 401.
+  - PASS: `bun run lint`, `bunx tsc --noEmit`, `bun run test` (core 58, web 82, worker 17), including the MariaDB capacity race (50 parallel, capacity 20 gives 20), QR decode + `verifyToken`, byte-identical re-send, and the Gmail mock throttling/retry.
+- **Issues filed:** none new; Sealis04/Events_QR#2 is resolved.
+- **Summary:** The fix anchors relative key-file paths to the repo root and is covered by a new test. Issuance, auth and sync code is in good shape; docker images were not built in the sandbox (noted by the builder).
 
 ## planner
 
