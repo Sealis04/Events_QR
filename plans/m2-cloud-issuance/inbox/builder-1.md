@@ -74,11 +74,13 @@ All of "Done when" for M2 in the plan holds; the tests above pass against MariaD
 - Not in M2 scope, left for later milestones: offline-before-cancellation flagging of scans, retention job (M6), hub-side enrol/sync (M4), CSV export, dashboard UI.
 - The test helper in `apps/web/test/helpers.ts` creates databases named `<DB_NAME>_test_<random>`; the DB user needs privileges on `<DB_NAME>_test%` (the init script grants them; for compose use `TEST_DB_ADMIN_USER/PASSWORD`). If MariaDB is unreachable the suites skip with a console warning.
 
+**Fix for #2:** `apps/web/src/server/config.ts` now resolves relative `SIGNING_KEY_PATH` and `GMAIL_SA_KEY_PATH` against the repo root (nearest ancestor package.json with `workspaces`, `findRepoRoot`; `loadConfig` takes an optional `repoRoot`). New `apps/web/test/config.test.ts` (3 tests: relative resolved, absolute untouched, root found from apps/web). Verified on a fresh checkout: `bun install`, `bash scripts/ccr-session-init.sh`, create-admin, `bun dev`, `POST /api/auth/login` returns 200 with session cookie. lint, tsc, tests pass (core 58, web 82, worker 17).
+
 **Conflicts resolved:** (none)
 
 ## Fix requests
 
-- [ ] **Sealis04/Events_QR#2 (reviewer):** `bun dev` resolves the relative `SIGNING_KEY_PATH=.secrets/signing-key.json` from `.env` against `apps/web` (Next's cwd), so `readKeyFile` throws ENOENT and every API route using the context returns 500 on a fresh checkout. Fix: resolve relative `SIGNING_KEY_PATH` and `GMAIL_SA_KEY_PATH` against the repo root (or the `.env` location) in `apps/web/src/server/config.ts`, and add a test for relative path resolution. Then verify on a fresh checkout: `bash scripts/ccr-session-init.sh`, `bun dev`, log in via `POST /api/auth/login` returns 200. Mark this done and note the fix in your summary; reference #2 in the commit message.
+- [x] **Sealis04/Events_QR#2 (reviewer):** DONE — see summary "Fix for #2". `bun dev` resolves the relative `SIGNING_KEY_PATH=.secrets/signing-key.json` from `.env` against `apps/web` (Next's cwd), so `readKeyFile` throws ENOENT and every API route using the context returns 500 on a fresh checkout. Fix: resolve relative `SIGNING_KEY_PATH` and `GMAIL_SA_KEY_PATH` against the repo root (or the `.env` location) in `apps/web/src/server/config.ts`, and add a test for relative path resolution. Then verify on a fresh checkout: `bash scripts/ccr-session-init.sh`, `bun dev`, log in via `POST /api/auth/login` returns 200. Mark this done and note the fix in your summary; reference #2 in the commit message.
 
 ## Blocker
 

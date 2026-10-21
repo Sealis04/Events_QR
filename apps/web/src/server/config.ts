@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
 
 /**
@@ -46,10 +48,36 @@ const schema = z.object({
 
 export type Config = z.infer<typeof schema>;
 
-export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
+/** Nearest ancestor of `from` whose package.json declares workspaces (the repo root). */
+export function findRepoRoot(from: string = process.cwd()): string {
+  for (let dir = resolve(from); ; dir = dirname(dir)) {
+    try {
+      const pkgPath = join(dir, "package.json");
+      if (existsSync(pkgPath) && JSON.parse(readFileSync(pkgPath, "utf8")).workspaces) return dir;
+    } catch {
+      // unreadable package.json: keep walking up
+    }
+    if (dirname(dir) === dir) return resolve(from);
+  }
+}
+
+const FILE_PATH_SETTINGS = ["SIGNING_KEY_PATH", "GMAIL_SA_KEY_PATH"] as const;
+
+export function loadConfig(
+  env: Record<string, string | undefined> = process.env,
+  repoRoot?: string,
+): Config {
   const cleaned = Object.fromEntries(
     Object.entries(env).filter(([, v]) => v !== undefined && v !== ""),
   );
+  // `.env` lives at the repo root but Next runs with cwd `apps/web`: anchor relative file paths
+  // to the repo root so they mean the same thing for every process.
+  for (const key of FILE_PATH_SETTINGS) {
+    const value = cleaned[key];
+    if (value !== undefined && !isAbsolute(value)) {
+      cleaned[key] = resolve(repoRoot ?? findRepoRoot(), value);
+    }
+  }
   const parsed = schema.safeParse(cleaned);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
