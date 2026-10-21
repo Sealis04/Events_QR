@@ -106,6 +106,12 @@ bun workspaces, TypeScript strict, Vitest, ESLint + Prettier. `docker compose up
 ### Wrap-up — Dress rehearsal
 Builder 1 writes `docs/runbook.md` (the spec's event-day runbook as a checklist, updated for the VM and hub) and `docs/field-test.md` (50 printed tickets, cracked screens, dim screens, paper). People run these; no code.
 
+## Decisions after M2 (2026-10-21)
+
+- Cancelling a ticket frees its place (`ticket_types.issued` goes down by 1). A cancelled reservation starts over with a new QR through the normal generator. Transfer stays net-zero.
+- Old signing secrets are kept only while an upcoming event uses that key generation, then deleted automatically; public keys stay.
+- From M3 on, the reviewer writes fix requests into `plans/<branch>/inbox/builder-1.md` as well as GitHub issues.
+
 ## Out of scope for v1
 Payments and online checkout, resale, rotating QR codes, wallet passes, seat maps.
 
