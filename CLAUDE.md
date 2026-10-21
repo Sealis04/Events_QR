@@ -3,7 +3,7 @@
 Offline QR ticketing for 500–5,000-person events. Signed, encrypted QR tickets; a venue hub enforces one-time entry with no internet.
 
 - Plan (source of truth for scope and stack): `plans/offline-qr-ticketing/plan.md`
-- Spec (formats, rules, SQL): https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7 — where it differs from the plan, the plan wins.
+- Spec (formats, rules, SQL): `docs/spec.md` (exported from https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) — where it differs from the plan, the plan wins.
 
 ## Stack
 

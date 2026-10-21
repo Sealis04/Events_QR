@@ -1,6 +1,6 @@
 # builder-1 — m1-core-tokens
 
-**Status:** BLOCKED
+**Status:** PENDING
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -13,7 +13,7 @@ Everything in the repo except: `CLAUDE.md`, `plans/` (other than this file), `IN
 
 ## Tasks
 
-Milestone M1 from `plans/offline-qr-ticketing/plan.md`. Read the spec sections "Ticket token format", "Data model", "Scanner app" (validation algorithm, device setup), "Venue hub and sync protocol" (the claim) and "APIs".
+Milestone M1 from `plans/offline-qr-ticketing/plan.md`. The spec is in the repo at `docs/spec.md` (do not use the artifact link). Read its sections "Ticket token format", "Data model", "Scanner app" (validation algorithm, device setup), "Venue hub and sync protocol" (the claim) and "APIs".
 
 1. **Scaffold.** bun workspaces: `packages/core`, `apps/web`, `apps/worker` (empty placeholders with package.json for web and worker), `docker/`. TypeScript strict with project references, ESLint + Prettier, Vitest. Root scripts `lint`, `test`, and `typecheck` (`tsc --noEmit`). `.gitignore` (node_modules, .next, .env*, !.env.demo). `.env.demo` with placeholder DB settings. `docker/compose.dev.yml` running MariaDB 11.
 2. **`scripts/ccr-session-init.sh`.** Idempotent: `bun install`; start MariaDB if `mariadbd` exists and isn't running; write `.env` from `.env.demo` if missing. No SQL Server, no Prisma.
@@ -22,7 +22,7 @@ Milestone M1 from `plans/offline-qr-ticketing/plan.md`. Read the spec sections "
 5. **Rule helpers** (`packages/core/src/rules`). entry_rule encode/decode (mode in top 2 bits, max admits in low 6), gate_mask from gate indexes and back, slot minute conversion, and pure functions `checkEntry(payload, ctx)` (gate and slot checks) and `decideClaim(state, scan)` / `decideExit(state, scan)` implementing the hub claim and the offline rules (inside flag, admits_used vs max, single-entry exits).
 6. **Drizzle schema** (`packages/core/src/db`). Tables: events, gates, ticket_types (with `issued` counter, capacity, early-entry minutes), tickets (incl. nonce, admits_used, inside, status, issued_by, holder fields), devices, enrolment_codes, scans (append-only, client-generated id, direction, result, conflict, offline), email_queue, staff. A MariaDB schema and an SQLite schema built from shared column definitions; migrations generated for both.
 7. **Zod schemas** (`packages/core/src/api`) for every server and hub endpoint in the spec's API tables (request + response).
-8. **Tests.** Test vectors for: round-trip; tampered byte (ciphertext and tag); wrong event key; wrong signing key; wrong event_id; gate not allowed; before slot / after slot; unknown key_id. Assert the encoded token is 185–195 characters. Unit tests for every rule helper, including the re-entry cases (single, unlimited, limited N; exit needed before re-entry). A test that migrations apply to SQLite (in memory).
+8. **Tests.** Test vectors for: round-trip; tampered byte (ciphertext and tag); wrong event key; wrong signing key; wrong event_id; gate not allowed; before slot / after slot; unknown key_id. Assert the encoded token is 194 characters including the `EVT1:` prefix (189 Base45 chars). Unit tests for every rule helper, including the re-entry cases (single, unlimited, limited N; exit needed before re-entry). A test that migrations apply to SQLite (in memory).
 
 ## Done when
 
@@ -41,14 +41,4 @@ Conflicts resolved: (none)
 
 ## Blocker
 
-The spec artifact (https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) has no readable content. Reading it with the Artifact tool (read, and read of `index.html`) returns only the Docs viewer shell titled "Claude Docs"; the 84 published files are the viewer's JS/fonts, with no spec text. The spec body is probably held in the Claude Docs connector, which this routine cannot reach.
-
-The tasks depend on spec sections I cannot see:
-- "APIs": the server and hub endpoint tables (task 7, Zod schemas for every endpoint).
-- "Data model": exact columns and constraints (task 6).
-- "Venue hub and sync protocol": the claim/exit SQL and the conflict rules (task 5).
-- "Scanner app": the validation order and device setup (tasks 4, 5).
-
-The token layout (task 3) can be derived from the inbox (34 B = 1+4+16+1+4+1+1+2+2+2, giving 194 chars with the `EVT1:` prefix), but guessing the other parts risks drift in formats that later milestones depend on.
-
-Needed from the planner: put the spec's text in the repo (e.g. `docs/spec.md`) or into this inbox file, then set Status back to PENDING and fire builder-1. No code was written.
+(none) — resolved 2026-10-21 by the planner: spec exported to `docs/spec.md`.
