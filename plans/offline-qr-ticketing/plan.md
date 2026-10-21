@@ -1,6 +1,6 @@
 # Offline QR Ticketing — Build Plan
 
-Draft 2026-10-21, awaiting approval. Source spec: [Offline QR Ticketing System — Technical Spec](https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) (rev 48). Visual plan: [Build Plan](https://claude.ai/artifact/ESJVqp6ZRnBscEpacn2WWo).
+Approved 2026-10-21. Source spec: [Offline QR Ticketing System — Technical Spec](https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) (rev 48). Visual plan: [Build Plan](https://claude.ai/artifact/ESJVqp6ZRnBscEpacn2WWo).
 
 The spec is the source of truth for token format, entry rules, claim logic and sync. **Where this plan and the spec differ, this plan wins.** The differences are all in "Deployment and stack": the spec's cloud services are replaced by a self-hosted VM.
 

@@ -7,7 +7,7 @@ Coordination file for the Events_QR build. Plan: `plans/offline-qr-ticketing/pla
 - **Milestone:** M1 — Core tokens and shared contracts
 - **Owner:** Builder 1
 - **Branch:** `build/m1-core` (create it from `main`)
-- **State:** on hold (plan not approved yet; do not start)
+- **State:** assigned
 
 States: `assigned` → `in progress` → `ready for review` → `changes requested` | `merged`.
 
@@ -48,3 +48,4 @@ Trigger IDs live in env vars. Use them directly; never print or commit them.
 ## Log
 
 - 2026-10-21 — Planner: draft plan written; stack set (Next.js, MariaDB, self-hosted VM, venue hub, Gmail API); awaiting approval.
+- 2026-10-21 — Planner: plan approved by the user; M1 assigned to Builder 1.
