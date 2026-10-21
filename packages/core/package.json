@@ -1,0 +1,23 @@
+{
+  "name": "@events-qr/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate --config drizzle.mysql.config.ts && drizzle-kit generate --config drizzle.sqlite.config.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.38.3",
+    "libsodium-wrappers": "0.7.15",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/libsodium-wrappers": "^0.7.14",
+    "better-sqlite3": "^11.7.0",
+    "drizzle-kit": "^0.30.1"
+  }
+}

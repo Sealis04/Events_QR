@@ -1,6 +1,6 @@
 # Offline QR Ticketing — Build Plan
 
-Approved 2026-10-21. Source spec: [Offline QR Ticketing System — Technical Spec](https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) (rev 48). Visual plan: [Build Plan](https://claude.ai/artifact/ESJVqp6ZRnBscEpacn2WWo).
+Approved 2026-10-21. Source spec: `docs/spec.md`, exported from [the Claude Docs spec](https://claude.ai/artifact/FWS1zsJVNcFkvLe8wwf2Q7) (rev 48). Visual plan: [Build Plan](https://claude.ai/artifact/ESJVqp6ZRnBscEpacn2WWo).
 
 The spec is the source of truth for token format, entry rules, claim logic and sync. **Where this plan and the spec differ, this plan wins.** The differences are all in "Deployment and stack": the spec's cloud services are replaced by a self-hosted VM.
 
@@ -36,11 +36,12 @@ No cloud services. Everything is self-hosted.
 
 ## Team and loop
 
-- **Builder 1** builds every milestone, one at a time, on a branch `build/mN-<slug>` off `main`.
-- **Reviewer** checks each milestone against its "Done when" and this plan. It either requests changes (wakes Builder 1 with fixes) or merges to `main`, advances `INBOX.md` to the next milestone, and wakes Builder 1.
-- **Planner** writes this plan and `INBOX.md` and fires Builder 1 for M1. It is not in the loop after that unless scope changes.
+Follows the Agent Team Protocol in `CLAUDE.md`, using the existing Builder 1 and Reviewer Routines.
 
-Coordination lives in `INBOX.md` on `main`. Agents wake each other through their Routines (trigger IDs are in env vars `BUILDER1_TRIGGER_ID` and `REVIEWER_TRIGGER_ID`; never print or commit them).
+- Each milestone gets a feature branch `mN-<slug>` from `main`, with its tasks in `plans/<branch>/inbox/builder-1.md`.
+- **Builder 1** builds the milestone on that branch, then fires the Reviewer.
+- **Reviewer** either fires Builder 1 with fix requests, or approves and opens a PR to `main`.
+- **Planner** then sets up the next milestone's branch and fires Builder 1.
 
 ## Repo layout (set up in M1)
 
@@ -51,12 +52,12 @@ apps/worker     email queue, sync loops, retention job
 docker/         compose files for the VM and the hub
 ```
 
-pnpm workspaces, TypeScript strict, Vitest, ESLint + Prettier. `docker compose up` runs MariaDB locally for development.
+bun workspaces, TypeScript strict, Vitest, ESLint + Prettier. `docker compose up` runs MariaDB locally for development.
 
 ## Milestones
 
 ### M1 — Core tokens and shared contracts (`packages/core`)
-- Monorepo scaffold and a check script (`pnpm lint && pnpm typecheck && pnpm test`).
+- Monorepo scaffold and a check script (`bun run lint`, `bunx tsc --noEmit`, `bun run test`).
 - Token lib: the spec's 34-byte payload; Ed25519 sign; AES-256-GCM with aad `EVT1`; Base45; `EVT1:` prefix. Runs in Node and browsers.
 - `DEV1:` setup-QR codec (event id, one-time code, hub URL; no keys).
 - Helpers: entry_rule encode/decode, gate_mask, slot minutes; pure claim/exit decision functions shared by the hub and the offline scanner.

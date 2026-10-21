@@ -1,0 +1,8 @@
+node_modules
+dist
+bun.lock
+plans
+docs
+packages/core/drizzle
+INBOX.md
+CLAUDE.md
