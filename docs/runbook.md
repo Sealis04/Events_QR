@@ -12,27 +12,27 @@ Print this page and tick the boxes with a pen. It is written for the event team 
 
 **What the phone's top-right pill means** (it also shows how many scans are still waiting to be sent, for example `Hub · 0 queued`)
 
-| Pill                 | Meaning                                                      | What you do                                                              |
-| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| **Hub** (green)      | The hub answered. Normal.                                    | Nothing.                                                                 |
-| **Cloud-only** (blue)| The hub did not answer in time; the VM did. Safe, but the hub is not seeing this phone's scans live. | Tell the supervisor. Check the phone's Wi-Fi and the hub. |
-| **Offline** (orange) | Neither answered. The phone still admits by itself and shows an orange `OFFLINE` bar; scans are saved on the phone and sent later. | Tell the supervisor. Fix the connection (see "During the event"). |
+| Pill                  | Meaning                                                                                                                            | What you do                                                       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Hub** (green)       | The hub answered. Normal.                                                                                                          | Nothing.                                                          |
+| **Cloud-only** (blue) | The hub did not answer in time; the VM did. Safe, but the hub is not seeing this phone's scans live.                               | Tell the supervisor. Check the phone's Wi-Fi and the hub.         |
+| **Offline** (orange)  | Neither answered. The phone still admits by itself and shows an orange `OFFLINE` bar; scans are saved on the phone and sent later. | Tell the supervisor. Fix the connection (see "During the event"). |
 
 **What the phone screen means**
 
-| Screen                                                       | Meaning                                              | What you do                                                              |
-| ------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------ |
-| Green, holder's name, `Entry 1 of 3`                         | Admitted. It clears by itself after 1.5 seconds.     | Wave them through.                                                       |
-| Blue, `Exit recorded`                                        | Exit logged. Clears by itself.                       | Nothing.                                                                 |
-| Grey, `No re-entry on this ticket`                           | A single-entry ticket was scanned at an exit.        | Tell them they cannot come back in.                                      |
-| Red, `Already used` / `Already inside`                       | The ticket was already admitted. The screen says where and when. | Do not admit. See "Already used" below.                    |
-| Red, `Use Gate B` (or other gate names)                      | Wrong gate for this ticket.                          | Send them to the gate named on the screen.                               |
-| Red, `Too early – slot starts 18:00` / `Slot ended at 22:00` | Outside the ticket's time slot.                      | Ask them to come back at the time shown, or call the supervisor.         |
-| Red, `Cancelled`                                             | The ticket was cancelled.                            | Do not admit. Call the supervisor.                                       |
-| Red, `Invalid / forged`, `Not an event ticket`, `Wrong event`| The code is not a real ticket for this event.        | Do not admit. Call the supervisor.                                       |
-| Amber, `Valid signature, not in list – call supervisor`      | A real ticket that was made after this phone last updated. | Call the supervisor (see "Amber").                                 |
-| Red, `Not allowed offline here`                              | The phone is offline and the event only lets offline phones admit tickets limited to this gate. | Call the supervisor. |
-| Orange, `No connection`                                      | The ticket was **not** checked.                      | Scan again when the pill is green or blue; call the supervisor if it stays orange. |
+| Screen                                                        | Meaning                                                                                         | What you do                                                                        |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Green, holder's name, `Entry 1 of 3`                          | Admitted. It clears by itself after 1.5 seconds.                                                | Wave them through.                                                                 |
+| Blue, `Exit recorded`                                         | Exit logged. Clears by itself.                                                                  | Nothing.                                                                           |
+| Grey, `No re-entry on this ticket`                            | A single-entry ticket was scanned at an exit.                                                   | Tell them they cannot come back in.                                                |
+| Red, `Already used` / `Already inside`                        | The ticket was already admitted. The screen says where and when.                                | Do not admit. See "Already used" below.                                            |
+| Red, `Use Gate B` (or other gate names)                       | Wrong gate for this ticket.                                                                     | Send them to the gate named on the screen.                                         |
+| Red, `Too early – slot starts 18:00` / `Slot ended at 22:00`  | Outside the ticket's time slot.                                                                 | Ask them to come back at the time shown, or call the supervisor.                   |
+| Red, `Cancelled`                                              | The ticket was cancelled.                                                                       | Do not admit. Call the supervisor.                                                 |
+| Red, `Invalid / forged`, `Not an event ticket`, `Wrong event` | The code is not a real ticket for this event.                                                   | Do not admit. Call the supervisor.                                                 |
+| Amber, `Valid signature, not in list – call supervisor`       | A real ticket that was made after this phone last updated.                                      | Call the supervisor (see "Amber").                                                 |
+| Red, `Not allowed offline here`                               | The phone is offline and the event only lets offline phones admit tickets limited to this gate. | Call the supervisor.                                                               |
+| Orange, `No connection`                                       | The ticket was **not** checked.                                                                 | Scan again when the pill is green or blue; call the supervisor if it stays orange. |
 
 Red and amber screens stay until you tap them.
 
@@ -127,16 +127,16 @@ Do this with internet, at the office or at the venue.
 
 ## During the event: when something fails
 
-| What happened                              | What you see                                                                                                 | What to do                                                                                                                                                     |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Internet down**                          | Nothing on the phones. On the hub, `last_cloud_sync_at` stops moving.                                         | Do nothing. Entry and exit continue. New tickets made on the VM show amber until the internet is back.                                                         |
-| **Hub down** (box off, crashed, unplugged) | Phone pills turn **Cloud-only** (blue) if the VM is reachable, otherwise **Offline** (orange). Scans slow by up to a second. The hub dashboard does not open. | Check the hub's power and network cable. If it does not come back in a few minutes, switch on the **standby hub**: see "Standby hub" below. Phones keep admitting meanwhile. |
-| **One access point down**                  | Phones at that gate turn **Offline** (orange) with an `OFFLINE` bar. They admit by themselves. The **Devices** row goes red. | Restart or replace the access point. Small chance of the same ticket being admitted at two gates before everyone is back online; the **Conflicts** tab shows it after. |
-| **A phone dies**                           | Its row on **Devices** turns red. Scans it had not sent yet stay safe on the phone.                           | Give the gate a spare phone (set up with a printed code or **Move** a phone). Charge the dead phone. When it turns on and gets a connection, it sends its scans. |
-| **A code will not scan**                   | The camera does not find the code, or shows `Invalid / forged`.                                              | Better light, hold still, wipe the screen, brighten the sender's screen. Then **Manual search** by name or the last 6 characters, and admit by hand.            |
-| **A phone is lost or stolen**              | —                                                                                                             | Supervisor: **Devices** tab, find the phone, press **Revoke and rotate**, confirm. The phone stops working at once. Everyone on the event (you too) must choose a new PIN the next time they log in. See below. |
-| **Phone shows Cloud-only for a while**     | Blue pill.                                                                                                    | The hub is not answering this phone: check the phone's Wi-Fi name, the signal at that gate, then the hub.                                                       |
-| **Phone shows "Staff login" suddenly**     | Login page.                                                                                                   | Log in again. If login fails with a new PIN message, a "Revoke and rotate" happened: choose a new PIN on the dashboard first.                                    |
+| What happened                              | What you see                                                                                                                                                  | What to do                                                                                                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Internet down**                          | Nothing on the phones. On the hub, `last_cloud_sync_at` stops moving.                                                                                         | Do nothing. Entry and exit continue. New tickets made on the VM show amber until the internet is back.                                                                                                          |
+| **Hub down** (box off, crashed, unplugged) | Phone pills turn **Cloud-only** (blue) if the VM is reachable, otherwise **Offline** (orange). Scans slow by up to a second. The hub dashboard does not open. | Check the hub's power and network cable. If it does not come back in a few minutes, switch on the **standby hub**: see "Standby hub" below. Phones keep admitting meanwhile.                                    |
+| **One access point down**                  | Phones at that gate turn **Offline** (orange) with an `OFFLINE` bar. They admit by themselves. The **Devices** row goes red.                                  | Restart or replace the access point. Small chance of the same ticket being admitted at two gates before everyone is back online; the **Conflicts** tab shows it after.                                          |
+| **A phone dies**                           | Its row on **Devices** turns red. Scans it had not sent yet stay safe on the phone.                                                                           | Give the gate a spare phone (set up with a printed code or **Move** a phone). Charge the dead phone. When it turns on and gets a connection, it sends its scans.                                                |
+| **A code will not scan**                   | The camera does not find the code, or shows `Invalid / forged`.                                                                                               | Better light, hold still, wipe the screen, brighten the sender's screen. Then **Manual search** by name or the last 6 characters, and admit by hand.                                                            |
+| **A phone is lost or stolen**              | —                                                                                                                                                             | Supervisor: **Devices** tab, find the phone, press **Revoke and rotate**, confirm. The phone stops working at once. Everyone on the event (you too) must choose a new PIN the next time they log in. See below. |
+| **Phone shows Cloud-only for a while**     | Blue pill.                                                                                                                                                    | The hub is not answering this phone: check the phone's Wi-Fi name, the signal at that gate, then the hub.                                                                                                       |
+| **Phone shows "Staff login" suddenly**     | Login page.                                                                                                                                                   | Log in again. If login fails with a new PIN message, a "Revoke and rotate" happened: choose a new PIN on the dashboard first.                                                                                   |
 
 **Lost or stolen phone: step by step**
 
@@ -183,15 +183,15 @@ Do this with internet, at the office or at the venue.
 - **Blue** (`Exit recorded`): let them out.
 - **Anything red, grey or amber stays on the screen until you tap it.**
 
-| Screen                                     | You say / do                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------- |
-| Red `Use Gate B`                           | "Please use Gate B."                                                            |
-| Red `Too early` / `Slot ended`             | "Your time starts at …" or call the supervisor.                                 |
-| Red `Already used` / `Already inside`      | Do **not** admit. Call the supervisor.                                          |
-| Red `Cancelled` / `Invalid / forged`       | Do **not** admit. Call the supervisor.                                          |
-| Amber `not in list – call supervisor`      | Call the supervisor. They enter their own PIN.                                  |
-| Grey `No re-entry on this ticket`          | "This ticket does not allow coming back in."                                    |
-| Orange `No connection`                     | Scan again. If it stays, call the supervisor.                                   |
+| Screen                                | You say / do                                    |
+| ------------------------------------- | ----------------------------------------------- |
+| Red `Use Gate B`                      | "Please use Gate B."                            |
+| Red `Too early` / `Slot ended`        | "Your time starts at …" or call the supervisor. |
+| Red `Already used` / `Already inside` | Do **not** admit. Call the supervisor.          |
+| Red `Cancelled` / `Invalid / forged`  | Do **not** admit. Call the supervisor.          |
+| Amber `not in list – call supervisor` | Call the supervisor. They enter their own PIN.  |
+| Grey `No re-entry on this ticket`     | "This ticket does not allow coming back in."    |
+| Orange `No connection`                | Scan again. If it stays, call the supervisor.   |
 
 **Code will not scan?** Better light, hold still, clean the screen. Then press **Manual search**, type the name or the last 6 characters under the code, tap the person, and call the supervisor to enter their PIN.
 

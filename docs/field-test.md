@@ -32,18 +32,18 @@ On a computer that can reach the dev or staging VM (the same folder as `.env`):
 
 The 50 tickets:
 
-| Scenario (printed on the sheet) | How many | Ticket type          | What it tests                                                                  |
-| ------------------------------- | -------- | -------------------- | ------------------------------------------------------------------------------ |
-| `single`                        | 21       | General (single entry) | Normal entry once, then `Already inside`; exit then gives grey `No re-entry`. |
-| `cancelled`                     | 1        | General              | Red `Cancelled`.                                                               |
-| `transfer-old`                  | 1        | General              | Cancelled by a transfer: red `Cancelled`.                                      |
-| `transfer-new`                  | 1        | General              | The new holder's ticket: green.                                                |
+| Scenario (printed on the sheet) | How many | Ticket type                | What it tests                                                                                   |
+| ------------------------------- | -------- | -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `single`                        | 21       | General (single entry)     | Normal entry once, then `Already inside`; exit then gives grey `No re-entry`.                   |
+| `cancelled`                     | 1        | General                    | Red `Cancelled`.                                                                                |
+| `transfer-old`                  | 1        | General                    | Cancelled by a transfer: red `Cancelled`.                                                       |
+| `transfer-new`                  | 1        | General                    | The new holder's ticket: green.                                                                 |
 | `reentry-3`                     | 8        | Re-entry (up to 3 entries) | `Entry 1 of 3`, exit, `Entry 2 of 3`… then the third exit and fourth entry: red `Already used`. |
-| `unlimited`                     | 6        | VIP (unlimited re-entry) | Many in and out cycles.                                                    |
-| `gate-b-only`                   | 6        | Gate B only          | Green at Gate B; red `Use Gate B` at Gate A.                                   |
-| `slot-open`                     | 3        | Timed                | Green now (its slot is open).                                                  |
-| `slot-early`                    | 2        | Timed                | Red `Too early – slot starts …`.                                               |
-| `slot-ended`                    | 1        | Timed                | Red `Slot ended at …`.                                                         |
+| `unlimited`                     | 6        | VIP (unlimited re-entry)   | Many in and out cycles.                                                                         |
+| `gate-b-only`                   | 6        | Gate B only                | Green at Gate B; red `Use Gate B` at Gate A.                                                    |
+| `slot-open`                     | 3        | Timed                      | Green now (its slot is open).                                                                   |
+| `slot-early`                    | 2        | Timed                      | Red `Too early – slot starts …`.                                                                |
+| `slot-ended`                    | 1        | Timed                      | Red `Slot ended at …`.                                                                          |
 
 The seed also makes the sheet's cancelled and transferred tickets for you, so you do not need to cancel or transfer anything by hand.
 
@@ -61,33 +61,33 @@ For each row: scan the ticket, read the screen, write down what the screen said,
 
 Copy this table onto paper. Add rows for each condition you try (cracked phone, dim, paper, screenshot, glare).
 
-| #   | Scenario and condition                                               | Gate / phone      | Expected screen                                          | Actual screen | Time to result | Pass / fail |
-| --- | -------------------------------------------------------------------- | ----------------- | -------------------------------------------------------- | ------------- | -------------- | ----------- |
-| 1   | `single`, paper, good light                                          | Gate A, Entry     | Green, name, type                                        |               |                |             |
-| 2   | Same ticket again                                                    | Gate A, Entry     | Red `Already inside`, with gate and time                 |               |                |             |
-| 3   | Same ticket at the other gate                                        | Gate B, Entry     | Red `Already inside`                                     |               |                |             |
-| 4   | Same ticket at Exit                                                  | Exit              | Grey `No re-entry on this ticket`                        |               |                |             |
-| 5   | `single`, on a phone screen, dim                                     | Gate A, Entry     | Green                                                    |               |                |             |
-| 6   | `single`, on a cracked phone screen                                  | Gate A, Entry     | Green                                                    |               |                |             |
-| 7   | `single`, paper, small print                                         | Gate B, Entry     | Green                                                    |               |                |             |
-| 8   | `single`, paper, in glare or bright sun                              | Gate B, Entry     | Green (or note how it failed and what staff did)         |               |                |             |
-| 9   | `reentry-3`: entry, exit, entry                                      | Gate A, then Exit | Green `Entry 1 of 3`; blue `Exit recorded`; green `Entry 2 of 3` |      |                |             |
-| 10  | `reentry-3`: second exit, third entry, fourth entry                   | Exit, Gate A      | Blue; green `Entry 3 of 3`; (exit) then red `Already used` |             |                |             |
-| 11  | `unlimited`: five entry/exit cycles                                  | Entry and exit    | Green / blue each time                                   |               |                |             |
-| 12  | `gate-b-only` at Gate A                                              | Gate A, Entry     | Red `Use Gate B`                                         |               |                |             |
-| 13  | `gate-b-only` at Gate B                                              | Gate B, Entry     | Green                                                    |               |                |             |
-| 14  | `slot-open`                                                          | Gate A, Entry     | Green                                                    |               |                |             |
-| 15  | `slot-early`                                                         | Gate A, Entry     | Red `Too early – slot starts …`                          |               |                |             |
-| 16  | `slot-ended`                                                         | Gate A, Entry     | Red `Slot ended at …`                                    |               |                |             |
-| 17  | `cancelled`                                                          | Gate A, Entry     | Red `Cancelled`                                          |               |                |             |
-| 18  | `transfer-old`                                                       | Gate A, Entry     | Red `Cancelled`                                          |               |                |             |
-| 19  | `transfer-new`                                                       | Gate A, Entry     | Green                                                    |               |                |             |
-| 20  | A QR code from some other source (a web link, a shop code)           | Gate A, Entry     | Red `Not an event ticket`                                |               |                |             |
-| 21  | A ticket of another event (from another test event, if you have one) | Gate A, Entry     | Red `Wrong event`                                        |               |                |             |
-| 22  | A ticket made **after** the phone last updated (make one on the VM and scan within 10 seconds, with the hub's uplink unplugged) | Gate A, Entry | Amber `Valid signature, not in list – call supervisor` |  |  |  |
-| 23  | Supervisor override of #22                                           | Gate A, Entry     | Green `Override by supervisor`; the override shows under **Attendees & overrides** |  |  |  |
-| 24  | Code that will not scan; **Manual search** by last 6 characters and admit with a supervisor PIN | Gate A | Green; logged as an override |  |  |  |
-| 25  | Remaining tickets: scan each once, mixed gates and phones            | any               | As the printed scenario says                             |               |                |             |
+| #   | Scenario and condition                                                                                                          | Gate / phone      | Expected screen                                                                    | Actual screen | Time to result | Pass / fail |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------- | ------------- | -------------- | ----------- |
+| 1   | `single`, paper, good light                                                                                                     | Gate A, Entry     | Green, name, type                                                                  |               |                |             |
+| 2   | Same ticket again                                                                                                               | Gate A, Entry     | Red `Already inside`, with gate and time                                           |               |                |             |
+| 3   | Same ticket at the other gate                                                                                                   | Gate B, Entry     | Red `Already inside`                                                               |               |                |             |
+| 4   | Same ticket at Exit                                                                                                             | Exit              | Grey `No re-entry on this ticket`                                                  |               |                |             |
+| 5   | `single`, on a phone screen, dim                                                                                                | Gate A, Entry     | Green                                                                              |               |                |             |
+| 6   | `single`, on a cracked phone screen                                                                                             | Gate A, Entry     | Green                                                                              |               |                |             |
+| 7   | `single`, paper, small print                                                                                                    | Gate B, Entry     | Green                                                                              |               |                |             |
+| 8   | `single`, paper, in glare or bright sun                                                                                         | Gate B, Entry     | Green (or note how it failed and what staff did)                                   |               |                |             |
+| 9   | `reentry-3`: entry, exit, entry                                                                                                 | Gate A, then Exit | Green `Entry 1 of 3`; blue `Exit recorded`; green `Entry 2 of 3`                   |               |                |             |
+| 10  | `reentry-3`: second exit, third entry, fourth entry                                                                             | Exit, Gate A      | Blue; green `Entry 3 of 3`; (exit) then red `Already used`                         |               |                |             |
+| 11  | `unlimited`: five entry/exit cycles                                                                                             | Entry and exit    | Green / blue each time                                                             |               |                |             |
+| 12  | `gate-b-only` at Gate A                                                                                                         | Gate A, Entry     | Red `Use Gate B`                                                                   |               |                |             |
+| 13  | `gate-b-only` at Gate B                                                                                                         | Gate B, Entry     | Green                                                                              |               |                |             |
+| 14  | `slot-open`                                                                                                                     | Gate A, Entry     | Green                                                                              |               |                |             |
+| 15  | `slot-early`                                                                                                                    | Gate A, Entry     | Red `Too early – slot starts …`                                                    |               |                |             |
+| 16  | `slot-ended`                                                                                                                    | Gate A, Entry     | Red `Slot ended at …`                                                              |               |                |             |
+| 17  | `cancelled`                                                                                                                     | Gate A, Entry     | Red `Cancelled`                                                                    |               |                |             |
+| 18  | `transfer-old`                                                                                                                  | Gate A, Entry     | Red `Cancelled`                                                                    |               |                |             |
+| 19  | `transfer-new`                                                                                                                  | Gate A, Entry     | Green                                                                              |               |                |             |
+| 20  | A QR code from some other source (a web link, a shop code)                                                                      | Gate A, Entry     | Red `Not an event ticket`                                                          |               |                |             |
+| 21  | A ticket of another event (from another test event, if you have one)                                                            | Gate A, Entry     | Red `Wrong event`                                                                  |               |                |             |
+| 22  | A ticket made **after** the phone last updated (make one on the VM and scan within 10 seconds, with the hub's uplink unplugged) | Gate A, Entry     | Amber `Valid signature, not in list – call supervisor`                             |               |                |             |
+| 23  | Supervisor override of #22                                                                                                      | Gate A, Entry     | Green `Override by supervisor`; the override shows under **Attendees & overrides** |               |                |             |
+| 24  | Code that will not scan; **Manual search** by last 6 characters and admit with a supervisor PIN                                 | Gate A            | Green; logged as an override                                                       |               |                |             |
+| 25  | Remaining tickets: scan each once, mixed gates and phones                                                                       | any               | As the printed scenario says                                                       |               |                |             |
 
 By the end every one of the 50 tickets has been scanned at least once, and every phone has done at least five scans. Leave 2 or 3 tickets unscanned until the drills in section 5, to use during them.
 
@@ -149,4 +149,4 @@ All of these must be true. Write the date, the people, and any exceptions at the
 - [ ] The hub's certificate expiry date is more than 30 days away, and `hub.example.org` resolves with the uplink unplugged.
 - [ ] The test event's scans, tickets and staff were removed, or kept clearly apart from the real event (the real event is a different event).
 
-Signed off by: ______________________  Date: ____________  Notes: ______________________________________________
+Signed off by: ______________________ Date: ____________ Notes: ______________________________________________

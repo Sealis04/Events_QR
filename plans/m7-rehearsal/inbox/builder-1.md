@@ -1,6 +1,6 @@
 # builder-1 — m7-rehearsal
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -34,9 +34,9 @@ The runbook and field test cover every item above, every named button/command ma
 
 ## Summary for reviewer
 
-Files changed:
-What was done:
-What to check:
+Files changed: `docs/runbook.md` (new), `docs/field-test.md` (new), `scripts/rehearsal-seed.ts` (new), `apps/web/test/rehearsal-seed.test.ts` (new), `docs/deploy-hub.md` (Offline pill row was stale: phones now decide alone offline; link to the runbook).
+What was done: (1) Runbook as `- [ ]` checklist T-7 d to after the event, pill and screen tables, failure table, lost-phone and standby steps, two quick cards. (2) Field test: setup, the 50-ticket mix, 25-row results table, five offline drills plus lost-phone drill, shared-screenshot test, go-live criteria. (3) Seed script creates "Dress rehearsal" (Gate A/B, 5 types, 50 tickets incl. cancelled and transfer old/new) and writes an HTML sheet; `--yes` required; refuses when target (`--target-url` or `PUBLIC_URL`) equals `PRODUCTION_URL`; needs an existing admin; idempotent (fixed idempotency keys, slots as fixed offsets from doors-open). (4) Labels in the docs were checked against the source of the scanner and dashboard tabs.
+What to check: Not walked in a browser, only against source and the seed run on the dev DB (sheet had 50 figures and was byte-identical on re-run). The "forced pull" in the docs is `docker compose ... restart worker` (the worker pulls at start); there is no dedicated command. The script selects whole tables and filters in JS because `drizzle-orm` is not resolvable from `scripts/`. `slot-early` tickets stay too early only for about 5 days after the event is created. Field-test drill claims (e.g. conflict on two offline gates) follow the spec and hub sync rules but were not run on hardware.
 Conflicts resolved: (none)
 
 ## Fix requests
