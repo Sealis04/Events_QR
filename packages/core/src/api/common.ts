@@ -42,6 +42,8 @@ export const syncTicket = z.object({
   inside: z.boolean(),
   status: ticketStatus,
   updated_at: unixSeconds,
+  /** Set once the ticket is cancelled; the hub needs it to flag offline admits after that moment. */
+  cancelled_at: unixSeconds.nullable().optional(),
 });
 export type SyncTicket = z.infer<typeof syncTicket>;
 

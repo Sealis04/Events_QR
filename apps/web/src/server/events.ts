@@ -230,10 +230,16 @@ export async function updateEvent(
       }
       set.gates = input.gates;
     }
-    if (input.venue !== undefined) {
+    if (input.venue !== undefined || input.offline_gate_only !== undefined) {
       const config = { ...(event.config ?? {}) } as Record<string, unknown>;
-      if (input.venue === null || input.venue === "") delete config.venue;
-      else config.venue = input.venue;
+      if (input.venue !== undefined) {
+        if (input.venue === null || input.venue === "") delete config.venue;
+        else config.venue = input.venue;
+      }
+      if (input.offline_gate_only !== undefined) {
+        if (input.offline_gate_only) config.offline_gate_only = true;
+        else delete config.offline_gate_only;
+      }
       set.config = config;
     }
     await tx.update(events).set(set).where(eq(events.id, eventId));

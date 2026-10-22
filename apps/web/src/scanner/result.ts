@@ -1,4 +1,5 @@
 import type { ScanOutcome } from "./pipeline";
+import type { SyncTicket } from "./types";
 
 export type Tone = "green" | "blue" | "grey" | "red" | "amber" | "orange";
 
@@ -10,8 +11,12 @@ export interface ResultView {
   /** Auto-dismiss after this many ms; null = tap to dismiss. */
   dismissMs: number | null;
   /** The amber screen offers a supervisor override. */
-  override?: { ticketId: string; typeName: string };
+  override?: { ticketId: string; typeName: string; stub: SyncTicket };
+  /** Orange banner across the top: the phone decided alone, with no hub and no VM. */
+  banner?: string;
 }
+
+export const OFFLINE_BANNER = "OFFLINE";
 
 const time = (unix: number) =>
   new Date(unix * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -35,6 +40,7 @@ export function resultView(outcome: ScanOutcome): ResultView {
         lines,
         sound: "ok",
         dismissMs: 1500,
+        ...(outcome.offline ? { banner: OFFLINE_BANNER } : {}),
       };
     }
     case "exited":
@@ -49,6 +55,7 @@ export function resultView(outcome: ScanOutcome): ResultView {
         ],
         sound: "exit",
         dismissMs: 1000,
+        ...(outcome.offline ? { banner: OFFLINE_BANNER } : {}),
       };
     case "no_reentry":
       return {
@@ -69,10 +76,17 @@ export function resultView(outcome: ScanOutcome): ResultView {
       }
       return {
         tone: "red",
-        title: outcome.kind === "inside" ? "Already inside" : "Already used",
+        title: outcome.offline
+          ? outcome.kind === "inside"
+            ? "Already inside (offline)"
+            : "No entries left (offline)"
+          : outcome.kind === "inside"
+            ? "Already inside"
+            : "Already used",
         lines,
         sound: "bad",
         dismissMs: null,
+        ...(outcome.offline ? { banner: OFFLINE_BANNER } : {}),
       };
     }
     case "cancelled":
@@ -127,8 +141,23 @@ export function resultView(outcome: ScanOutcome): ResultView {
         sound: "bad",
         dismissMs: null,
         ...(outcome.direction === "entry"
-          ? { override: { ticketId: outcome.ticketId, typeName: outcome.typeName } }
+          ? {
+              override: {
+                ticketId: outcome.ticketId,
+                typeName: outcome.typeName,
+                stub: outcome.stub,
+              },
+            }
           : {}),
+      };
+    case "offline_restricted":
+      return {
+        tone: "red",
+        title: "Not allowed offline here",
+        lines: ["This event only admits tickets limited to this gate while offline."],
+        sound: "bad",
+        dismissMs: null,
+        banner: OFFLINE_BANNER,
       };
     case "no_connection":
       return {

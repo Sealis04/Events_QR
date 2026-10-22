@@ -12,6 +12,8 @@ import {
 import { Camera } from "./Camera";
 import { warmZxing } from "../../scanner/decoder";
 import { AuthError, NetworkError } from "../../scanner/client";
+import { syncCycle } from "../../scanner/cycle";
+import { drainOutbox } from "../../scanner/outbox";
 import { feedback, unlockAudio } from "../../scanner/feedback";
 import { IdbStore } from "../../scanner/idbStore";
 import {
@@ -23,8 +25,8 @@ import {
 } from "../../scanner/pipeline";
 import { resultView, type ResultView, type Tone } from "../../scanner/result";
 import { clientsFor, RoutedClient, type Link } from "../../scanner/routes";
-import { EnrollFailed, enrollFromSetupQr, syncFromBest } from "../../scanner/sync";
-import { isSupervisor, loginStaffRouted } from "../../scanner/staff";
+import { EnrollFailed, enrollFromSetupQr } from "../../scanner/sync";
+import { isSupervisor, loginStaffAny } from "../../scanner/staff";
 import type { DeviceRecord, Direction, StaffSession, SyncTicket } from "../../scanner/types";
 
 declare global {
@@ -39,6 +41,10 @@ declare global {
 
 const DEBOUNCE_MS = 3000;
 const SYNC_EVERY_MS = 10_000;
+/** An offline phone beeps this often so a supervisor notices and fixes the link. */
+const OFFLINE_BEEP_MS = 60_000;
+/** With the hub and the VM both down, the VM gets less time per scan so the gate keeps moving. */
+const CLOUD_TIMEOUT_OFFLINE_MS = 1200;
 const STAFF_KEY = "scanner.staff";
 
 const COLORS: Record<Tone, { bg: string; fg: string }> = {
@@ -110,6 +116,8 @@ export function ScannerApp() {
 
   const deviceRef = useRef(device);
   deviceRef.current = device;
+  const linkRef = useRef(link);
+  linkRef.current = link;
   const staffRef = useRef(staff);
   staffRef.current = staff;
   const directionRef = useRef(direction);
@@ -167,28 +175,32 @@ export function ScannerApp() {
     [store],
   );
 
-  // Device pull: ticket changes and settings every 10 s, and when the browser says it is back online.
+  // Background pass every 10 s, and when the browser says it is back online: upload the outbox,
+  // pull ticket changes, wipe on revocation or once the event is over (see scanner/cycle.ts).
   useEffect(() => {
-    if (!device?.synced) return;
+    if (!device?.synced && !device?.ended) return;
     let stopped = false;
     const run = async () => {
       const current = deviceRef.current;
       if (!current || stopped) return;
       try {
-        // The hub first (800 ms), then the VM: the pill says which one answered.
-        const { device: next, link: answered } = await syncFromBest(
-          store,
-          clientsFor(current, { cloudTimeoutMs: 4000 }),
-          () => Math.floor(Date.now() / 1000),
-        );
-        if (!stopped) {
-          setDevice(next);
-          setLink(answered);
-        }
-      } catch (err) {
-        if (err instanceof AuthError)
+        const res = await syncCycle(store, current);
+        if (stopped) return;
+        if (res.kind === "revoked") {
           await wipeDevice("This phone was removed from the event. Set it up again.");
-        else if (!stopped) setLink("offline");
+          return;
+        }
+        if (res.kind === "ended") {
+          setDevice(res.device);
+          setStaff(null);
+          sessionStorage.removeItem(STAFF_KEY);
+          setNotice("The event is over. Keys and ticket lists were removed from this phone.");
+        } else {
+          setDevice(res.device);
+          setLink(res.kind === "ok" ? res.link : "offline");
+        }
+      } catch {
+        if (!stopped) setLink("offline");
       }
       setOutbox(await store.outboxCount().catch(() => 0));
     };
@@ -200,7 +212,14 @@ export function ScannerApp() {
       clearInterval(timer);
       window.removeEventListener("online", run);
     };
-  }, [device?.synced, store, wipeDevice]);
+  }, [device?.synced, device?.ended, store, wipeDevice]);
+
+  // Offline: beep every 60 s (and show the orange banner) so someone notices.
+  useEffect(() => {
+    if (link !== "offline" || !device?.synced) return;
+    const t = setInterval(() => feedback({ sound: "bad" }), OFFLINE_BEEP_MS);
+    return () => clearInterval(t);
+  }, [link, device?.synced]);
 
   const show = useCallback((outcome: ScanOutcome) => {
     const view = resultView(outcome);
@@ -221,7 +240,12 @@ export function ScannerApp() {
     return {
       store,
       // Hub first with an 800 ms limit, retried on every scan; the VM when the hub is silent.
-      client: new RoutedClient(clientsFor(d), setLink),
+      client: new RoutedClient(
+        clientsFor(d, {
+          cloudTimeoutMs: linkRef.current === "offline" ? CLOUD_TIMEOUT_OFFLINE_MS : undefined,
+        }),
+        setLink,
+      ),
       device: d,
       staff: staffRef.current,
       now: () => Math.floor(Date.now() / 1000) + d.clockOffset,
@@ -241,9 +265,17 @@ export function ScannerApp() {
         else setNotice(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         busy.current = false;
+        let queued = await store.outboxCount().catch(() => 0);
+        // A server just answered a scan: send what the phone decided alone straight away.
+        const d = deviceRef.current;
+        if (queued > 0 && d && linkRef.current !== "offline") {
+          await drainOutbox(store, clientsFor(d)).catch(() => undefined);
+          queued = await store.outboxCount().catch(() => queued);
+        }
+        setOutbox(queued);
       }
     },
-    [show, wipeDevice],
+    [show, store, wipeDevice],
   );
 
   const enrol = useCallback(
@@ -304,7 +336,7 @@ export function ScannerApp() {
 
   async function login(name: string, pin: string) {
     const d = deviceRef.current!;
-    const session = await loginStaffRouted(d, name, pin);
+    const session = await loginStaffAny(store, d, name, pin);
     unlockAudio();
     sessionStorage.setItem(STAFF_KEY, JSON.stringify(session));
     setStaff(session);
@@ -350,6 +382,22 @@ export function ScannerApp() {
       )}
       {phase === "scan" && device && staff && (
         <>
+          {link === "offline" && (
+            <div
+              role="status"
+              data-testid="offline-banner"
+              style={{
+                background: COLORS.orange.bg,
+                color: COLORS.orange.fg,
+                padding: "8px 12px",
+                borderRadius: 8,
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              OFFLINE · scans are saved on this phone and uploaded when the link is back
+            </div>
+          )}
           <Header device={device} staff={staff} link={link} outbox={outbox} />
           {device.direction === "both" && (
             <div
@@ -413,13 +461,13 @@ export function ScannerApp() {
           view={result.view}
           onDismiss={() => setResult(null)}
           onOverride={async (name, pin) => {
-            const sup = await loginStaffRouted(deviceRef.current!, name, pin);
+            const sup = await loginStaffAny(store, deviceRef.current!, name, pin);
             if (!isSupervisor(sup)) throw new Error("That account is not a supervisor");
             const dd = deps();
             const ov = result.view.override;
             if (!dd || !ov) return;
             setResult(null);
-            await guard(() => overrideAdmit(dd, ov.ticketId, ov.typeName, sup));
+            await guard(() => overrideAdmit(dd, ov.ticketId, ov.typeName, sup, undefined, ov.stub));
           }}
         />
       )}
@@ -661,6 +709,24 @@ function ResultScreen({
         gap: 8,
       }}
     >
+      {view.banner && (
+        <div
+          data-testid="result-banner"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: "10px 12px",
+            background: COLORS.orange.bg,
+            color: COLORS.orange.fg,
+            fontWeight: 700,
+            letterSpacing: 2,
+          }}
+        >
+          {view.banner}
+        </div>
+      )}
       <h1 data-testid="result-title" style={{ fontSize: 34, margin: 0 }}>
         {view.title}
       </h1>
@@ -817,7 +883,8 @@ function Search({
                 const form = new FormData(e.currentTarget);
                 setError("");
                 try {
-                  const sup = await loginStaffRouted(
+                  const sup = await loginStaffAny(
+                    store,
                     device,
                     String(form.get("name")),
                     String(form.get("pin")),

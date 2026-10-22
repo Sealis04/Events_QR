@@ -1,12 +1,13 @@
 import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { api, bytesToHex, hexToBytes, mysqlSchema } from "@events-qr/core";
+import { api, bytesToHex, hexToBytes, mysqlSchema, replayScans } from "@events-qr/core";
 import type { AppContext } from "./context";
 import type { Db } from "./db";
 import { toBuffer } from "./dbutil";
 import type { AuthedDevice } from "./auth";
 import { loadEvent, loadTypes, scannerTypes } from "./events";
-import { badRequest } from "./http";
+import { badRequest, HttpError } from "./http";
+import { offlineGateOnly } from "./settings";
 
 const { tickets, scans, devices, staff, enrolmentCodes } = mysqlSchema;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -27,6 +28,7 @@ function toSyncTicket(row: TicketRow): z.infer<typeof api.syncTicket> {
     inside: row.inside,
     status: row.status as "valid" | "used_up" | "cancelled",
     updated_at: row.updatedAt,
+    cancelled_at: row.cancelledAt,
   };
 }
 
@@ -64,19 +66,63 @@ export async function syncTickets(
   };
 }
 
+/**
+ * `POST /api/sync/scans` (hub only): the hub's scan upload. Every scan's `device_id` must be a
+ * device of the hub's own event (a phone enrolled there, or the hub itself), so a token that was
+ * never meant to write scans for this event cannot (Sealis04/Events_QR#5).
+ */
 export async function syncScans(
   ctx: AppContext,
   device: AuthedDevice,
   input: z.infer<typeof api.syncScansRequest>,
 ): Promise<z.infer<typeof api.syncScansResponse>> {
+  if (device.kind !== "hub")
+    throw new HttpError(403, "forbidden", "only a venue hub may upload scans in bulk");
   const batch = [...new Map(input.scans.map((s) => [s.scan_id, s])).values()];
+  const deviceIds = [...new Set(batch.map((s) => s.device_id))];
+  const owned = new Set(
+    (
+      await ctx.db
+        .select({ id: devices.id })
+        .from(devices)
+        .where(and(inArray(devices.id, deviceIds), eq(devices.eventId, device.eventId)))
+    ).map((r) => r.id),
+  );
+  const stranger = deviceIds.find((id) => !owned.has(id));
+  if (stranger)
+    throw new HttpError(403, "foreign_device", `device ${stranger} does not belong to this event`);
+  return ingestScans(ctx, device.eventId, batch);
+}
+
+/**
+ * `POST /api/scans` on the VM: a phone uploads the scans it decided offline when it can reach the
+ * VM but not its hub. Only the calling phone's own scans are accepted.
+ */
+export async function uploadPhoneScans(
+  ctx: AppContext,
+  device: AuthedDevice,
+  input: z.infer<typeof api.syncScansRequest>,
+): Promise<z.infer<typeof api.syncScansResponse>> {
+  if (device.kind !== "scanner")
+    throw new HttpError(403, "forbidden", "only a scanner phone may call this");
+  if (input.scans.some((s) => s.device_id !== device.id))
+    throw new HttpError(403, "wrong_device", "device_id mismatch");
+  const batch = [...new Map(input.scans.map((s) => [s.scan_id, s])).values()];
+  return ingestScans(ctx, device.eventId, batch);
+}
+
+async function ingestScans(
+  ctx: AppContext,
+  eventId: number,
+  batch: z.infer<typeof api.scanRecord>[],
+): Promise<z.infer<typeof api.syncScansResponse>> {
   const ticketIds = [...new Set(batch.map((s) => s.ticket_id))];
   const known = await ctx.db
     .select({ id: tickets.id })
     .from(tickets)
     .where(
       and(
-        eq(tickets.eventId, device.eventId),
+        eq(tickets.eventId, eventId),
         inArray(
           tickets.id,
           ticketIds.map((h) => toBuffer(hexToBytes(h))),
@@ -85,7 +131,6 @@ export async function syncScans(
     );
   const knownTickets = new Set(known.map((r) => bytesToHex(r.id)));
 
-  // Scans may come from devices or staff this server has never heard of (enrolled at the hub).
   const deviceIds = [...new Set(batch.map((s) => s.device_id))];
   const staffIds = [...new Set(batch.flatMap((s) => (s.staff_id ? [s.staff_id] : [])))];
   const knownDevices = new Set(
@@ -159,24 +204,22 @@ async function recomputeTicket(ctx: AppContext, tx: Tx, idHexValue: string): Pro
       direction: scans.direction,
       result: scans.result,
       conflict: scans.conflict,
+      offline: scans.offline,
+      scannedAt: scans.scannedAt,
     })
     .from(scans)
     .where(and(eq(scans.ticketId, id), inArray(scans.result, ["admitted", "override", "exited"])))
     .orderBy(asc(scans.scannedAt), asc(scans.id));
 
-  let admits = 0;
-  let inside = false;
-  const conflicted = new Set<string>();
-  for (const row of rows) {
-    if (row.result === "exited") {
-      inside = false;
-    } else if (row.direction === "entry") {
-      const overLimit = ticket.maxAdmits !== null && admits >= ticket.maxAdmits;
-      if (inside || overLimit) conflicted.add(row.id);
-      admits += 1;
-      inside = true;
-    }
-  }
+  const replay = replayScans(
+    rows.map((r) => ({ ...r, direction: r.direction as "entry" | "exit" })),
+    {
+      maxAdmits: ticket.maxAdmits,
+      status: ticket.status as "valid" | "used_up" | "cancelled",
+      cancelledAt: ticket.cancelledAt,
+    },
+  );
+  const { conflicts: conflicted } = replay;
 
   const toFlag = rows.filter((r) => conflicted.has(r.id) && !r.conflict).map((r) => r.id);
   const toClear = rows.filter((r) => !conflicted.has(r.id) && r.conflict).map((r) => r.id);
@@ -185,8 +228,7 @@ async function recomputeTicket(ctx: AppContext, tx: Tx, idHexValue: string): Pro
   if (toClear.length)
     await tx.update(scans).set({ conflict: false }).where(inArray(scans.id, toClear));
 
-  const usedUp = ticket.maxAdmits !== null && admits >= ticket.maxAdmits;
-  const status = ticket.status === "cancelled" ? "cancelled" : usedUp ? "used_up" : "valid";
+  const { admitsUsed: admits, inside, status } = replay;
   if (admits !== ticket.admitsUsed || inside !== ticket.inside || status !== ticket.status) {
     await tx
       .update(tickets)
@@ -203,8 +245,17 @@ export async function syncForDevice(
 ): Promise<z.infer<typeof api.hubSyncResponse>> {
   const page = await syncTickets(ctx, device, { cursor: query.cursor, limit: 1000 });
   const types = await loadTypes(ctx.db, device.eventId);
+  const event = await loadEvent(ctx.db, device.eventId);
+  const staffRows = await ctx.db.select().from(staff);
   return {
     tickets: page.tickets,
+    staff: staffRows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      role: s.role as "staff" | "supervisor" | "admin",
+      pin_hash: s.pinHash,
+    })),
+    settings: { offline_gate_only: offlineGateOnly(event.config) },
     // A revoked device is refused at authentication (401) and wipes itself, so only itself here.
     devices: [
       {

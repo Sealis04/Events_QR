@@ -1,6 +1,12 @@
 import type { z } from "zod";
 import type { api } from "@events-qr/core";
-import type { ClaimResponse, ExitResponse, SyncResponse } from "./types";
+import type {
+  ClaimResponse,
+  ExitResponse,
+  ScanRecord,
+  SyncResponse,
+  UploadResponse,
+} from "./types";
 
 /** The server could not be reached in time (offline, DNS, timeout, 5xx). */
 export class NetworkError extends Error {}
@@ -24,6 +30,8 @@ export interface HubClient {
   claim(body: ClaimBody): Promise<ClaimResponse>;
   exit(body: ExitBody): Promise<ExitResponse>;
   sync(cursor: string | null): Promise<SyncResponse>;
+  /** Uploads scans decided offline (the outbox). Idempotent on `scan_id`. */
+  uploadScans(scans: ScanRecord[]): Promise<UploadResponse>;
   health(): Promise<void>;
 }
 
@@ -73,6 +81,8 @@ export class HttpClient implements HubClient {
   exit = (body: ExitBody) => this.request<ExitResponse>("POST", "/api/exit", body);
   sync = (cursor: string | null) =>
     this.request<SyncResponse>("GET", `/api/sync${cursor ? `?cursor=${cursor}` : ""}`);
+  uploadScans = (scans: ScanRecord[]) =>
+    this.request<UploadResponse>("POST", "/api/scans", { scans });
   health = async () => {
     await this.request("GET", "/api/health");
   };

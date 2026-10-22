@@ -1,7 +1,40 @@
 import { api, decodeSetupCode } from "@events-qr/core";
 import { NetworkError, type HubClient } from "./client";
 import { asked, clientsFor, type Clients, type Link } from "./routes";
-import type { DeviceRecord, ScannerStore } from "./types";
+import type { DeviceRecord, ScannerStore, SyncTicket } from "./types";
+
+/**
+ * A ticket this phone decided offline and has not uploaded yet must not be rolled back by a sync:
+ * the server's copy cannot include that scan. Counters keep the larger value and `inside` stays
+ * what the phone last did; a cancellation still wins (the phone then flags nothing: the server
+ * does when the scan arrives).
+ */
+async function keepPendingState(
+  store: ScannerStore,
+  incoming: SyncTicket[],
+): Promise<SyncTicket[]> {
+  if (incoming.length === 0) return incoming;
+  const pending = await store.pendingTicketIds();
+  if (pending.size === 0) return incoming;
+  return Promise.all(
+    incoming.map(async (t) => {
+      if (!pending.has(t.id)) return t;
+      const local = await store.getTicket(t.id);
+      if (!local) return t;
+      return {
+        ...t,
+        admits_used: Math.max(t.admits_used, local.admits_used),
+        inside: local.inside,
+        status:
+          t.status === "cancelled"
+            ? "cancelled"
+            : local.status === "used_up"
+              ? "used_up"
+              : t.status,
+      } satisfies SyncTicket;
+    }),
+  );
+}
 
 /**
  * Ticket pages until the server says there are no more. `field` names the cursor to use: the hub
@@ -18,13 +51,20 @@ export async function syncAll(
   for (;;) {
     const res = await client.sync(device[field] ?? null);
     const parsed = api.hubSyncResponse.parse(res);
-    await store.putTickets(parsed.tickets);
+    await store.putTickets(await keepPendingState(store, parsed.tickets));
     const mine = parsed.devices.find((d) => d.id === device!.deviceId);
     device = {
       ...device,
       [field]: parsed.next_cursor ?? device[field] ?? null,
       clockOffset: parsed.hub_time - nowLocal(),
       ticketTypes: parsed.ticket_types,
+      staff: parsed.staff.map((s) => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        pinHash: s.pin_hash,
+      })),
+      offlineGateOnly: parsed.settings.offline_gate_only,
       gate: mine?.gate ?? device.gate,
       direction: mine?.direction ?? device.direction,
       synced: parsed.has_more ? device.synced : true,

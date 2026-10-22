@@ -128,5 +128,6 @@ export class RoutedClient implements HubClient {
   claim: HubClient["claim"] = (body) => this.via((c) => c.claim(body));
   exit: HubClient["exit"] = (body) => this.via((c) => c.exit(body));
   sync: HubClient["sync"] = (cursor) => this.via((c) => c.sync(cursor));
+  uploadScans: HubClient["uploadScans"] = (scans) => this.via((c) => c.uploadScans(scans));
   health: HubClient["health"] = () => this.via((c) => c.health());
 }

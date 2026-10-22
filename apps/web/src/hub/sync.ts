@@ -3,9 +3,10 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { api, bytesToHex, hexToBytes, sqliteSchema } from "@events-qr/core";
 import type { AuthedDevice } from "../server/auth";
+import { offlineGateOnly } from "../server/settings";
 import type { HubContext } from "./context";
 
-const { tickets, ticketTypes } = sqliteSchema;
+const { tickets, ticketTypes, staff, events } = sqliteSchema;
 type TicketRow = typeof tickets.$inferSelect;
 
 export function toSyncTicket(row: TicketRow): z.infer<typeof api.syncTicket> {
@@ -23,6 +24,7 @@ export function toSyncTicket(row: TicketRow): z.infer<typeof api.syncTicket> {
     inside: row.inside,
     status: row.status as "valid" | "used_up" | "cancelled",
     updated_at: row.updatedAt,
+    cancelled_at: row.cancelledAt,
   };
 }
 
@@ -60,8 +62,20 @@ export function syncForDevice(
     .where(eq(ticketTypes.eventId, device.eventId))
     .orderBy(asc(ticketTypes.idx))
     .all();
+  const event = ctx.db.select().from(events).where(eq(events.id, device.eventId)).get();
   return {
     tickets: page.map(toSyncTicket),
+    staff: ctx.db
+      .select()
+      .from(staff)
+      .all()
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        role: s.role as "staff" | "supervisor" | "admin",
+        pin_hash: s.pinHash,
+      })),
+    settings: { offline_gate_only: offlineGateOnly(event?.config) },
     // A revoked device is refused at authentication (401) and wipes itself, so only itself here.
     devices: [
       {

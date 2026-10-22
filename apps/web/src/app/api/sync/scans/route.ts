@@ -4,8 +4,9 @@ import { syncScans, syncVmScans } from "../../../../server/sync";
 
 export const dynamic = "force-dynamic";
 
+/** The hub uploads its scans (and those of its phones). Hub tokens only (#5). */
 export const POST = route(
-  { access: "device", body: api.syncScansRequest },
+  { access: "hub", body: api.syncScansRequest },
   async ({ ctx, device, body }) => json(await syncScans(ctx, device, body)),
 );
 

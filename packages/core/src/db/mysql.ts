@@ -115,6 +115,8 @@ export const tickets = mysqlTable(
     status: varchar("status", { length: 16 }).notNull().default("valid"),
     issuedAt: unixCol("issued_at").notNull(),
     updatedAt: unixCol("updated_at").notNull(),
+    /** When the ticket was cancelled; offline admits scanned after this are conflicts. */
+    cancelledAt: unixCol("cancelled_at"),
   },
   (t) => [
     index("ix_tickets_event_updated").on(t.eventId, t.updatedAt, t.id),

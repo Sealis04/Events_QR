@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { resultView } from "../src/scanner/result";
 import type { ScanOutcome } from "../src/scanner/pipeline";
 
+const stub = {
+  id: "ab".repeat(16),
+  event_id: 1,
+  ticket_type: 0,
+  holder_name: null,
+  entry_mode: "single" as const,
+  max_admits: 1,
+  gate_mask: 0,
+  slot_start: null,
+  slot_end: null,
+  admits_used: 0,
+  inside: false,
+  status: "valid" as const,
+  updated_at: 0,
+};
+
 describe("result screens follow the spec table", () => {
   const view = (o: ScanOutcome) => resultView(o);
 
@@ -80,6 +96,7 @@ describe("result screens follow the spec table", () => {
       ticketId: "ab".repeat(16),
       typeName: "GA",
       direction: "entry",
+      stub,
     });
     expect(entry).toMatchObject({
       tone: "amber",
@@ -88,8 +105,13 @@ describe("result screens follow the spec table", () => {
     });
     expect(entry.title).toBe("Valid signature, not in list – call supervisor");
     expect(
-      view({ kind: "unknown_ticket", ticketId: "ab".repeat(16), typeName: "GA", direction: "exit" })
-        .override,
+      view({
+        kind: "unknown_ticket",
+        ticketId: "ab".repeat(16),
+        typeName: "GA",
+        direction: "exit",
+        stub,
+      }).override,
     ).toBeUndefined();
   });
 

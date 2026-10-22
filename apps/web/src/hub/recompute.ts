@@ -7,7 +7,7 @@
  * replayed batches converge. Call inside `immediate()`.
  */
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { hexToBytes, sqliteSchema } from "@events-qr/core";
+import { hexToBytes, replayScans, sqliteSchema } from "@events-qr/core";
 import type { HubContext } from "./context";
 
 const { tickets, scans } = sqliteSchema;
@@ -22,25 +22,23 @@ export function recomputeTicket(ctx: HubContext, ticketIdHex: string): void {
       direction: scans.direction,
       result: scans.result,
       conflict: scans.conflict,
+      offline: scans.offline,
+      scannedAt: scans.scannedAt,
     })
     .from(scans)
     .where(and(eq(scans.ticketId, id), inArray(scans.result, ["admitted", "override", "exited"])))
     .orderBy(asc(scans.scannedAt), asc(scans.id))
     .all();
 
-  let admits = 0;
-  let inside = false;
-  const conflicted = new Set<string>();
-  for (const row of rows) {
-    if (row.result === "exited") {
-      inside = false;
-    } else if (row.direction === "entry") {
-      const overLimit = ticket.maxAdmits !== null && admits >= ticket.maxAdmits;
-      if (inside || overLimit) conflicted.add(row.id);
-      admits += 1;
-      inside = true;
-    }
-  }
+  const replay = replayScans(
+    rows.map((r) => ({ ...r, direction: r.direction as "entry" | "exit" })),
+    {
+      maxAdmits: ticket.maxAdmits,
+      status: ticket.status as "valid" | "used_up" | "cancelled",
+      cancelledAt: ticket.cancelledAt,
+    },
+  );
+  const { conflicts: conflicted } = replay;
 
   const toFlag = rows.filter((r) => conflicted.has(r.id) && !r.conflict).map((r) => r.id);
   const toClear = rows.filter((r) => !conflicted.has(r.id) && r.conflict).map((r) => r.id);
@@ -49,8 +47,7 @@ export function recomputeTicket(ctx: HubContext, ticketIdHex: string): void {
   if (toClear.length)
     ctx.db.update(scans).set({ conflict: false }).where(inArray(scans.id, toClear)).run();
 
-  const usedUp = ticket.maxAdmits !== null && admits >= ticket.maxAdmits;
-  const status = ticket.status === "cancelled" ? "cancelled" : usedUp ? "used_up" : "valid";
+  const { admitsUsed: admits, inside, status } = replay;
   if (admits !== ticket.admitsUsed || inside !== ticket.inside || status !== ticket.status) {
     ctx.db
       .update(tickets)

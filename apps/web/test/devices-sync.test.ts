@@ -9,6 +9,9 @@ import { POST as cancel } from "../src/app/api/tickets/[id]/cancel/route";
 import { POST as enroll } from "../src/app/api/devices/enroll/route";
 import { GET as syncTickets } from "../src/app/api/sync/tickets/route";
 import { POST as syncScans } from "../src/app/api/sync/scans/route";
+import { POST as phoneScans } from "../src/app/api/scans/route";
+import { POST as hubSetup } from "../src/app/api/hubs/setup/route";
+import { POST as hubEnroll } from "../src/app/api/hubs/enroll/route";
 import { fromB64, sha256Hex } from "../src/server/secrets";
 import {
   call,
@@ -67,6 +70,17 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
     const res = await exchange(code, deviceId);
     expect(res.status).toBe(200);
     return { deviceId, token: res.json.device_token as string, bundle: res.json };
+  }
+
+  /** A venue hub's credential for an event, through the real setup-code exchange. */
+  async function enrolHub(forEvent = eventId) {
+    const made = await call(hubSetup, { staff: supervisor, body: { event_id: forEvent } });
+    expect(made.status).toBe(201);
+    const res = await call(hubEnroll, {
+      body: { code: made.json.setup_code, device_id: randomUUID() },
+    });
+    expect(res.status).toBe(200);
+    return res.json.device_token as string;
   }
 
   beforeAll(async () => {
@@ -293,7 +307,9 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
     let token: string;
     let deviceId: string;
     beforeAll(async () => {
-      ({ token, deviceId } = await enrolDevice());
+      // Only a hub may upload scans in bulk (#5); the scans are those of a phone of the event.
+      ({ deviceId } = await enrolDevice());
+      token = await enrolHub();
     });
 
     const scan = (ticketId: string, over: Record<string, unknown> = {}) => ({
@@ -421,11 +437,12 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
       const unknown = scan("ab".repeat(16));
       const alien = scan(foreign.ticket_id);
       const t = (await gen({ ticket_type: 2, holder_name: "Hub phone" }))[0]!;
-      const fromHub = scan(t.ticket_id, { device_id: randomUUID(), staff_id: randomUUID() });
+      const fromHub = scan(t.ticket_id, { staff_id: randomUUID() });
       const res = await upload([unknown, alien, fromHub]);
       expect(res.json.acknowledged).toEqual([fromHub.scan_id]);
       const [row] = await env.handle.db.select().from(scans).where(eq(scans.id, fromHub.scan_id));
-      expect(row).toMatchObject({ deviceId: null, staffId: null });
+      // A staff id the VM has never heard of (enrolled at the hub) is stored as null.
+      expect(row).toMatchObject({ deviceId, staffId: null });
     });
 
     it("keeps a cancelled ticket cancelled when scans arrive", async () => {
@@ -437,6 +454,26 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
         admitsUsed: 1,
         inside: true,
       });
+    });
+
+    it("flags an offline admit scanned after the cancellation, not one scanned before it", async () => {
+      const t = (await gen({ ticket_type: 2, holder_name: "Cancelled while offline" }))[0]!;
+      const before = scan(t.ticket_id, { scanned_at: env.clock.now - 5, offline: true });
+      expect((await upload([before])).json.conflicts).toEqual([]);
+      await call(cancel, { staff: admin, params: { id: t.ticket_id }, body: {} });
+      env.clock.now += 10;
+      const exitBack = scan(t.ticket_id, {
+        direction: "exit",
+        result: "exited",
+        scanned_at: env.clock.now - 8,
+        offline: true,
+      });
+      const after = scan(t.ticket_id, { scanned_at: env.clock.now - 1, offline: true });
+      const res = await upload([exitBack, after]);
+      // Stays admitted (the phone could not know), and is flagged for follow-up.
+      expect(res.json.conflicts).toEqual([after.scan_id]);
+      expect(await state(t.ticket_id)).toMatchObject({ status: "cancelled", inside: true });
+      expect(await flagged(t.ticket_id)).toEqual([after.scan_id]);
     });
 
     it("validates the batch", async () => {
@@ -462,8 +499,8 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
           body: { event_id: fresh, gate: "Gate A", direction: "entry" },
         });
         const deviceId = randomUUID();
-        const res = await exchange(codeOf(created.json.setup_qr).code, deviceId);
-        return { token: res.json.device_token as string, deviceId };
+        await exchange(codeOf(created.json.setup_qr).code, deviceId);
+        return { token: await enrolHub(fresh), deviceId };
       })();
       const ga = await gen({ ticket_type: 0, quantity: 3 }, fresh);
       const staffPass = await gen({ ticket_type: 2, holder_name: "Crew" }, fresh);
@@ -508,6 +545,148 @@ describe.skipIf(!dbAvailable)("device enrolment, ticket sync and scan upload (Ma
       expect(perMinute.reduce((n, m) => n + m.count, 0)).toBe(3); // the 4000 s old one is outside the last hour
       expect(perMinute.every((m) => m.minute % 60 === 0)).toBe(true);
       expect((await call(stats, { staff, params: { id: "9999" } })).status).toBe(404);
+    });
+  });
+
+  describe("who may upload scans (#5)", () => {
+    let hubToken: string;
+    let phone: { deviceId: string; token: string };
+    const rec = (ticketId: string, device: string, over: Record<string, unknown> = {}) => ({
+      scan_id: randomUUID(),
+      ticket_id: ticketId,
+      device_id: device,
+      staff_id: null,
+      gate: "Gate A",
+      direction: "entry",
+      scanned_at: env.clock.now,
+      result: "admitted",
+      offline: true,
+      ...over,
+    });
+    beforeAll(async () => {
+      hubToken = await enrolHub();
+      phone = await enrolDevice().then((d) => ({ deviceId: d.deviceId, token: d.token }));
+    });
+
+    it("refuses a phone's token on the hub-only bulk endpoint", async () => {
+      const t = (await gen({ ticket_type: 2, holder_name: "Bulk" }))[0]!;
+      const res = await call(syncScans, {
+        bearer: phone.token,
+        body: { scans: [rec(t.ticket_id, phone.deviceId)] },
+      });
+      expect(res.status).toBe(403);
+      expect(res.json.error.code).toBe("forbidden");
+      expect(
+        await env.handle.db
+          .select()
+          .from(scans)
+          .where(eq(scans.ticketId, Buffer.from(hexToBytes(t.ticket_id)))),
+      ).toHaveLength(0);
+    });
+
+    it("refuses a hub batch naming a device that is not a device of the hub's event", async () => {
+      const t = (await gen({ ticket_type: 2, holder_name: "Foreign device" }))[0]!;
+      const other = await (async () => {
+        const created = await call(enroll, {
+          staff: supervisor,
+          body: { event_id: otherEventId, gate: "Gate A", direction: "entry" },
+        });
+        const id = randomUUID();
+        await exchange(codeOf(created.json.setup_qr).code, id);
+        return id;
+      })();
+      for (const device of [randomUUID(), other]) {
+        const res = await call(syncScans, {
+          bearer: hubToken,
+          body: { scans: [rec(t.ticket_id, phone.deviceId), rec(t.ticket_id, device)] },
+        });
+        expect(res.status).toBe(403);
+        expect(res.json.error.code).toBe("foreign_device");
+      }
+      // Nothing from the refused batches was stored, not even the valid first scan.
+      expect(
+        await env.handle.db
+          .select()
+          .from(scans)
+          .where(eq(scans.ticketId, Buffer.from(hexToBytes(t.ticket_id)))),
+      ).toHaveLength(0);
+    });
+
+    it("accepts a hub batch of scans from devices of its event, and its own scans", async () => {
+      const t = (await gen({ ticket_type: 2, holder_name: "Fine" }))[0]!;
+      const hubDevice = hubToken.split(".")[0]!;
+      const res = await call(syncScans, {
+        bearer: hubToken,
+        body: {
+          scans: [
+            rec(t.ticket_id, phone.deviceId),
+            rec(t.ticket_id, hubDevice, { scanned_at: env.clock.now + 5 }),
+          ],
+        },
+      });
+      expect(res.status).toBe(200);
+      expect(res.json.acknowledged).toHaveLength(2);
+    });
+
+    it("a hub of another event cannot upload scans for this event's devices", async () => {
+      const t = (await gen({ ticket_type: 2, holder_name: "Wrong hub" }))[0]!;
+      const otherHub = await enrolHub(otherEventId);
+      const res = await call(syncScans, {
+        bearer: otherHub,
+        body: { scans: [rec(t.ticket_id, phone.deviceId)] },
+      });
+      expect(res.status).toBe(403);
+    });
+
+    describe("the phone-scoped VM endpoint (POST /api/scans)", () => {
+      it("takes a phone's own scans, idempotently", async () => {
+        const t = (await gen({ ticket_type: 2, holder_name: "Own" }))[0]!;
+        const s = rec(t.ticket_id, phone.deviceId);
+        const first = await call(phoneScans, { bearer: phone.token, body: { scans: [s] } });
+        expect(first.status).toBe(200);
+        expect(first.json).toEqual({ acknowledged: [s.scan_id], conflicts: [] });
+        const again = await call(phoneScans, { bearer: phone.token, body: { scans: [s] } });
+        expect(again.json.acknowledged).toEqual([s.scan_id]);
+        expect(
+          await env.handle.db.select().from(scans).where(eq(scans.id, s.scan_id)),
+        ).toHaveLength(1);
+      });
+
+      it("refuses scans that name another device, a hub token, no token and unknown results", async () => {
+        const t = (await gen({ ticket_type: 2, holder_name: "Forged" }))[0]!;
+        const mine = rec(t.ticket_id, phone.deviceId);
+        const theirs = rec(t.ticket_id, randomUUID());
+        expect(
+          (await call(phoneScans, { bearer: phone.token, body: { scans: [mine, theirs] } })).status,
+        ).toBe(403);
+        expect((await call(phoneScans, { bearer: hubToken, body: { scans: [mine] } })).status).toBe(
+          403,
+        );
+        expect((await call(phoneScans, { body: { scans: [mine] } })).status).toBe(401);
+        expect(
+          (
+            await call(phoneScans, {
+              bearer: phone.token,
+              body: { scans: [{ ...mine, result: "teleported" }] },
+            })
+          ).status,
+        ).toBe(400);
+        expect(
+          await env.handle.db
+            .select()
+            .from(scans)
+            .where(eq(scans.ticketId, Buffer.from(hexToBytes(t.ticket_id)))),
+        ).toHaveLength(0);
+      });
+
+      it("flags a duplicate admit uploaded later by a phone", async () => {
+        const t = (await gen({ ticket_type: 0, holder_name: "Twice" }))[0]!;
+        const first = rec(t.ticket_id, phone.deviceId, { scanned_at: env.clock.now - 10 });
+        const second = rec(t.ticket_id, phone.deviceId, { scanned_at: env.clock.now - 5 });
+        await call(phoneScans, { bearer: phone.token, body: { scans: [first] } });
+        const res = await call(phoneScans, { bearer: phone.token, body: { scans: [second] } });
+        expect(res.json.conflicts).toEqual([second.scan_id]);
+      });
     });
   });
 });
