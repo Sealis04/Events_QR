@@ -19,7 +19,17 @@ The dress-rehearsal milestone (plan: "Wrap-up — Dress rehearsal"): event-day r
 
 ## reviewer
 
-(empty)
+**Status:** NEEDS_FIXES (docs only; builder-1 re-fired)
+**Environment:** ready as-is. `scripts/ccr-session-init.sh` ran clean (MariaDB, migrations, signing key). No SQL Server/Prisma here. Created an admin and a staff user, ran `rehearsal-seed.ts --yes`, started `bun dev`.
+**E2E (Playwright, real dashboard + /scan):**
+- PASS: lint, tsc, `bun run test` (core 60, web 308, worker 24).
+- PASS: seed produced 50 tickets (dashboard `50 of 50`, per-type 22/8/6/6/6 issued); sheet written.
+- PASS: dashboard tabs QR generator, Tickets, Live stats, Devices, Conflicts, Attendees & overrides, Setup exist with the runbook's names. Add a scanner, Show setup QR, Batch codes for the venue hub, How many, Make hub setup codes, Move, Revoke, Revoke and rotate, Staff on this event, Ticket types, Gates, Save event, the offline-phones box, Find an attendee, Confirm admit, Overrides by staff, Mark reviewed, Export CSV, Cancel, Transfer, Checked in, Inside now all present. "Revoke and rotate" confirm dialog appears.
+- PASS: /scan: Set up for event, Type the code instead, Use code, Staff login, Log in, ready header `Gate A · ...`, pill `Cloud-only · 0 queued` (no hub in sandbox), Entry/Exit buttons, Manual search, Admit (supervisor PIN), Set up again, Sign out. Manual admit worked: Checked in 1, override listed.
+- FAIL: #11 (DEV1 text not obtainable), #12 (Set up again does not wipe).
+- NOT RUN: camera scanning of the sheet QRs (no camera), hub mode pages (`pending_scans`, hub dashboard read-only tabs), install app button.
+**Issues filed:** #11, #12.
+**Summary:** Docs are clear and match the app almost everywhere. Two inaccuracies need fixing, one of which could leave attendee data on phones.
 
 ## planner
 

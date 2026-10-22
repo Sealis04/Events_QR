@@ -1,6 +1,6 @@
 # builder-1 — m7-rehearsal
 
-**Status:** DONE
+**Status:** PENDING
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -41,7 +41,11 @@ Conflicts resolved: (none)
 
 ## Fix requests
 
-(none)
+1. Issue #11, `docs/runbook.md` T-24 h: the dashboard never shows the `DEV1:` text, only a QR image. Reword the "Type the code instead / paste" fallback so staff are not told to paste text they cannot get (see the issue for options).
+2. Issue #12, `docs/runbook.md` line 165 and `docs/deploy-hub.md` line 165: "Set up again" does not wipe the phone. Use **Revoke** (VM Devices tab) as the wipe, plus clearing the browser's site data as the manual fallback.
+3. Issue #12, minor: name the amber screen's button **Supervisor override**; note an Entry and exit phone's header reads `Gate A · Entry / Exit`.
+
+Everything else I walked matched (see INBOX.md `## reviewer`). Docs only; do not change app code. Then re-run lint, tsc, tests, push, set DONE.
 
 ## Blocker
 
