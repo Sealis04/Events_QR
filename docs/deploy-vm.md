@@ -25,7 +25,8 @@ cp .env.demo .env
 | `EVENT_KEY_MASTER`                | 64 hex characters (`openssl rand -hex 32`). Encrypts every event's AES key inside MariaDB. **Losing it makes every issued ticket unreadable**: back it up (section 7). |
 | `SIGNING_KEY_PASSPHRASE`          | Passphrase for the Ed25519 signing key file (`openssl rand -hex 24`).                                                                                                   |
 | `SECRETS_DIR`                     | Host folder holding `signing-key.json` and `gmail-sa.json`, mounted at `/secrets` (read-only for the app; the worker may rewrite `signing-key.json`). Default: the repo's `.secrets` folder.            |
-| `HUB_URL`                         | Optional. Address printed into `DEV1:` setup QRs. Leave unset until the hub exists (M4); the app then uses its own address.                                             |
+| `HUB_URL`                         | Optional. The venue hub's address (`https://hub.example.org`), printed into `DEV1:` setup QRs so phones ask the hub first. Leave unset when there is no hub; the QR then carries this server's own address. See `docs/deploy-hub.md`. |
+| `PUBLIC_URL`                      | Optional. This server's own public address (`https://tickets.example.org`). Phones and hubs keep it as the fallback "cloud" address. Defaults to the address the request came in on. |
 | `EVENT_TIMEZONE`                  | IANA zone used for "00:00 local on the first day" (time-slot minutes), unless an event sets its own `timezone`. Example `Asia/Manila`.                                  |
 | `GMAIL_SENDER`                    | The Workspace mailbox tickets are sent from.                                                                                                                            |
 | `EMAIL_DAILY_LIMIT`               | Max emails per rolling 24 hours (default 1800, under Gmail's 2,000).                                                                                                    |
@@ -68,7 +69,7 @@ Open the app, log in, create an event, add ticket types, and generate a ticket.
 
 ## 5. Nginx Proxy Manager and Cloudflare
 
-**Cloudflare DNS.** Add an `A` record `tickets` pointing to the public IP that forwards ports 80 and 443 to NPM. The proxied (orange cloud) setting works for the app; set SSL/TLS mode to **Full (strict)**. (The venue hub in M4 uses a DNS-only record instead.)
+**Cloudflare DNS.** Add an `A` record `tickets` pointing to the public IP that forwards ports 80 and 443 to NPM. The proxied (orange cloud) setting works for the app; set SSL/TLS mode to **Full (strict)**. (The venue hub uses a DNS-only record instead, see `docs/deploy-hub.md`.)
 
 **NPM proxy host** (Hosts → Proxy Hosts → Add):
 
@@ -117,3 +118,17 @@ Do not keep the key file, its passphrase and the database dump together in one u
 - **Stuck emails:** `SELECT id, to_email, status, attempts, last_error FROM email_queue WHERE status <> 'sent' ORDER BY id DESC LIMIT 50;`
 - **Staff PIN reset:** there is no self-service reset in v1. An admin can add the person again under a new name.
 - The app and worker run as a single instance each. The login rate limiter lives in memory, so restarting the app clears it.
+
+## 9. Connecting a venue hub
+
+The hub (`docs/deploy-hub.md`) authenticates to this server with its own device token. A supervisor makes the one-time setup code here, valid for 10 minutes:
+
+```bash
+curl -s -c jar -X POST https://tickets.example.org/api/auth/login \
+  -H 'content-type: application/json' -d '{"name":"Alex","pin":"******"}'
+curl -s -b jar -X POST https://tickets.example.org/api/hubs/setup \
+  -H 'content-type: application/json' -d '{"event_id":1,"label":"main hub"}'
+# {"setup_code":"...","expires_at":...}
+```
+
+The hub exchanges the code for its credential and the event key bundle (`POST /api/hubs/enroll`). The signing key is never part of it. The hub then calls `GET /api/sync/meta`, `GET /api/sync/tickets`, `GET /api/sync/scans`, `POST /api/sync/scans` and `POST /api/sync/devices`; all of them refuse a phone's token. Phones enrolled at the hub become devices here on the hub's next push, so a phone that falls back to this server is accepted. To cut a hub off, set its `devices` row (`kind = 'hub'`) to `revoked = 1`.

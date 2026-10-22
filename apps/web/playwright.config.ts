@@ -11,6 +11,8 @@ import { defineConfig } from "@playwright/test";
 const envFile = resolve(import.meta.dirname, "../../.env");
 const base = existsSync(envFile) ? parseEnv(readFileSync(envFile, "utf8")) : {};
 const PORT = 3100;
+/** The venue hub: the same build with APP_MODE=hub, its own SQLite file, none of the VM's secrets. */
+const HUB_PORT = 3200;
 
 // The sandbox ships one Chromium; use it when Playwright's own download is absent.
 const sandboxChrome = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
@@ -30,22 +32,44 @@ export default defineConfig({
       args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
     },
   },
-  webServer: {
-    command: `bun e2e/prepare.ts && node node_modules/next/dist/bin/next build && node node_modules/next/dist/bin/next start -p ${PORT} -H 127.0.0.1`,
-    url: `http://127.0.0.1:${PORT}/api/health`,
-    reuseExistingServer: false,
-    timeout: 300_000,
-    env: {
-      ...(base as Record<string, string>),
-      ...(process.env as Record<string, string>),
-      NODE_ENV: "production",
-      COOKIE_SECURE: "false",
-      DB_NAME: `${base.DB_NAME ?? process.env.DB_NAME ?? "events_qr"}_test_e2e`,
-      SIGNING_KEY_PATH: resolve(import.meta.dirname, "e2e/.tmp/signing-key.json"),
-      SIGNING_KEY_PASSPHRASE: "e2e-passphrase",
-      SESSION_SECRET: "e2e".repeat(16),
-      EVENT_KEY_MASTER: "ab".repeat(32),
-      SYNC_HORIZON_SECONDS: "0",
+  webServer: [
+    {
+      command: `bun e2e/prepare.ts && node node_modules/next/dist/bin/next build && node node_modules/next/dist/bin/next start -p ${PORT} -H 127.0.0.1`,
+      url: `http://127.0.0.1:${PORT}/api/health`,
+      reuseExistingServer: false,
+      timeout: 300_000,
+      env: {
+        ...(base as Record<string, string>),
+        ...(process.env as Record<string, string>),
+        NODE_ENV: "production",
+        COOKIE_SECURE: "false",
+        DB_NAME: `${base.DB_NAME ?? process.env.DB_NAME ?? "events_qr"}_test_e2e`,
+        SIGNING_KEY_PATH: resolve(import.meta.dirname, "e2e/.tmp/signing-key.json"),
+        SIGNING_KEY_PASSPHRASE: "e2e-passphrase",
+        SESSION_SECRET: "e2e".repeat(16),
+        EVENT_KEY_MASTER: "ab".repeat(32),
+        SYNC_HORIZON_SECONDS: "1",
+      },
     },
-  },
+    {
+      // Starts after the VM is ready (so the build exists) and gets only what a hub may have.
+      command: `bun e2e/prepare-hub.ts && node node_modules/next/dist/bin/next start -p ${HUB_PORT} -H 127.0.0.1`,
+      url: `http://127.0.0.1:${HUB_PORT}/api/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        ...hubEnv(process.env as Record<string, string>),
+        NODE_ENV: "production",
+        APP_MODE: "hub",
+        HUB_DB_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub.sqlite"),
+        SYNC_HORIZON_SECONDS: "1",
+      },
+    },
+  ],
 });
+
+/** The process environment without the VM's database, signing and session secrets. */
+function hubEnv(env: Record<string, string>): Record<string, string> {
+  const secret = /^(DB_|SIGNING_|EVENT_KEY_|SESSION_SECRET|GMAIL_|PUBLIC_URL|HUB_URL)/;
+  return Object.fromEntries(Object.entries(env).filter(([k]) => !secret.test(k)));
+}

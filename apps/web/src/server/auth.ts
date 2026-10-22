@@ -27,6 +27,7 @@ export interface AuthedDevice {
   gate: string;
   direction: string;
   label: string | null;
+  kind: "scanner" | "hub";
 }
 
 export const SESSION_COOKIE = "eqr_session";
@@ -139,6 +140,7 @@ export async function authenticateDevice(
     gate: row.gate,
     direction: row.direction,
     label: row.label,
+    kind: row.kind === "hub" ? "hub" : "scanner",
   };
 }
 

@@ -53,6 +53,7 @@ async function checkRequest(
   need: "entry" | "exit",
 ): Promise<void> {
   if (body.device_id !== device.id) throw new HttpError(403, "wrong_device", "device_id mismatch");
+  if (device.kind !== "scanner") throw new HttpError(403, "forbidden", "a hub cannot scan");
   if (device.direction !== "both" && device.direction !== need) {
     throw new HttpError(403, "wrong_direction", `this device is set up for ${device.direction}`);
   }

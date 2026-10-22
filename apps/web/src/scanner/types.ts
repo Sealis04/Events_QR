@@ -16,14 +16,20 @@ export interface DeviceRecord {
   token: string;
   /** Base URL of the server the phone enrolled at ("" = the page's own origin). */
   serverUrl: string;
+  /** The venue hub's address from the setup QR; null/absent when there is none. Asked first. */
+  hubUrl?: string | null;
+  /** The VM's address: where a scan goes when the hub does not answer. Absent = `serverUrl`. */
+  cloudUrl?: string | null;
   gate: string;
   direction: DeviceDirection;
   label: string | null;
   bundle: KeyBundle;
   /** Server time minus device time at the last sync, in seconds. */
   clockOffset: number;
-  /** `(updated_at, id)` ticket cursor; null = full sync still needed. */
+  /** `(updated_at, id)` ticket cursor on the hub (or the only server); null = full sync still needed. */
   cursor: string | null;
+  /** The same cursor on the VM. The two servers stamp rows with their own clocks, so each has its own. */
+  cloudCursor?: string | null;
   /** True once a complete ticket sync has finished; scanning stays locked until then. */
   synced: boolean;
   ticketTypes: ScannerTicketType[];

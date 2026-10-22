@@ -15,6 +15,13 @@
       "when": 1792564432847,
       "tag": "0001_conscious_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792641499469,
+      "tag": "0002_curly_prism",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # builder-1 — m4-hub
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -44,10 +44,42 @@ All of "Done when" for M4 in the plan holds (concurrency test passes; the hub ke
 
 ## Summary for reviewer
 
-Files changed:
-What was done:
-What to check:
-Conflicts resolved: (none)
+**Files changed:**
+
+- `packages/core`: `src/db/{shared,mysql,sqlite}.ts` (`kind` column on `devices` and `enrolment_codes`; hub-only SQLite tables `hub_state`, `hub_scan_outbox`, `hub_device_outbox`), `src/api/{common,hub,cloud}.ts` (key bundle `cloud_url`, health `pending_scans`, new schemas for hub setup, `/sync/meta`, `/sync/scans` GET, `/sync/devices`), migrations `drizzle/mysql/0002_curly_prism.sql` and `drizzle/sqlite/0001_bored_sandman.sql` (+ snapshots and journals), `test/db.test.ts`.
+- `apps/web/src/hub/*` (new): `db.ts`, `context.ts`, `state.ts`, `http.ts`, `claim.ts`, `recompute.ts`, `enroll.ts`, `sync.ts`, `scans.ts`, `routes.ts`, `vmclient.ts`, `vmsync.ts`, `link.ts`, `loops.ts`.
+- `apps/web/src/server`: new `mode.ts`, `errors.ts` (HttpError/json moved out of `http.ts`, re-exported), `constants.ts`; edited `http.ts` (hub-mode 404 guard, `hub` access, `requestOrigin`), `auth.ts` (`kind` on devices), `claim.ts` (a hub token cannot scan), `devices.ts` (hub setup, enrol by kind, `cloud_url`), `events.ts` (`cloud_url` in key bundle), `sync.ts` (`syncMeta`, `syncVmScans`, `syncDevices`; recompute order now `(scanned_at, id)`), `config.ts` (hub and `PUBLIC_URL` settings).
+- `apps/web/src/app/api`: new `hubs/setup`, `hubs/enroll`, `sync/meta`, `sync/devices`, `enroll`, `scans`; edited `claim`, `exit`, `sync`, `health`, `auth/login`, `devices/enroll`, `sync/scans` (hub/VM dispatch with `byMode`; GET on `sync/scans`). New `src/middleware.ts` (CORS on the scanner API; 404 for everything else on a hub).
+- Scanner: new `src/scanner/routes.ts` (hub-first `RoutedClient`, 800 ms), edited `sync.ts` (`syncFromBest`, per-server cursors, enrol hub then VM), `staff.ts` (`loginStaffRouted`), `types.ts`, `src/app/scan/ScannerApp.tsx` (Hub / Cloud-only / Offline pill, immediate first sync).
+- Worker and scripts: `apps/worker/src/hubMain.ts` (new), `apps/worker/src/main.ts`, `scripts/hub-enroll.ts`, `scripts/hub-migrate.ts`.
+- Deploy: `docker/compose.hub.yml`, `docker/Dockerfile` (`/data` owned by uid 1000), `docs/deploy-hub.md`, `docs/deploy-vm.md` (HUB_URL, PUBLIC_URL, section 9), `.env.demo`, `apps/web/package.json` (better-sqlite3, `./hub/*` export), `apps/web/next.config.ts`, `bun.lock`.
+- Tests: `apps/web/test/{hub-helpers,entry-rules-parity,hub-claim,hub-sync,hub-loops,hub-mode,hub-vm-endpoints,scanner-routed}.test.ts` + `test/fixtures/claim-worker.ts`; e2e `apps/web/e2e/{hub.spec,prepare-hub,proxy}.ts`, `playwright.config.ts` (second server, VM horizon 1), `e2e/scanner.spec.ts` (waits out the horizon).
+
+**What was done:**
+
+1. Hub mode: `APP_MODE=hub` serves `/api/{enroll,devices/enroll,claim,exit,sync,scans,health,auth/login}` plus the scanner PWA from SQLite (better-sqlite3 under Node, `bun:sqlite` under Bun because Bun cannot load better-sqlite3; same file, WAL, busy_timeout, synchronous FULL). Everything else is 404 (middleware, plus a guard in `route()`). The hub has no signing code path: no `src/hub` file imports the signer, MariaDB or the VM context (a test enforces it).
+2. Atomic claim/exit in `BEGIN IMMEDIATE` with the spec's SQL, idempotent on `scan_id`, `decideClaim`/`decideExit` reused. A shared scenario table runs against the VM and the hub (`entry-rules-parity.test.ts`).
+3. Hub enrolment: supervisor `POST /api/hubs/setup` makes a one-time code, `scripts/hub-enroll.ts <VM URL> <code>` exchanges it (`POST /api/hubs/enroll`) for a hub device token (`devices.kind = 'hub'`) and the key bundle (event key and public keys only), then runs a first sync.
+4. Sync loops live in the worker (`APP_MODE=hub`, `src/hub/loops.ts`): pull every 30 s (meta, tickets, VM scans; also on demand when a claim names an unknown ticket), push every 5 s (devices enrolled at the hub, then scans, batches of 500), exponential backoff, phones poll `GET /api/sync` every 10 s. Cursors are `(updated_at, id)` for tickets and `(received_at, id)` for scans; the hub stamps pulled rows with its own clock so phones never miss them, and a phone keeps one cursor per server.
+5. Conflicts: both rows are kept; hub and VM rebuild a ticket's state and `conflict` flags from the scans in `(scanned_at, id)` order. The hub also pulls the VM's scans, so both sides converge (tested with an admit at each).
+6. Scanner: hub first with an 800 ms limit and the VM as fallback, same `scan_id` on both attempts; Hub (green) / Cloud-only (blue) / Offline (orange) pill; enrolment and staff login try the hub first. A 401 only wipes the phone when it comes from the server the phone enrolled at.
+7. Deploy: `docker/compose.hub.yml` (migrate, app, worker, tools; optional `proxy` and `dns` profiles) and `docs/deploy-hub.md` (hardware, Cloudflare DNS-only record, DNS-01 certificate with NPM or certbot, renewal every ~60 days, router/dnsmasq override, standby, after the event).
+8. Tests: the 20 devices x 100 tickets concurrency test (exactly 100 admits of 2000 attempts) plus a multi-process version on one SQLite file; uplink cut and catch-up; VM ticket to hub to phone; cancellation; phone enrolment at the hub with no VM then use at the VM; hub-mode refusals; loops/backoff; routed client; two real servers plus worker and switchable proxies in Playwright (Hub pill and admit, hub hangs so the phone falls back to the VM with Cloud-only, uplink cut and exactly-once upload).
+
+Results: `bun run lint`, `bunx tsc --noEmit` clean; `bun run test`: core 60, web 205, worker 18 passed; `bunx playwright test` (what `bun run test:e2e` runs): 7 passed.
+
+**What to check:**
+
+- Schema changes were needed on both dialects (`devices.kind`, `enrolment_codes.kind`; hub-only tables). The SQLite migration `0001` is hand-edited to `ALTER TABLE ... ADD COLUMN`, because drizzle-kit's table rebuild selected the new column from the old table and failed. Its snapshot is the generated one. Please confirm the MariaDB `0002` applies on an existing database.
+- The VM's recompute order changed from `(scanned_at, received_at, id)` to `(scanned_at, id)` so hub and VM agree (`received_at` differs between them). Same-second ticks of one ticket's entry/exit are therefore ordered by random scan id; real gates are seconds apart.
+- `docker/compose.hub.yml` and the Dockerfile `/data` change could not be built here (no Docker daemon): I checked `docker compose config`, and ran the Next standalone build with `APP_MODE=hub` (better-sqlite3 is traced and loads). Real TLS, Let's Encrypt, Cloudflare and router DNS are untested; review `docs/deploy-hub.md` instead.
+- Middleware reads `process.env.APP_MODE` at request time; the Playwright hub spec proves the 404s and CORS on `next start`.
+- Phones talk to the hub cross-origin when the page comes from the VM, hence CORS `*` on the scanner API (bearer tokens, no cookies). `/api/auth/login` is in that set.
+- `/api/sync/tickets` and `POST /api/sync/scans` still accept any device token (existing tests rely on it); the new hub endpoints (`meta`, `GET scans`, `devices`) require a hub token.
+- A hub enrolled phone not yet pushed to the VM is treated as "not known there yet" (offline), not as a revocation.
+- Known limits, written in the docs: enrolment codes expire after 10 minutes, so offline enrolment needs codes made shortly before the uplink dropped; one event per hub; the staff list is mirrored without deletions.
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 

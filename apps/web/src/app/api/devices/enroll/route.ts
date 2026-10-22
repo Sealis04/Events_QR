@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { api } from "@events-qr/core";
 import { createSetup, exchangeEnrolment } from "../../../../server/devices";
-import { json, requireStaff, route } from "../../../../server/http";
+import { json, requestOrigin, requireStaff, route } from "../../../../server/http";
+import { byMode } from "../../../../server/mode";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +12,14 @@ export const dynamic = "force-dynamic";
  */
 const body = z.union([api.enrollExchangeRequest, api.createSetupRequest]);
 
-export const POST = route({ access: "public", body }, async ({ req, ctx, body }) => {
-  if ("code" in body) return json(await exchangeEnrolment(ctx, body));
+const vmEnroll = route({ access: "public", body }, async ({ req, ctx, body }) => {
+  if ("code" in body)
+    return json(
+      await exchangeEnrolment(ctx, body, { cloudUrl: ctx.config.PUBLIC_URL ?? requestOrigin(req) }),
+    );
   const staff = await requireStaff(ctx, req, "supervisor");
-  const url = new URL(req.url);
-  const origin = `${req.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "")}://${
-    req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? url.host
-  }`;
-  return json(await createSetup(ctx, staff.id, body, origin), 201);
+  return json(await createSetup(ctx, staff.id, body, requestOrigin(req)), 201);
 });
+
+/** On a hub only the exchange step exists: the codes are made on the VM. */
+export const POST = byMode(vmEnroll, async () => (await import("../../../../hub/routes")).enroll);

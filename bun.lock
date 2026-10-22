@@ -20,6 +20,7 @@
       "dependencies": {
         "@events-qr/core": "workspace:*",
         "@node-rs/argon2": "2.2.2",
+        "better-sqlite3": "^11.7.0",
         "drizzle-orm": "^0.38.3",
         "mysql2": "3.24.6",
         "next": "15.5.28",
@@ -31,6 +32,7 @@
       },
       "devDependencies": {
         "@playwright/test": "^1.64.1",
+        "@types/better-sqlite3": "^7.6.12",
         "@types/pngjs": "^6.0.5",
         "@types/qrcode": "^1.5.6",
         "@types/react": "19.3.0",

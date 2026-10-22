@@ -23,6 +23,7 @@ const config: NextConfig = {
     "libsodium-wrappers",
     "libsodium",
     "mysql2",
+    "better-sqlite3",
     "@node-rs/argon2",
     "qrcode",
   ],

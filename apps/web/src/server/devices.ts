@@ -3,13 +3,14 @@ import { z } from "zod";
 import { api, encodeSetupCode, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { affectedRows, isDuplicate } from "./dbutil";
+import { SETUP_TTL_SECONDS } from "./constants";
 import { badRequest, conflict, HttpError } from "./http";
 import { keyBundle, loadEvent, loadTypes } from "./events";
 import { randomToken, sha256Hex } from "./secrets";
 
 const { devices, enrolmentCodes } = mysqlSchema;
 
-export const SETUP_TTL_SECONDS = 10 * 60;
+export { SETUP_TTL_SECONDS };
 
 /** Step 1: a supervisor creates a setup QR. The one-time code is stored only as a SHA-256. */
 export async function createSetup(
@@ -44,6 +45,30 @@ export async function createSetup(
   };
 }
 
+/** Step 1 for a venue hub: a supervisor creates a one-time code, typed into `scripts/hub-enroll.ts`. */
+export async function createHubSetup(
+  ctx: AppContext,
+  staffId: string,
+  input: z.infer<typeof api.hubSetupRequest>,
+): Promise<z.infer<typeof api.hubSetupResponse>> {
+  const event = await loadEvent(ctx.db, input.event_id);
+  const code = randomToken(12);
+  const now = ctx.now();
+  const expiresAt = now + SETUP_TTL_SECONDS;
+  await ctx.db.insert(enrolmentCodes).values({
+    eventId: event.id,
+    codeHash: sha256Hex(code),
+    gate: "hub",
+    direction: "both",
+    label: input.label ?? null,
+    createdBy: staffId,
+    createdAt: now,
+    expiresAt,
+    kind: "hub",
+  });
+  return { setup_code: code, expires_at: expiresAt };
+}
+
 const invalidCode = () =>
   new HttpError(401, "invalid_code", "setup code is invalid, expired or already used");
 
@@ -55,7 +80,9 @@ const invalidCode = () =>
 export async function exchangeEnrolment(
   ctx: AppContext,
   input: z.infer<typeof api.enrollExchangeRequest>,
+  options: { kind?: "scanner" | "hub"; cloudUrl?: string } = {},
 ): Promise<z.infer<typeof api.enrollExchangeResponse>> {
+  const kind = options.kind ?? "scanner";
   const now = ctx.now();
   const codeHash = sha256Hex(input.code);
   const token = `${input.device_id}.${randomToken(32)}`;
@@ -67,7 +94,8 @@ export async function exchangeEnrolment(
       .where(eq(enrolmentCodes.codeHash, codeHash))
       .for("update")
       .limit(1);
-    if (!code) throw invalidCode();
+    // A phone's code cannot enrol a hub, and the other way round.
+    if (!code || code.kind !== kind) throw invalidCode();
 
     if (code.usedAt !== null) {
       const retry = code.deviceId === input.device_id && now <= code.usedAt + SETUP_TTL_SECONDS;
@@ -88,6 +116,7 @@ export async function exchangeEnrolment(
           direction: code.direction,
           tokenHash: sha256Hex(token),
           lastSeenAt: now,
+          kind,
         });
       } catch (err) {
         if (isDuplicate(err)) throw conflict("device_exists", "that device id is already enrolled");
@@ -105,7 +134,7 @@ export async function exchangeEnrolment(
   return {
     device_id: input.device_id,
     device_token: token,
-    key_bundle: keyBundle(ctx, event, await loadTypes(ctx.db, event.id)),
+    key_bundle: keyBundle(ctx, event, await loadTypes(ctx.db, event.id), options.cloudUrl),
     gate: result.gate,
     direction: result.direction as "entry" | "exit" | "both",
     label: result.label,

@@ -61,6 +61,9 @@ export const scanRecord = z.object({
 });
 export type ScanRecord = z.infer<typeof scanRecord>;
 
+/** `(received_at, id)` cursor over scans, encoded `<received_at>:<scan uuid>`. */
+export const scanCursor = z.string().regex(/^\d+:[0-9a-f-]{36}$/);
+
 export const firstScan = z.object({ gate: gateName, at: unixSeconds, device: uuid.nullable() });
 
 /** What a scanner needs to know about a ticket type besides what is signed into the QR. */
@@ -83,4 +86,6 @@ export const keyBundle = z.object({
   /** Unix seconds of 00:00 local on the event's first day; the origin for slot minutes. */
   day_zero: unixSeconds,
   ticket_types: z.array(scannerTicketType).default([]),
+  /** Base URL of the VM, so a phone that enrolled at the hub still knows where to fall back to. */
+  cloud_url: z.string().url().optional(),
 });
