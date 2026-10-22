@@ -17,6 +17,7 @@ import {
   verifyPin,
 } from "../server/auth";
 import { HttpError, json, notFound } from "../server/errors";
+import { offlineGateOnly } from "../server/settings";
 import { claimTicket } from "./claim";
 import type { HubContext } from "./context";
 import { hubRoute } from "./http";
@@ -133,6 +134,7 @@ export const eventView = hubRoute({ access: { staff: "supervisor" } }, ({ req, c
     sign_key_id: event.signKeyId,
     gates: event.gates,
     day_zero: getBundle(ctx)?.day_zero ?? event.startsAt,
+    offline_gate_only: offlineGateOnly(event.config),
     ticket_types: types.map(typeView),
   });
 });

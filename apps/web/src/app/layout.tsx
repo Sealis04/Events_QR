@@ -5,16 +5,7 @@ export const metadata = { title: "Events QR" };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          fontFamily: "system-ui, sans-serif",
-          margin: "2rem auto",
-          maxWidth: 860,
-          padding: "0 1rem",
-        }}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
