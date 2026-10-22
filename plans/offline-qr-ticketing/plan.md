@@ -111,6 +111,7 @@ Builder 1 writes `docs/runbook.md` (the spec's event-day runbook as a checklist,
 - Cancelling a ticket frees its place (`ticket_types.issued` goes down by 1). A cancelled reservation starts over with a new QR through the normal generator. Transfer stays net-zero.
 - Old signing secrets are kept only while an upcoming event uses that key generation, then deleted automatically; public keys stay.
 - After M3 (accepted 2026-10-22): manual-search admits need a supervisor PIN; staff PIN login on the phone needs the network until M5 adds offline login; a rescanned single-entry ticket shows "Already used".
+- After M4 (2026-10-22): setup codes made for the hub stay valid until the event ends (single use) so phones can be set up offline at the hub; normal on-screen codes keep the 10-minute expiry. Only hubs may upload scans to the VM (#5).
 - From M3 on, the reviewer writes fix requests into `plans/<branch>/inbox/builder-1.md` as well as GitHub issues.
 
 ## Out of scope for v1
