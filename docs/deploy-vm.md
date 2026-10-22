@@ -56,7 +56,9 @@ docker compose --env-file .env -f docker/compose.vm.yml up -d --build
 docker compose --env-file .env -f docker/compose.vm.yml run --rm tools bun scripts/create-admin.ts --name "Alex"
 ```
 
-The second command asks for a PIN (6+ characters) and stores it hashed with argon2id. Use `--role supervisor` or `--role staff` for other accounts, or create them from the app as an admin (`POST /api/staff`).
+The second command asks for a PIN and stores it hashed with argon2id. **Admins and supervisors need 8 or more digits; staff need 6 or more characters.** Phones keep PIN hashes for offline login, so every hash uses slower argon2id settings (64 MiB, 3 passes; about 0.3 s on a laptop, well under 1 s on a phone). Use `--role supervisor` or `--role staff` for other accounts, or create them from the dashboard (Setup tab, "Staff on this event") or as an admin (`POST /api/staff`).
+
+A supervisor or admin whose existing PIN is shorter than 8 digits is asked to choose a new one at their next login, before anything else works. Their old hash is not sent to phones in the meantime.
 
 Check it is up:
 
@@ -116,7 +118,10 @@ Do not keep the key file, its passphrase and the database dump together in one u
 - **Update:** `git pull`, then `docker compose --env-file .env -f docker/compose.vm.yml up -d --build`. The `migrate` container runs new migrations first.
 - **Logs:** `docker compose -f docker/compose.vm.yml logs -f app worker`.
 - **Stuck emails:** `SELECT id, to_email, status, attempts, last_error FROM email_queue WHERE status <> 'sent' ORDER BY id DESC LIMIT 50;`
-- **Staff PIN reset:** there is no self-service reset in v1. An admin can add the person again under a new name.
+- **Staff PIN reset:** anyone can change their own PIN (the dashboard asks for it when required). There is no reset for a forgotten PIN in v1; an admin can add the person again under a new name.
+- **Who is on an event's phones:** phones and the hub receive PIN hashes only for the event's staff: everyone who issued one of its tickets plus anyone an admin adds (Setup tab), minus anyone an admin removes. They stop receiving them when the event ends; removing someone takes their hash off phones at the next sync.
+- **Lost phone:** Devices tab, **Revoke and rotate**. The phone is revoked at once and everyone tied to the event must choose a new PIN at their next login (their old hashes stop going to phones until they do). That includes the person who pressed the button.
+- **Data retention (worker, nightly):** `holder_name`, `holder_email` and `holder_phone` are cleared `RETENTION_PII_DAYS` (default 365) after an event ends, together with its queued emails; scans are deleted `RETENTION_SCANS_DAYS` (default 1095) after it. Ticket ids, types and counts stay. The job runs once a day after `RETENTION_HOUR_UTC` (default 2); set `RETENTION_DRY_RUN=true` to log what it would do without changing anything. It logs the counts each time.
 - The app and worker run as a single instance each. The login rate limiter lives in memory, so restarting the app clears it.
 
 ## 9. Connecting a venue hub

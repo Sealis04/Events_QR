@@ -1,6 +1,6 @@
 # builder-1 — m6-dashboard
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -45,10 +45,38 @@ All of "Done when" for M6 in the plan holds (the dashboard works against the hub
 
 ## Summary for reviewer
 
-Files changed:
-What was done:
-What to check:
-Conflicts resolved: (none)
+**Files changed:**
+- `packages/core`: `src/db/mysql.ts`, `src/db/sqlite.ts` (staff.pin_reset, event_staff, devices battery/outbox/reported_at, scans reviewed_at/by, tickets.holder_phone), `src/api/cloud.ts` (new schemas: change-pin, heartbeat, device panel, event staff, review, manual admit, overrides; richer conflicts item; `for: "scanner"` on login; `holder_phone`), migrations `drizzle/mysql/0004_m6_staff_scope`, `0005_backfill_cancelled_at` (hand-written: #9 backfill + flags existing supervisors/admins `weak`), `0006_holder_phone`; `drizzle/sqlite/0003_m6_staff_scope` (hand-edited: ADD COLUMN before the staff rebuild), `0004_backfill_cancelled_at`, `0005_holder_phone`; `test/db.test.ts`.
+- `apps/web/src/server`: `auth.ts` (PIN rules, hash cost, session encode/decode shared with hub), `pins.ts` (new: settleLogin, changePin), `staff.ts`, `http.ts`, `errors.ts` (assertSameOrigin moved here), `eventStaff.ts` (new), `deviceAdmin.ts` (new), `dashboard.ts` (new: manual admit, overrides, review), `claim.ts` (dashboard option, pin_reset check), `sync.ts`, `stats.ts`, `tickets.ts` (search email/phone/status, total, ticketDetail, holder_phone), `csv.ts` (export, phone column), `events.ts`, `config.ts` (retention settings).
+- `apps/web/src/hub`: `dashboard.ts` (new: hub dashboard handlers), `session.ts` (new), `http.ts` (staff access), `routes.ts`, `state.ts`, `sync.ts`, `claim.ts`, `vmsync.ts` (disable hashes of staff no longer listed).
+- `apps/web/src/middleware.ts` (hub serves the dashboard paths), `scanner/{client,cycle,staff}.ts`, `app/scan/ScannerApp.tsx` (heartbeat with battery, `for: "scanner"`).
+- New/changed API routes under `apps/web/src/app/api`: `auth/{login,logout,me,change-pin}`, `devices/{[id],[id]/revoke,heartbeat}`, `events/route`, `events/[id]/{route,stats,conflicts,devices,tickets,tickets/export,admit,overrides,staff,staff/[staffId]}`, `scans/[id]/review`, `tickets/[id]`.
+- UI (all new except login): `app/layout.tsx`, `app/dashboard.css`, `app/_lib/{client,types,useSession}`, `app/_components/{Shell,TypeFields}`, `app/(dash)/{layout,page}`, `(dash)/login`, `(dash)/events/new`, `(dash)/events/[id]/{page,print/page,_tabs/*}` (pages moved into the `(dash)` route group so the dashboard CSS does not touch `/scan`).
+- Worker: `src/retention.ts` (new), `src/main.ts`; `.env.demo`; `scripts/create-admin.ts`; docs `deploy-vm.md`, `deploy-hub.md`.
+- Tests: new `test/m6-security.test.ts`, `test/dashboard.test.ts`, `apps/worker/test/retention.test.ts`, `e2e/dashboard.spec.ts`; updated `test/{helpers,hub-helpers,auth,hub-sync,hub-mode,scanner-enrol}.test.ts`, `e2e/{constants,prepare,hub.spec}`, `playwright.config.ts`.
+
+**What was done:**
+- A1: supervisor/admin PINs need 8+ digits (create via API/UI/script and change via `POST /api/auth/change-pin`); staff keep 6 characters. Every hash now uses argon2id m=64 MiB, t=3, p=1 (about 0.3 s in hash-wasm here); weaker hashes are upgraded at login. Existing supervisors/admins are flagged `pin_reset=weak` by migration; at login the flag clears silently if the typed PIN already has 8+ digits, otherwise the session can only call me/logout/change-pin (403 `pin_change_required` everywhere else, also for overrides and setup). A flagged person's hash is withheld from phones/hub. Phone login sends `for: "scanner"` and gets 403 instead of a restricted session.
+- A2 (#8): `event_staff` table; effective staff = issuers + explicit adds − explicit removals; `GET/PUT /api/events/{id}/staff[/{staffId}]` (admin) and the Setup tab. `/api/sync` and `/api/sync/meta` send only those hashes, none after `ends_at`. The hub disables hashes it is no longer sent (empty `pin_hash`, row kept because scans reference it).
+- A3 (#9): migration backfills `cancelled_at = updated_at` (MariaDB and SQLite), idempotent.
+- A4: `POST /api/devices/{id}/revoke {rotate}` and "Revoke and rotate" button; rotate flags every staff member ever tied to the event (we do not record what a phone downloaded) with `pin_reset=rotate`.
+- B5–B11: event list and creation, workspace tabs (QR generator, Tickets, Live stats, Devices, Conflicts, Attendees and overrides, Setup), print page, CSV import/export, device panel with Move / Revoke / Revoke and rotate / setup QR / batch hub codes, conflict feed with review, manual admit with PIN re-entry, override audit. Phones send a heartbeat (outbox size, battery where the Battery API exists) after each successful sync.
+- B12: hub serves the same UI and URLs (`byMode`): login for supervisors/admins against its synced hashes (its own session secret kept in `hub_state`), me/logout, event, stats, devices, conflicts, attendee search (name / last 6 hex; emails are not mirrored to the hub), overrides, manual admit (recorded with the hub's device id so the VM accepts the upload). Issuance, setup, cancel, review show disabled with a note.
+- B13: nightly retention in the worker (`RETENTION_PII_DAYS`=365, `RETENTION_SCANS_DAYS`=1095, `RETENTION_DRY_RUN`, `RETENTION_HOUR_UTC`).
+- Added `holder_phone` (generator field the inbox asked for; cleared by retention with name/email).
+- Tests: lint, `tsc`, `bun run test` (core 60, web 300, worker 24) and `bun run test:e2e` (10) pass.
+
+**What to check:**
+- The migration `mysql/0005` second statement flags *all* existing supervisors and admins `weak` (that is what withholds their short-PIN hashes from phones immediately); they clear on their next login if their PIN already has 8+ digits.
+- `sqlite/0003` is hand-edited (drizzle-kit's rebuild of `staff` copied a column that did not exist yet).
+- Rotate flags everyone tied to the event, including the supervisor who presses the button (their session becomes change-PIN-only straight away). I chose this because the server does not record which hashes a phone held.
+- The cancelled_at backfill does not bump `updated_at`, so hubs/phones that already synced those tickets will not see it (only matters for events straddling the upgrade).
+- Device panel on the VM shows `last_seen`/outbox/battery only from phones that talked to the VM directly; on the hub it is the hub's view. Hub heartbeat data is not forwarded to the VM.
+- Hub conflict "reviewed" is VM-only (not synced to the hub).
+- The `(dash)` route group move changes file paths for `/`, `/login`, `/events/*`; URLs are unchanged.
+- `Resend` stays admin-only (API table); non-admins see a hint to type the email before Generate.
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 

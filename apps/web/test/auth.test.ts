@@ -18,6 +18,18 @@ import { POST as cancel } from "../src/app/api/tickets/[id]/cancel/route";
 import { POST as resend } from "../src/app/api/tickets/[id]/resend/route";
 import { POST as transfer } from "../src/app/api/tickets/[id]/transfer/route";
 import { POST as enroll } from "../src/app/api/devices/enroll/route";
+import { GET as getTicket } from "../src/app/api/tickets/[id]/route";
+import { GET as exportTickets } from "../src/app/api/events/[id]/tickets/export/route";
+import { GET as eventDevices } from "../src/app/api/events/[id]/devices/route";
+import { POST as manualAdmit } from "../src/app/api/events/[id]/admit/route";
+import { GET as overrides } from "../src/app/api/events/[id]/overrides/route";
+import { GET as eventStaff } from "../src/app/api/events/[id]/staff/route";
+import { PUT as setEventStaff } from "../src/app/api/events/[id]/staff/[staffId]/route";
+import { PATCH as patchDevice } from "../src/app/api/devices/[id]/route";
+import { POST as revokeDevice } from "../src/app/api/devices/[id]/revoke/route";
+import { POST as reviewConflict } from "../src/app/api/scans/[id]/review/route";
+import { GET as conflicts } from "../src/app/api/events/[id]/conflicts/route";
+
 import { GET as syncTickets } from "../src/app/api/sync/tickets/route";
 import { POST as syncScans } from "../src/app/api/sync/scans/route";
 import {
@@ -101,6 +113,67 @@ const staffEndpoints: {
     handler: transfer,
     need: "admin",
     opts: { params: { id: ID }, body: {} },
+  },
+  { name: "GET /tickets/{id}", handler: getTicket, need: "staff", opts: { params: { id: ID } } },
+  {
+    name: "GET /events/{id}/tickets/export",
+    handler: exportTickets,
+    need: "admin",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/devices",
+    handler: eventDevices,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/conflicts",
+    handler: conflicts,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/overrides",
+    handler: overrides,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "POST /events/{id}/admit",
+    handler: manualAdmit,
+    need: "supervisor",
+    opts: { params: { id: "1" }, body: { ticket_id: ID, pin: "12345678" } },
+  },
+  {
+    name: "GET /events/{id}/staff",
+    handler: eventStaff,
+    need: "admin",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "PUT /events/{id}/staff/{staffId}",
+    handler: setEventStaff,
+    need: "admin",
+    opts: { method: "PUT", params: { id: "1", staffId: "x" }, body: { assigned: true } },
+  },
+  {
+    name: "PATCH /devices/{id}",
+    handler: patchDevice,
+    need: "supervisor",
+    opts: { method: "PATCH", params: { id: "x" }, body: { gate: "A" } },
+  },
+  {
+    name: "POST /devices/{id}/revoke",
+    handler: revokeDevice,
+    need: "supervisor",
+    opts: { params: { id: "x" }, body: {} },
+  },
+  {
+    name: "POST /scans/{id}/review",
+    handler: reviewConflict,
+    need: "supervisor",
+    opts: { params: { id: "x" }, body: {} },
   },
   {
     name: "POST /devices/enroll (setup)",
