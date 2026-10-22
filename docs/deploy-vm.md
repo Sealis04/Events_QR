@@ -24,7 +24,7 @@ cp .env.demo .env
 | `SESSION_SECRET`                  | 32+ random characters (`openssl rand -hex 32`). Signs the staff session cookie. Changing it logs everyone out.                                                          |
 | `EVENT_KEY_MASTER`                | 64 hex characters (`openssl rand -hex 32`). Encrypts every event's AES key inside MariaDB. **Losing it makes every issued ticket unreadable**: back it up (section 7). |
 | `SIGNING_KEY_PASSPHRASE`          | Passphrase for the Ed25519 signing key file (`openssl rand -hex 24`).                                                                                                   |
-| `SECRETS_DIR`                     | Host folder holding `signing-key.json` and `gmail-sa.json`, mounted at `/secrets` (read-only for the app and worker). Default: the repo's `.secrets` folder.            |
+| `SECRETS_DIR`                     | Host folder holding `signing-key.json` and `gmail-sa.json`, mounted at `/secrets` (read-only for the app; the worker may rewrite `signing-key.json`). Default: the repo's `.secrets` folder.            |
 | `HUB_URL`                         | Optional. Address printed into `DEV1:` setup QRs. Leave unset until the hub exists (M4); the app then uses its own address.                                             |
 | `EVENT_TIMEZONE`                  | IANA zone used for "00:00 local on the first day" (time-slot minutes), unless an event sets its own `timezone`. Example `Asia/Manila`.                                  |
 | `GMAIL_SENDER`                    | The Workspace mailbox tickets are sent from.                                                                                                                            |
@@ -44,7 +44,7 @@ docker compose --env-file .env -f docker/compose.vm.yml run --rm tools bun scrip
 
 This writes `.secrets/signing-key.json`: the Ed25519 secret key encrypted with `SIGNING_KEY_PASSPHRASE`, plus its public key. It refuses to overwrite an existing file.
 
-**Rotation.** `bun scripts/gen-signing-key.ts --rotate` adds a new generation (`key_id` 2, 3, and so on) and makes it current for _new events_. Existing events keep signing with their own generation, so re-sent tickets stay byte-identical, and every public key stays valid for verification. After a suspected compromise, rotate, then drop the old secret with `--retire <id>` and re-issue the affected tickets (transfer, or cancel and generate again). The key id is one byte, so there are at most 255 generations.
+**Rotation.** `bun scripts/gen-signing-key.ts --rotate` adds a new generation (`key_id` 2, 3, and so on) and makes it current for _new events_. Existing events keep signing with their own generation, so re-sent tickets stay byte-identical, and every public key stays valid for verification. After a suspected compromise, rotate, then drop the old secret with `--retire <id>` and re-issue the affected tickets (transfer, or cancel and generate again). **Automatic clean-up.** The worker (on start and every hour) deletes the secret of every non-current key generation once no event signed with it has an end time in the future; the public key stays, so issued tickets keep verifying. After that, re-sending a ticket of such an event answers `409 signing_key_retired`. The key id is one byte, so there are at most 255 generations.
 
 For Gmail, put the service-account JSON at `.secrets/gmail-sa.json` (section 6).
 

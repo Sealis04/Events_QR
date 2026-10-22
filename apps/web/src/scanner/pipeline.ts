@@ -148,14 +148,7 @@ export async function processScan(
 
   try {
     if (direction === "exit") {
-      const rule = decodeEntryRule(payload.entryRule);
-      const res = await client.exit(body);
-      if (res.result === "rejected_cancelled") return { kind: "cancelled", name };
-      if (res.result === "no_reentry" || rule.mode === "single") {
-        return { kind: "no_reentry", name, typeName };
-      }
-      await store.putTickets([{ ...local, inside: false }]);
-      return { kind: "exited", name, typeName, entriesLeft: res.entries_left ?? null };
+      return await runExit(deps, local, typeName, decodeEntryRule(payload.entryRule).mode, body);
     }
 
     const refused = entryRefusal();
@@ -165,6 +158,44 @@ export async function processScan(
   } catch (err) {
     if (err instanceof NetworkError) return { kind: "no_connection" };
     throw err; // AuthError and anything unexpected reach the UI
+  }
+}
+
+type ScanBody = Parameters<HubClient["exit"]>[0];
+
+/** Exit: always asks the server so the scan is logged; a single-entry ticket just shows grey. */
+async function runExit(
+  deps: PipelineDeps,
+  local: SyncTicket,
+  typeName: string,
+  mode: SyncTicket["entry_mode"],
+  body: ScanBody,
+): Promise<ScanOutcome> {
+  const name = local.holder_name;
+  const res = await deps.client.exit(body);
+  if (res.result === "rejected_cancelled") return { kind: "cancelled", name };
+  if (res.result === "no_reentry" || mode === "single")
+    return { kind: "no_reentry", name, typeName };
+  await deps.store.putTickets([{ ...local, inside: false }]);
+  return { kind: "exited", name, typeName, entriesLeft: res.entries_left ?? null };
+}
+
+/** Manual exit from the search list (no QR to read). */
+export async function manualExit(deps: PipelineDeps, local: SyncTicket): Promise<ScanOutcome> {
+  const type = deps.device.ticketTypes.find((t) => t.idx === local.ticket_type);
+  try {
+    if (local.status === "cancelled") return { kind: "cancelled", name: local.holder_name };
+    return await runExit(deps, local, type?.name ?? `Type ${local.ticket_type}`, local.entry_mode, {
+      scan_id: deps.newId(),
+      ticket_id: local.id,
+      device_id: deps.device.deviceId,
+      staff_id: deps.staff?.id ?? null,
+      gate: deps.device.gate,
+      scanned_at: deps.now(),
+    });
+  } catch (err) {
+    if (err instanceof NetworkError) return { kind: "no_connection" };
+    throw err;
   }
 }
 
@@ -200,7 +231,8 @@ async function claimOutcome(
     };
   }
   return {
-    kind: res.result === "rejected_inside" ? "inside" : "used",
+    // A single-entry ticket has no inside/outside: once admitted it is simply used.
+    kind: res.result === "rejected_inside" && local.entry_mode !== "single" ? "inside" : "used",
     name,
     typeName,
     first: res.first_scan ?? null,
@@ -208,7 +240,7 @@ async function claimOutcome(
 }
 
 /**
- * Supervisor override of the amber screen: the ticket is not in the phone's list, so the server
+ * Supervisor override (the amber screen, or a manual admit from the search list): the ticket is not in the phone's list, so the server
  * (which knows every ticket) decides, and records the scan as `override` with the supervisor's id.
  */
 export async function overrideAdmit(
@@ -216,6 +248,7 @@ export async function overrideAdmit(
   ticketId: string,
   typeName: string,
   supervisor: StaffSession,
+  known?: SyncTicket,
 ): Promise<ScanOutcome> {
   const { client, device } = deps;
   try {
@@ -228,7 +261,7 @@ export async function overrideAdmit(
       scanned_at: deps.now(),
       override: true,
     });
-    const stub: SyncTicket = {
+    const stub: SyncTicket = known ?? {
       id: ticketId,
       event_id: device.bundle.event_id,
       ticket_type: 0,
@@ -243,8 +276,14 @@ export async function overrideAdmit(
       status: "valid",
       updated_at: 0,
     };
-    // Not stored locally: the next sync brings the real row.
-    return await claimOutcome(res, stub, typeName, async () => {}, true);
+    // A ticket the phone does not know is not stored: the next sync brings the real row.
+    return await claimOutcome(
+      res,
+      stub,
+      typeName,
+      known ? (t) => deps.store.putTickets([t]) : async () => {},
+      true,
+    );
   } catch (err) {
     if (err instanceof NetworkError) return { kind: "no_connection" };
     throw err;

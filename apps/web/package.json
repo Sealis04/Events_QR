@@ -10,7 +10,8 @@
     "dev": "node --env-file-if-exists=../../.env node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "node --env-file-if-exists=../../.env node_modules/next/dist/bin/next start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@events-qr/core": "workspace:*",

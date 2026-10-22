@@ -271,7 +271,7 @@ describe("scanner validation pipeline: every result state", () => {
     });
     clock += 30;
     const again = await processScan(deps, t.token, "entry");
-    expect(again).toMatchObject({ kind: "inside", name: "Ada" });
+    expect(again).toMatchObject({ kind: "used", name: "Ada" });
     expect((again as { first: unknown }).first).toEqual({
       gate: "Gate A",
       at: NOW,
@@ -407,7 +407,7 @@ describe("scanner validation pipeline: every result state", () => {
       staff_id: sup.id,
       ticket_id: fresh.id,
     });
-    expect(await overrideAdmit(deps, fresh.id, "GA", sup)).toMatchObject({ kind: "inside" });
+    expect(await overrideAdmit(deps, fresh.id, "GA", sup)).toMatchObject({ kind: "used" });
     hub.down = new NetworkError("x");
     expect((await overrideAdmit(deps, fresh.id, "GA", sup)).kind).toBe("no_connection");
   });

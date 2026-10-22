@@ -42,9 +42,12 @@ export function configureZxing(overrides?: Parameters<typeof prepareZXingModule>
 }
 
 /** Starts loading the WASM so it is in the service-worker cache before the camera needs it. */
-export function warmZxing(): void {
+export async function warmZxing(): Promise<void> {
   configureZxing();
-  void prepareZXingModule({ fireImmediately: true }).catch(() => undefined);
+  await prepareZXingModule({ fireImmediately: true }).then(
+    () => undefined,
+    () => undefined,
+  );
 }
 
 const MAX_SIDE = 640;

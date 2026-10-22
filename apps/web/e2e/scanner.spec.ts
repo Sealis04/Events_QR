@@ -1,0 +1,150 @@
+import {
+  expect,
+  request as playwrightRequest,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
+import { E2E_PIN } from "./constants";
+
+const BASE = "http://127.0.0.1:3100";
+
+async function loggedIn(name: string): Promise<APIRequestContext> {
+  const ctx = await playwrightRequest.newContext({ baseURL: BASE });
+  const res = await ctx.post("/api/auth/login", { data: { name, pin: E2E_PIN } });
+  expect(res.ok()).toBe(true);
+  return ctx;
+}
+
+async function eventId(ctx: APIRequestContext): Promise<number> {
+  const events = await (await ctx.get("/api/events")).json();
+  return events.find((e: { name: string }) => e.name === "E2E Fest").id;
+}
+
+async function setupQr(direction: "entry" | "exit" | "both" = "entry", gate = "Gate A") {
+  const supervisor = await loggedIn("e2e-super");
+  const res = await supervisor.post("/api/devices/enroll", {
+    data: { event_id: await eventId(supervisor), gate, direction, label: "e2e phone" },
+  });
+  expect(res.status()).toBe(201);
+  return (await res.json()).setup_qr as string;
+}
+
+async function newTicket(ticketType = 0, holder = "Ada Lovelace") {
+  const staff = await loggedIn("e2e-staff");
+  const res = await staff.post(`/api/events/${await eventId(staff)}/tickets`, {
+    data: {
+      idempotency_key: `e2e-${Date.now()}-${Math.random()}`,
+      ticket_type: ticketType,
+      holder_name: holder,
+    },
+  });
+  expect(res.status()).toBe(201);
+  return (await res.json()).tickets[0].token as string;
+}
+
+/** Feeds a code through the same path the camera uses. */
+const feed = (page: Page, raw: string) => page.evaluate((code) => window.__scannerFeed!(code), raw);
+
+async function enrolAndLogin(page: Page, qr: string) {
+  await page.goto("/scan");
+  await expect(page.getByRole("button", { name: "Set up for event" })).toBeVisible();
+  await page.waitForFunction(() => !!window.__scannerFeed);
+  await feed(page, qr);
+  await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry");
+  await page.getByPlaceholder("Name").fill("e2e-staff");
+  await page.getByPlaceholder("PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.locator("main[data-phase=scan]")).toBeVisible();
+}
+
+test("enrol with a setup QR, scan a ticket green, rescan red 'already used'", async ({ page }) => {
+  const ticket = await newTicket(0, "Ada Lovelace");
+  await enrolAndLogin(page, await setupQr());
+  await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry");
+  await expect(page.getByTestId("pill")).toContainText("Cloud-only");
+
+  await feed(page, ticket);
+  const result = page.getByTestId("result");
+  await expect(result).toHaveAttribute("data-tone", "green");
+  await expect(page.getByTestId("result-title")).toHaveText("Ada Lovelace");
+  await expect(result).toBeHidden({ timeout: 5000 }); // auto-dismiss after 1.5 s
+
+  // The same code within 3 s is debounced: no false "already used".
+  await feed(page, ticket);
+  await page.waitForTimeout(500);
+  await expect(result).toBeHidden();
+
+  await page.waitForTimeout(3000);
+  await feed(page, ticket);
+  await expect(result).toHaveAttribute("data-tone", "red");
+  await expect(page.getByTestId("result-title")).toHaveText("Already used");
+  await expect(result).toContainText("Gate A");
+  await result.click(); // red screens wait for a tap
+  await expect(result).toBeHidden();
+
+  await feed(page, "https://example.org/not-a-ticket");
+  await expect(page.getByTestId("result-title")).toHaveText("Not an event ticket");
+});
+
+test("a ticket unknown to the phone shows amber; a supervisor override admits it", async ({
+  page,
+}) => {
+  await enrolAndLogin(page, await setupQr());
+  const fresh = await newTicket(0, "Late Issue"); // issued after the phone's sync
+  await feed(page, fresh);
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "amber");
+  await page.getByRole("button", { name: "Supervisor override" }).click();
+  await page.getByPlaceholder("Supervisor name").fill("e2e-super");
+  await page.getByPlaceholder("Supervisor PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Admit" }).click();
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
+});
+
+test("the scanner loads with the network off after the first visit", async ({ page, context }) => {
+  const ticket = await newTicket(0, "Offline Olive");
+  await enrolAndLogin(page, await setupQr());
+
+  // The service worker must be in control and hold the shell and the decoder WASM.
+  await page.waitForFunction(async () => {
+    if (!navigator.serviceWorker.controller) return false;
+    const assets = await caches.open("scan-assets-v1");
+    return (await assets.keys()).some((r) => r.url.endsWith(".wasm"));
+  });
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry");
+  await expect(page.locator("main[data-phase=scan]")).toBeVisible();
+
+  // Online-only checking fails closed: the ticket is not admitted without the server.
+  await page.waitForFunction(() => !!window.__scannerFeed);
+  await feed(page, ticket);
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "orange");
+  await expect(page.getByTestId("pill")).toContainText("Offline");
+
+  await context.setOffline(false);
+});
+
+test("a device set to 'both' shows the Entry / Exit toggle and records exits", async ({ page }) => {
+  const ticket = await newTicket(1, "Vera VIP");
+  await page.goto("/scan");
+  await page.waitForFunction(() => !!window.__scannerFeed);
+  await feed(page, await setupQr("both"));
+  await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry / Exit");
+  await page.getByPlaceholder("Name").fill("e2e-staff");
+  await page.getByPlaceholder("PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await page.getByRole("button", { name: "Entry", exact: true }).waitFor();
+
+  await feed(page, ticket);
+  await expect(page.getByTestId("result-title")).toHaveText("Vera VIP");
+  await expect(page.getByTestId("result")).toContainText("Entry 1 of 3");
+  await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
+
+  await page.getByRole("button", { name: "Exit", exact: true }).click();
+  await page.waitForTimeout(3200);
+  await feed(page, ticket);
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "blue");
+  await expect(page.getByTestId("result")).toContainText("Entries left: 2");
+});
