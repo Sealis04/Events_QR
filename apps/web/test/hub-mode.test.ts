@@ -187,7 +187,8 @@ describe.skipIf(!dbAvailable)("hub mode routes", () => {
   });
 
   it("the VM itself answers 404 for the hub-only routes and reports mode server", async () => {
-    expect((await call(scansRoute, { body: { scans: [] } })).status).toBe(404);
+    // On the VM `POST /api/scans` is the phone-scoped upload: it needs a device token.
+    expect((await call(scansRoute, { body: { scans: [] } })).status).toBe(401);
     expect(
       (await call(hubEnrollAlias, { body: { code: "x", device_id: crypto.randomUUID() } })).status,
     ).toBe(404);

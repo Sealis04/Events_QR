@@ -119,13 +119,16 @@ test("the scanner loads with the network off after the first visit", async ({ pa
   await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry");
   await expect(page.locator("main[data-phase=scan]")).toBeVisible();
 
-  // Online-only checking fails closed: the ticket is not admitted without the server.
+  // M5: with no server the phone decides alone from its own ticket list (orange OFFLINE banner).
   await page.waitForFunction(() => !!window.__scannerFeed);
   await feed(page, ticket);
-  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "orange");
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
+  await expect(page.getByTestId("result-banner")).toHaveText("OFFLINE");
   await expect(page.getByTestId("pill")).toContainText("Offline");
 
   await context.setOffline(false);
+  // Let the queued scan reach the server before the next test counts admits.
+  await expect(page.getByTestId("pill")).toContainText("0 queued", { timeout: 20_000 });
 });
 
 test("a device set to 'both' shows the Entry / Exit toggle and records exits", async ({ page }) => {

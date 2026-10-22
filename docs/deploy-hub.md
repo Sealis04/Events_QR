@@ -120,7 +120,9 @@ On the VM set `HUB_URL=https://hub.example.org` (and, optionally, `PUBLIC_URL=ht
 
 The phone sets itself up by trying **the hub first (3 s), then the page's own server (the VM)**. Enrolling at the hub works with no internet from the hub's cached codes, and the new phone becomes a valid device on the VM on the hub's next push (within about 5 s once the uplink is back). The hub's answer also tells the phone where the VM is, for the fallback.
 
-A setup code lasts 10 minutes and the hub learns new codes on its next pull (30 s), so a code works at the hub from about half a minute after a supervisor made it. **To enrol phones with no internet, make the codes up to 10 minutes before the uplink is lost, or while it is up.**
+A normal setup code (the on-screen QR) lasts 10 minutes and the hub learns new codes on its next pull (30 s), so it works at the hub from about half a minute after a supervisor made it.
+
+**Phones that must be set up with no internet** use a batch of hub codes instead: on the event page of the VM, under "Phone setup codes for the venue hub", pick a gate and role and make, say, 10 codes. They stay valid **until the event's end time**, each works once, and the page shows them as printable QRs (the codes are stored hashed, so they are shown only at that moment; print them then). The hub caches them on its next pull (30 s) and keeps handing them out with the uplink down. A code used at the hub is marked used on the VM after the next push, and a code used on the VM stops working at the hub after the next pull. The API is `POST /api/devices/enroll` with `{"event_id":…,"gate":…,"direction":…,"for_hub":true,"count":10}`; the answer has `setup_qrs`.
 
 Every scan asks the hub first and waits 800 ms. The pill on the phone says which server decided:
 

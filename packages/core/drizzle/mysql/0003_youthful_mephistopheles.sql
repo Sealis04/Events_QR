@@ -1,0 +1,1 @@
+ALTER TABLE `tickets` ADD `cancelled_at` bigint;

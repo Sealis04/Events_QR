@@ -129,6 +129,9 @@ class FakeHub implements HubClient {
   async sync(): Promise<never> {
     throw new Error("unused");
   }
+  async uploadScans(): Promise<never> {
+    throw new Error("unused");
+  }
   async health() {}
 }
 
@@ -220,7 +223,7 @@ describe("scanner validation pipeline: every result state", () => {
   it("amber: valid signature, not in the list; entry checks still apply first", async () => {
     await setup();
     const fresh = await make();
-    expect(await processScan(deps, fresh.token, "entry")).toEqual({
+    expect(await processScan(deps, fresh.token, "entry")).toMatchObject({
       kind: "unknown_ticket",
       ticketId: fresh.id,
       typeName: "GA",
@@ -375,16 +378,6 @@ describe("scanner validation pipeline: every result state", () => {
     expect((await processScan(deps, over.token, "entry")).kind).toBe("admitted");
   });
 
-  it("orange: no connection fails closed and changes nothing", async () => {
-    await setup("Gate A", "both");
-    const t = await known(await make());
-    hub.down = new NetworkError("offline");
-    expect(await processScan(deps, t.token, "entry")).toEqual({ kind: "no_connection" });
-    expect(await store.getTicket(t.id)).toMatchObject({ inside: false, admits_used: 0 });
-    hub.down = undefined;
-    expect((await processScan(deps, t.token, "entry")).kind).toBe("admitted");
-  });
-
   it("a revoked device (401) surfaces to the app instead of showing a result", async () => {
     await setup();
     const t = await known(await make());
@@ -428,6 +421,7 @@ describe("frame-to-result budget", () => {
       claim: async () => ({ result: "rejected_inside" }),
       exit: hub.exit.bind(hub),
       sync: hub.sync.bind(hub),
+      uploadScans: hub.uploadScans.bind(hub),
       health: hub.health.bind(hub),
     };
     const runs = 50;

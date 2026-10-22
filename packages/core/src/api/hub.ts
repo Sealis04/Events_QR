@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STAFF_ROLES } from "../db/shared";
 import {
   cursor,
   deviceDirection,
@@ -69,6 +70,17 @@ export const hubSyncResponse = z.object({
   ),
   /** Current ticket types (early-entry minutes can change), so devices need not re-enrol. */
   ticket_types: z.array(scannerTicketType).default([]),
+  /**
+   * Staff with their argon2id PIN hashes, so a phone can check a PIN with no network. The phone
+   * keeps only the hash (never a PIN) and locks out after repeated wrong tries.
+   */
+  staff: z
+    .array(
+      z.object({ id: uuid, name: z.string(), role: z.enum(STAFF_ROLES), pin_hash: z.string() }),
+    )
+    .default([]),
+  /** Per-event settings the phone needs while offline. */
+  settings: z.object({ offline_gate_only: z.boolean().default(false) }).default({}),
   next_cursor: cursor.nullable(),
   has_more: z.boolean(),
   /** Hub time, Unix seconds, so devices can correct their clock. */

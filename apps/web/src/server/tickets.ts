@@ -352,7 +352,11 @@ export async function cancelTicket(ctx: AppContext, idHexValue: string) {
     if (!locked || locked.status === "cancelled") return;
     await tx
       .update(tickets)
-      .set({ status: "cancelled", updatedAt: Math.max(ctx.now(), locked.updatedAt) })
+      .set({
+        status: "cancelled",
+        cancelledAt: ctx.now(),
+        updatedAt: Math.max(ctx.now(), locked.updatedAt),
+      })
       .where(eq(tickets.id, row.id));
     await tx
       .update(ticketTypes)
@@ -409,7 +413,7 @@ export async function transferTicket(
     }
     await tx
       .update(tickets)
-      .set({ status: "cancelled", updatedAt: Math.max(now, locked.updatedAt) })
+      .set({ status: "cancelled", cancelledAt: now, updatedAt: Math.max(now, locked.updatedAt) })
       .where(eq(tickets.id, old.id));
     await tx
       .update(ticketTypes)

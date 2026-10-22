@@ -12,7 +12,11 @@ const { devices, enrolmentCodes } = mysqlSchema;
 
 export { SETUP_TTL_SECONDS };
 
-/** Step 1: a supervisor creates a setup QR. The one-time code is stored only as a SHA-256. */
+/**
+ * Step 1: a supervisor creates a setup QR. The one-time code is stored only as a SHA-256. Normal
+ * codes live 10 minutes; codes `for_hub` live until the event ends so the hub can hand them out
+ * with no internet (each still works once, on the hub or on the VM, whichever sees it first).
+ */
 export async function createSetup(
   ctx: AppContext,
   staffId: string,
@@ -22,27 +26,27 @@ export async function createSetup(
   const event = await loadEvent(ctx.db, input.event_id);
   if (!event.gates.includes(input.gate))
     throw badRequest(`"${input.gate}" is not a gate of this event`);
-  const code = randomToken(12);
   const now = ctx.now();
-  const expiresAt = now + SETUP_TTL_SECONDS;
-  await ctx.db.insert(enrolmentCodes).values({
-    eventId: event.id,
-    codeHash: sha256Hex(code),
-    gate: input.gate,
-    direction: input.direction,
-    label: input.label ?? null,
-    createdBy: staffId,
-    createdAt: now,
-    expiresAt,
-  });
-  return {
-    setup_qr: encodeSetupCode({
+  const expiresAt = input.for_hub ? event.endsAt : now + SETUP_TTL_SECONDS;
+  if (expiresAt <= now) throw badRequest("this event has already ended");
+  const count = input.count ?? 1;
+  if (count > 1 && !input.for_hub) throw badRequest("only hub codes can be made in a batch");
+  const codes = Array.from({ length: count }, () => randomToken(12));
+  await ctx.db.insert(enrolmentCodes).values(
+    codes.map((code) => ({
       eventId: event.id,
-      code,
-      hubUrl: ctx.config.HUB_URL ?? fallbackUrl,
-    }),
-    expires_at: expiresAt,
-  };
+      codeHash: sha256Hex(code),
+      gate: input.gate,
+      direction: input.direction,
+      label: input.label ?? null,
+      createdBy: staffId,
+      createdAt: now,
+      expiresAt,
+    })),
+  );
+  const hubUrl = ctx.config.HUB_URL ?? fallbackUrl;
+  const qrs = codes.map((code) => encodeSetupCode({ eventId: event.id, code, hubUrl }));
+  return { setup_qr: qrs[0]!, setup_qrs: qrs, expires_at: expiresAt };
 }
 
 /** Step 1 for a venue hub: a supervisor creates a one-time code, typed into `scripts/hub-enroll.ts`. */

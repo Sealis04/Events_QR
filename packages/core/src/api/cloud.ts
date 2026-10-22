@@ -53,6 +53,8 @@ export const updateEventRequest = z
     starts_at: unixSeconds,
     ends_at: unixSeconds,
     gates: z.array(gateName).min(1).max(16),
+    /** Offline devices admit only tickets whose signed gate list names their gate. */
+    offline_gate_only: z.boolean(),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "nothing to update" });
@@ -147,10 +149,18 @@ export const createSetupRequest = z.object({
   gate: gateName,
   direction: deviceDirection,
   label: z.string().max(255).optional(),
+  /**
+   * Codes for the venue hub: valid until the event's `ends_at` instead of 10 minutes, still single
+   * use, cached (hashed) by the hub so phones can enrol with no internet. `count` makes a batch.
+   */
+  for_hub: z.boolean().optional(),
+  count: z.number().int().min(1).max(50).optional(),
 });
 export const createSetupResponse = z.object({
-  /** The `DEV1:` text to render as a QR. */
+  /** The `DEV1:` text to render as a QR (the first one of a batch). */
   setup_qr: z.string().startsWith("DEV1:"),
+  /** Every code of the batch, in order. Codes are stored hashed: this is the only time they show. */
+  setup_qrs: z.array(z.string().startsWith("DEV1:")).min(1),
   expires_at: unixSeconds,
 });
 
@@ -284,3 +294,27 @@ export const eventStatsResponse = z.object({
 });
 
 export { keyBundle };
+
+/** `GET /events/{id}/conflicts` (supervisor): scans flagged `conflict`, newest first (M6's feed). */
+export const conflictsQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  before: z.coerce.number().int().nonnegative().optional(),
+});
+export const conflictsResponse = z.object({
+  conflicts: z.array(
+    z.object({
+      scan_id: uuid,
+      ticket_id: ticketIdHex,
+      holder_name: z.string().nullable(),
+      gate: gateName,
+      device_id: uuid.nullable(),
+      scanned_at: unixSeconds,
+      received_at: unixSeconds.nullable(),
+      offline: z.boolean(),
+      /** The earlier admit that stays canonical, or null when the ticket was cancelled first. */
+      canonical: z.object({ gate: gateName, scanned_at: unixSeconds }).nullable(),
+      ticket_status: ticketStatus,
+    }),
+  ),
+  total: z.number().int(),
+});

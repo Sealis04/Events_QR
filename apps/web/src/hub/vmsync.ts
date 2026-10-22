@@ -197,6 +197,7 @@ export function applyTickets(ctx: HubContext, rows: SyncTicket[]): void {
               admitsUsed: t.admits_used,
               inside: t.inside,
               status: t.status,
+              cancelledAt: t.cancelled_at ?? null,
               issuedAt: t.updated_at,
               updatedAt: now,
             })
@@ -212,7 +213,8 @@ export function applyTickets(ctx: HubContext, rows: SyncTicket[]): void {
           cur.gateMask !== t.gate_mask ||
           cur.slotStart !== t.slot_start ||
           cur.slotEnd !== t.slot_end ||
-          cur.status !== status;
+          cur.status !== status ||
+          (t.cancelled_at != null && cur.cancelledAt !== t.cancelled_at);
         if (!changed) continue;
         ctx.db
           .update(tickets)
@@ -225,10 +227,13 @@ export function applyTickets(ctx: HubContext, rows: SyncTicket[]): void {
             slotStart: t.slot_start,
             slotEnd: t.slot_end,
             status,
+            cancelledAt: t.cancelled_at ?? cur.cancelledAt,
             updatedAt: sql`max(${now}, ${tickets.updatedAt})`,
           })
           .where(eq(tickets.id, cur.id))
           .run();
+        // Offline admits scanned after the cancellation are conflicts: re-judge this ticket.
+        if (status === "cancelled") recomputeTicket(ctx, t.id);
       }
     }
   });
