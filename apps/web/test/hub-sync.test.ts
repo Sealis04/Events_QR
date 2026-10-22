@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { api, hexToBytes, mysqlSchema, sqliteSchema } from "@events-qr/core";
 import { POST as vmClaim } from "../src/app/api/claim/route";
 import { POST as vmLogin } from "../src/app/api/auth/login/route";
-import { call, createTestEnv, dbAvailable, TEST_PIN, type TestEnv } from "./helpers";
+import { call, createTestEnv, dbAvailable, PRIVILEGED_PIN, type TestEnv } from "./helpers";
 import { createHubWorld, type HubWorld } from "./hub-helpers";
 import * as hubRoutes from "../src/hub/routes";
 import { getState } from "../src/hub/state";
@@ -289,14 +289,16 @@ describe.skipIf(!dbAvailable)("hub sync with the VM", () => {
 
   it("staff log in at the hub with their PIN, mirrored from the VM", async () => {
     await w.pull();
-    const ok = await call(hubRoutes.login, { body: { name: w.supervisor.name, pin: TEST_PIN } });
+    const ok = await call(hubRoutes.login, {
+      body: { name: w.supervisor.name, pin: PRIVILEGED_PIN },
+    });
     expect(ok.json).toMatchObject({ id: w.supervisor.id, role: "supervisor" });
     const bad = await call(hubRoutes.login, {
       body: { name: w.supervisor.name, pin: "wrong-pin-1" },
     });
     expect(bad.status).toBe(401);
     // Same answer shape as the VM's login.
-    const vm = await call(vmLogin, { body: { name: w.supervisor.name, pin: TEST_PIN } });
+    const vm = await call(vmLogin, { body: { name: w.supervisor.name, pin: PRIVILEGED_PIN } });
     expect(Object.keys(ok.json).sort()).toEqual(Object.keys(vm.json).sort());
   });
 

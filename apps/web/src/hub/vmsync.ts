@@ -92,6 +92,14 @@ export function applyMeta(ctx: HubContext, meta: Meta): void {
         })
         .run();
     }
+    // The VM lists only the event's current staff (none after it ends). Anyone else loses their
+    // hash here: the row stays (scans point at it) but with an empty hash nobody can log in as it.
+    const listedStaff = meta.staff.map((s) => s.id);
+    ctx.db
+      .update(staff)
+      .set({ pinHash: "" })
+      .where(listedStaff.length ? notInArray(staff.id, listedStaff) : undefined)
+      .run();
 
     for (const d of meta.devices) {
       ctx.db

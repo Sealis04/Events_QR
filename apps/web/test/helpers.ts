@@ -109,8 +109,11 @@ export async function createTestEnv(overrides: Record<string, string> = {}): Pro
   };
 }
 
-let pinHashCache: Promise<string> | undefined;
+const pinHashCache = new Map<string, Promise<string>>();
 export const TEST_PIN = "correct-horse";
+/** Supervisors and admins need 8+ digits. */
+export const PRIVILEGED_PIN = "12345678";
+export const pinFor = (role: string): string => (role === "staff" ? TEST_PIN : PRIVILEGED_PIN);
 
 export interface TestStaff {
   id: string;
@@ -120,12 +123,13 @@ export interface TestStaff {
 }
 
 export async function makeStaff(env: TestEnv, role: StaffRole, name?: string): Promise<TestStaff> {
-  pinHashCache ??= hashPin(TEST_PIN);
+  const pin = pinFor(role);
+  if (!pinHashCache.has(pin)) pinHashCache.set(pin, hashPin(pin));
   const id = randomUUID();
   const staffName = name ?? `${role}-${id.slice(0, 6)}`;
   await env.handle.db
     .insert(mysqlSchema.staff)
-    .values({ id, name: staffName, pinHash: await pinHashCache, role });
+    .values({ id, name: staffName, pinHash: await pinHashCache.get(pin)!, role });
   return {
     id,
     name: staffName,

@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 import type { ZodType, ZodTypeDef } from "zod";
 import { sqliteSchema } from "@events-qr/core";
-import type { AuthedDevice } from "../server/auth";
-import { badRequest, HttpError, json } from "../server/errors";
+import { hasRole, type AuthedDevice, type AuthedStaff, type StaffRole } from "../server/auth";
+import { assertSameOrigin, badRequest, HttpError, json } from "../server/errors";
 import { safeEqual, sha256Hex } from "../server/secrets";
 import { getHubContext, type HubContext } from "./context";
+import { authenticateHubStaff } from "./session";
 
 const { devices } = sqliteSchema;
 
@@ -37,12 +38,13 @@ export interface HubRouteArgs<B, Q> {
   req: Request;
   ctx: HubContext;
   device: AuthedDevice;
+  staff: AuthedStaff;
   body: B;
   query: Q;
 }
 
 export interface HubRouteOptions<B, Q> {
-  access: "public" | "device";
+  access: "public" | "device" | { staff: StaffRole };
   body?: ZodType<B, ZodTypeDef, unknown>;
   query?: ZodType<Q, ZodTypeDef, unknown>;
 }
@@ -56,9 +58,16 @@ export function hubRoute<B = undefined, Q = undefined>(
     try {
       const ctx = await getHubContext();
       let device: AuthedDevice | undefined;
+      let staff: AuthedStaff | undefined;
       if (options.access === "device") {
         device = authenticateHubDevice(ctx, req);
         if (!device) throw new HttpError(401, "unauthenticated", "device token required");
+      } else if (options.access !== "public") {
+        staff = authenticateHubStaff(ctx, req);
+        if (!staff) throw new HttpError(401, "unauthenticated", "log in first");
+        if (req.method !== "GET") assertSameOrigin(req);
+        if (!hasRole(staff.role, options.access.staff))
+          throw new HttpError(403, "forbidden", `requires ${options.access.staff}`);
       }
 
       let body: unknown;
@@ -88,6 +97,7 @@ export function hubRoute<B = undefined, Q = undefined>(
         req,
         ctx,
         device: device as AuthedDevice,
+        staff: staff as AuthedStaff,
         body: body as B,
         query: query as Q,
       });

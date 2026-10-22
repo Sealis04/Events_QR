@@ -462,34 +462,44 @@ export async function resendTicket(ctx: AppContext, idHexValue: string, email?: 
 export async function listTickets(
   ctx: AppContext,
   eventId: number,
-  opts: { q?: string; limit: number; offset: number },
+  opts: { q?: string; status?: string; limit: number; offset: number },
 ) {
   await loadEvent(ctx.db, eventId);
   const q = opts.q?.trim();
   const hex = (q ?? "").toUpperCase().replace(/[^0-9A-F]/g, "");
-  const like = (q ?? "").replace(/[%_\\]/g, "\\$&");
+  const like = "%" + (q ?? "").replace(/[%_\\]/g, "\\$&") + "%";
+  // Name or email always; the last characters of the ticket id when the text could be hex.
   const search = q
     ? hex.length === q.length && hex.length >= 4
-      ? sql`AND (${tickets.holderName} LIKE ${"%" + like + "%"} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
-      : sql`AND ${tickets.holderName} LIKE ${"%" + like + "%"}`
+      ? sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
+      : sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like})`
     : sql``;
+  const status = opts.status ? sql`AND ${tickets.status} = ${opts.status}` : sql``;
+  const where = sql`${tickets.eventId} = ${eventId} ${search} ${status}`;
   const rows = await ctx.db
     .select()
     .from(tickets)
-    .where(sql`${tickets.eventId} = ${eventId} ${search}`)
+    .where(where)
     .orderBy(tickets.issuedAt, tickets.id)
     .limit(opts.limit)
     .offset(opts.offset);
-  return rows.map((r) => ({
-    ticket_id: idHex(r),
-    short_id: shortTicketId({ ticketId: r.id }),
-    holder_name: r.holderName,
-    holder_email: r.holderEmail,
-    ticket_type: r.ticketType,
-    status: r.status,
-    admits_used: r.admitsUsed,
-    inside: r.inside,
-    issued_at: r.issuedAt,
-    updated_at: r.updatedAt,
-  }));
+  const [{ total = 0 } = {}] = await ctx.db
+    .select({ total: sql<number>`COUNT(*)` })
+    .from(tickets)
+    .where(where);
+  return {
+    total: Number(total),
+    tickets: rows.map((r) => ({
+      ticket_id: idHex(r),
+      short_id: shortTicketId({ ticketId: r.id }),
+      holder_name: r.holderName,
+      holder_email: r.holderEmail,
+      ticket_type: r.ticketType,
+      status: r.status,
+      admits_used: r.admitsUsed,
+      inside: r.inside,
+      issued_at: r.issuedAt,
+      updated_at: r.updatedAt,
+    })),
+  };
 }

@@ -24,7 +24,7 @@ if (!role) throw new Error(`role must be one of ${STAFF_ROLES.join(", ")}`);
 let pin = process.env.PIN;
 if (!pin) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  pin = await rl.question("PIN (6+ characters): ");
+  pin = await rl.question("PIN (supervisor and admin: 8+ digits; staff: 6+ characters): ");
   rl.close();
 }
 

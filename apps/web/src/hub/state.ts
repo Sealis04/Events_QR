@@ -15,7 +15,8 @@ export type StateKey =
   | "cursor_tickets" // `<updated_at>:<id>` on the VM
   | "cursor_scans" // `<received_at>:<id>` on the VM
   | "last_cloud_sync_at"
-  | "last_cloud_error";
+  | "last_cloud_error"
+  | "session_secret"; // HMAC key for dashboard sessions on this hub
 
 export function getState(ctx: Pick<HubContext, "db">, key: StateKey): string | undefined {
   return ctx.db.select().from(hubState).where(eq(hubState.key, key)).get()?.value;

@@ -1,5 +1,5 @@
 /** `GET /api/sync` on the hub: the device pull. Same page shape the VM serves (src/server/sync.ts). */
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { api, bytesToHex, hexToBytes, sqliteSchema } from "@events-qr/core";
 import type { AuthedDevice } from "../server/auth";
@@ -68,6 +68,7 @@ export function syncForDevice(
     staff: ctx.db
       .select()
       .from(staff)
+      .where(ne(staff.pinHash, ""))
       .all()
       .map((s) => ({
         id: s.id,

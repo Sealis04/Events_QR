@@ -58,8 +58,32 @@ export const staff = mysqlTable(
     name: varchar("name", { length: 255 }).notNull(),
     pinHash: text("pin_hash").notNull(),
     role: varchar("role", { length: 16 }).notNull(),
+    /** Why this person must set a new PIN before anything else works: `weak` (too short for the role) or `rotate` (a phone holding their hash was lost). */
+    pinReset: varchar("pin_reset", { length: 8 }),
   },
-  (t) => [check("ck_staff_role", sql`${t.role} IN (${sql.raw(sqlList(STAFF_ROLES))})`)],
+  (t) => [
+    check("ck_staff_pin_reset", sql`${t.pinReset} IS NULL OR ${t.pinReset} IN ('weak', 'rotate')`),
+    check("ck_staff_role", sql`${t.role} IN (${sql.raw(sqlList(STAFF_ROLES))})`),
+  ],
+);
+
+/**
+ * Per-event staff assignment. Phones and the hub receive PIN hashes only for the event's staff:
+ * everyone who issued one of its tickets, plus rows here with `assigned = true`, minus rows with
+ * `assigned = false` (an explicit removal beats having issued tickets).
+ */
+export const eventStaff = mysqlTable(
+  "event_staff",
+  {
+    eventId: int("event_id")
+      .notNull()
+      .references(() => events.id),
+    staffId: uuidCol("staff_id")
+      .notNull()
+      .references(() => staff.id),
+    assigned: boolean("assigned").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.staffId] })],
 );
 
 export const ticketTypes = mysqlTable(
@@ -139,6 +163,10 @@ export const devices = mysqlTable(
     revoked: boolean("revoked").notNull().default(false),
     lastSeenAt: unixCol("last_seen_at"),
     kind: varchar("kind", { length: 8 }).notNull().default("scanner"),
+    /** What the phone last reported (`POST /api/devices/heartbeat`); battery is NULL when it cannot say. */
+    batteryPct: smallint("battery_pct"),
+    outboxSize: int("outbox_size"),
+    reportedAt: unixCol("reported_at"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
@@ -194,6 +222,9 @@ export const scans = mysqlTable(
     result: varchar("result", { length: 24 }).notNull(),
     offline: boolean("offline").notNull(),
     conflict: boolean("conflict").notNull().default(false),
+    /** A conflict an organiser has looked at (VM only). */
+    reviewedAt: unixCol("reviewed_at"),
+    reviewedBy: uuidCol("reviewed_by"),
   },
   (t) => [
     index("ix_scans_ticket").on(t.ticketId),

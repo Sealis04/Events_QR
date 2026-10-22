@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { decodeSetupCode } from "@events-qr/core";
+import { decodeSetupCode, mysqlSchema } from "@events-qr/core";
 import { POST as createEvent } from "../src/app/api/events/route";
 import { POST as generate } from "../src/app/api/events/[id]/tickets/route";
 import { POST as cancelRoute } from "../src/app/api/tickets/[id]/cancel/route";
@@ -119,6 +119,10 @@ export async function createHubWorld(
       }),
   });
   const eventId = created.json.id as number;
+  // Phones and the hub only get PIN hashes of the event's staff.
+  await vm.handle.db
+    .insert(mysqlSchema.eventStaff)
+    .values([admin, supervisor, staff].map((s) => ({ eventId, staffId: s.id, assigned: true })));
 
   const dir = mkdtempSync(join(tmpdir(), "eqr-hub-"));
   const dbPath = join(dir, "hub.sqlite");
@@ -187,6 +191,7 @@ export async function createHubWorld(
         staff: supervisor,
         body: { event_id: eventId, gate, direction },
       });
+      if (created.status !== 201) throw new Error(`setup failed: ${created.text}`);
       const decoded = decodeSetupCode(created.json.setup_qr);
       if (!decoded.ok) throw new Error("bad setup qr");
       const id = randomUUID();
@@ -199,6 +204,7 @@ export async function createHubWorld(
         staff: supervisor,
         body: { event_id: eventId, gate, direction },
       });
+      if (created.status !== 201) throw new Error(`setup failed: ${created.text}`);
       const decoded = decodeSetupCode(created.json.setup_qr);
       if (!decoded.ok) throw new Error("bad setup qr");
       await world.pull();

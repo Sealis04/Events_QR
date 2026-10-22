@@ -25,6 +25,7 @@ import {
   createTestEnv,
   dbAvailable,
   makeStaff,
+  PRIVILEGED_PIN,
   TEST_PIN,
   type TestEnv,
   type TestStaff,
@@ -168,14 +169,15 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
       call(login, { body: { name, pin }, headers: { "x-forwarded-for": ip } });
 
     it("sets an httpOnly, SameSite=Lax, Secure session cookie", async () => {
-      const res = await attempt(staff.supervisor!.name, TEST_PIN);
+      const res = await attempt(staff.supervisor!.name, PRIVILEGED_PIN);
       expect(res.status).toBe(200);
       expect(res.json).toMatchObject({ id: staff.supervisor!.id, role: "supervisor" });
       const cookie = res.headers.get("set-cookie")!;
       expect(cookie).toMatch(new RegExp(`^${SESSION_COOKIE}=`));
       for (const attr of ["HttpOnly", "SameSite=Lax", "Secure", "Path=/"])
         expect(cookie).toContain(attr);
-      expect(res.text).not.toContain("pin");
+      expect(res.text).not.toContain("pin_hash");
+      expect(res.text).not.toContain(PRIVILEGED_PIN);
 
       const value = cookie.split(";")[0]!;
       const who = await call(me, { staff: { cookie: value } });
@@ -272,7 +274,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
     it("stores an argon2id hash, never the PIN, and refuses duplicates and short PINs", async () => {
       const res = await call(createStaff, {
         staff: staff.admin!,
-        body: { name: "Dana", pin: "123456", role: "supervisor" },
+        body: { name: "Dana", pin: "12345678", role: "supervisor" },
       });
       expect(res.status).toBe(201);
       const [row] = await env.handle.db
@@ -280,7 +282,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
         .from(mysqlSchema.staff)
         .where(eq(mysqlSchema.staff.id, res.json.id));
       expect(row!.pinHash).toMatch(/^\$argon2id\$/);
-      expect(row!.pinHash).not.toContain("123456");
+      expect(row!.pinHash).not.toContain("12345678");
       expect(
         (
           await call(createStaff, {
@@ -308,7 +310,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
       expect(
         (
           await call(login, {
-            body: { name: "Dana", pin: "123456" },
+            body: { name: "Dana", pin: "12345678" },
             headers: { "x-forwarded-for": "10.0.0.77" },
           })
         ).status,

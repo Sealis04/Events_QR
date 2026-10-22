@@ -55,7 +55,7 @@ function checkRequest(
   }
   if (body.staff_id) {
     const member = ctx.db
-      .select({ role: staff.role })
+      .select({ role: staff.role, pinHash: staff.pinHash })
       .from(staff)
       .where(eq(staff.id, body.staff_id))
       .get();
@@ -63,6 +63,8 @@ function checkRequest(
     if (body.override && (RANK[member.role] ?? 0) < RANK.supervisor!) {
       throw new HttpError(403, "forbidden", "an override needs a supervisor");
     }
+    if (body.override && !member.pinHash)
+      throw new HttpError(403, "pin_change_required", "this supervisor is not active at this hub");
   } else if (body.override) {
     throw badRequest("an override needs the supervisor's staff_id");
   }

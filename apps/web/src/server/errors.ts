@@ -24,3 +24,18 @@ export function json(data: unknown, status = 200, headers?: HeadersInit): Respon
 }
 
 /** `hub` is a device token whose device row is a venue hub. */
+
+/** Cookie-authenticated writes must come from our own origin (on top of SameSite=Lax). */
+export function assertSameOrigin(req: Request): void {
+  const origin = req.headers.get("origin");
+  if (!origin) return;
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    throw new HttpError(403, "bad_origin", "bad origin");
+  }
+  if (host && originHost !== host)
+    throw new HttpError(403, "bad_origin", "cross-origin request refused");
+}
