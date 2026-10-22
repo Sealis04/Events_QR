@@ -20,10 +20,16 @@ Milestone M5 (offline mode) of `plans/offline-qr-ticketing/plan.md`, plus the fi
 ## reviewer
 
 **Status:** APPROVED
-**Environment:** ready as-is (session init script ran; MariaDB up; Chrome linked; no SQL Server/Prisma in this repo).
-**E2E results (all pass):** `bun run lint` ok; `bunx tsc --noEmit` ok; `bun run test` 23 web files / 264 tests + 18 worker tests pass (chaos test: 4279 scans, 627 decided offline, 279 double admissions flagged exactly); `bun run test:e2e` 8/8 pass (hub, hub-uplink-cut, offline admit + banner + reload outbox + offline staff login + drain, scanner enrol/override/exit).
-**Issues filed:** none.
-**Summary:** #5 is fixed (hub-only `/api/sync/scans` with event-device check; phone-scoped `/api/scans` on the VM; schema rejects unknown results). Long-lived hub codes, encrypted IndexedDB, persistent outbox, offline PIN login, conflicts and wipe are implemented and tested. Planner notes: staff PIN hashes (argon2id) are now sent to every phone and are brute-forceable offline if a phone is stolen; the offline gate-only interpretation and the v1->v2 IndexedDB reset (phones re-enrol) are noted in builder-1's summary. Not manually reviewed in depth: M6 conflict feed UI (out of scope).
+**Environment:** ready as-is (init script ran; MariaDB up, chrome linked; no SQL Server/Prisma in this repo).
+**E2E results:** `bun run test:e2e` 8/8 pass (hub.spec x3, offline.spec: OFFLINE banner, "Already inside (offline)", reload keeps outbox, offline staff login, outbox drains to VM; scanner.spec x4). `bun run lint`, `bunx tsc --noEmit` clean; `bun run test` all pass (web 264 incl. chaos 5,000 scans/20 phones, worker 18, core).
+**Requested checks:**
+1. `tickets.cancelled_at` migrations: applied M4 migrations (9c63e03) then current ones on MariaDB and SQLite: both OK, existing rows NULL. Caveat: legacy cancelled tickets stay NULL (#9).
+2. IndexedDB v2 upgrade: v1 db with device+outbox opened by new IdbStore: upgrades, v1 data dropped (phone must re-enrol, as documented), new store works. v1 outbox was unused in M4.
+3. Staff PIN hashes: only to authenticated, non-revoked devices (VM and hub both 401 revoked); but staff is global, so not limited to the event's staff, and not stopped after the event ends (#8).
+Storage check: device/tickets/outbox/meta sealed AES-GCM in IDB; only the staff session in sessionStorage (no PIN/token).
+**#5:** `/api/sync/scans` is hub-token only (route access "hub"), covered by tests.
+**Issues filed:** #8 (PIN hash scope, improvement), #9 (cancelled_at backfill, improvement). Both non-blocking.
+**Summary:** Solid, well-tested M5; chaos test reconciles with flags exact. Approved; PR opened to main.
 
 ## planner
 
