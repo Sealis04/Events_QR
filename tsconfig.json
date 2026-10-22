@@ -13,6 +13,8 @@
     "packages/*/*.ts",
     "apps/*/src",
     "apps/*/test",
+    "apps/*/e2e",
+    "apps/*/scripts",
     "apps/*/*.ts",
     "scripts"
   ]

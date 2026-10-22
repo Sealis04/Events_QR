@@ -9,6 +9,15 @@ const config: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
   outputFileTracingRoot: resolve(import.meta.dirname, "../.."),
   transpilePackages: ["@events-qr/core"],
+  async headers() {
+    return [
+      {
+        // The worker must always be re-checked so a new deploy reaches phones.
+        source: "/scan-sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
   // Native / WASM packages stay outside the bundle and load at runtime.
   serverExternalPackages: [
     "libsodium-wrappers",

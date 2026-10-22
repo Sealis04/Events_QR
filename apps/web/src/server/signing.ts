@@ -8,7 +8,7 @@
  * stays valid for verification, but nothing can be minted with it any more).
  */
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from "node:crypto";
-import { readFile, writeFile, chmod } from "node:fs/promises";
+import { chmod, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { generateSigningKeyPair, mintToken, type TicketPayload } from "@events-qr/core";
 import { b64, fromB64 } from "./secrets";
 
@@ -69,9 +69,17 @@ function open(sealed: string, key: Buffer, keyId: number): Uint8Array {
   );
 }
 
+/** Writes a temp file next to the target and renames it over, so readers never see a partial file. */
 async function writeKeyFile(path: string, file: KeyFile): Promise<void> {
-  await writeFile(path, JSON.stringify(file, null, 2) + "\n", { mode: 0o600 });
-  await chmod(path, 0o600);
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+  try {
+    await writeFile(tmp, JSON.stringify(file, null, 2) + "\n", { mode: 0o600 });
+    await chmod(tmp, 0o600);
+    await rename(tmp, path);
+  } catch (err) {
+    await rm(tmp, { force: true });
+    throw err;
+  }
 }
 
 async function readKeyFile(path: string): Promise<KeyFile> {
@@ -141,11 +149,23 @@ export async function retireSigningKey(path: string, keyId: number): Promise<voi
   await writeKeyFile(path, file);
 }
 
+/** Key generations in the file, and whether each still has its secret. */
+export async function listSigningKeys(
+  path: string,
+): Promise<{ currentKeyId: number; keys: { keyId: number; hasSecret: boolean }[] }> {
+  const file = await readKeyFile(path);
+  return {
+    currentKeyId: file.current_key_id,
+    keys: file.keys.map((k) => ({ keyId: k.key_id, hasSecret: !!k.secret })),
+  };
+}
+
 export class Signer {
   private constructor(
     readonly currentKeyId: number,
     private readonly secrets: Map<number, Uint8Array>,
     private readonly publics: Map<number, Uint8Array>,
+    private readonly path?: string,
   ) {}
 
   static async load(path: string, passphrase: string): Promise<Signer> {
@@ -158,7 +178,7 @@ export class Signer {
       if (entry.secret) secrets.set(entry.key_id, open(entry.secret, key, entry.key_id));
     }
     if (!secrets.has(file.current_key_id)) throw new Error("current signing key has no secret");
-    return new Signer(file.current_key_id, secrets, publics);
+    return new Signer(file.current_key_id, secrets, publics, path);
   }
 
   /** In-memory signer for tests. */
@@ -173,6 +193,18 @@ export class Signer {
       if (p.privateKey) secrets.set(p.keyId, p.privateKey);
     }
     return new Signer(currentKeyId, secrets, publics);
+  }
+
+  /**
+   * Whether `keyId` can still mint. A signer backed by a file re-reads it first, because the
+   * worker deletes secrets of finished events' key generations from another process.
+   */
+  async canMint(keyId: number): Promise<boolean> {
+    if (this.path) {
+      const { keys } = await listSigningKeys(this.path);
+      if (!keys.some((k) => k.keyId === keyId && k.hasSecret)) this.secrets.delete(keyId);
+    }
+    return this.secrets.has(keyId);
   }
 
   /** Public keys by `key_id`, for verification and for the device key bundle. */

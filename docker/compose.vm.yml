@@ -6,7 +6,7 @@ name: events-qr
 x-app-env: &app-env
   DB_HOST: mariadb
   DB_PORT: "3306"
-  # The key files are mounted read-only at /secrets.
+  # The key files are mounted at /secrets (read-only for the app; the worker may rewrite the signing key file).
   SIGNING_KEY_PATH: /secrets/signing-key.json
   GMAIL_SA_KEY_PATH: /secrets/gmail-sa.json
   # TLS ends at Nginx Proxy Manager; browsers only get the session cookie over https.
@@ -73,8 +73,10 @@ services:
     environment:
       <<: *app-env
       APP_MODE: worker
+    # Not read-only: the worker deletes the secrets of finished events' old signing keys, which
+    # rewrites signing-key.json (temp file + rename in this folder).
     volumes:
-      - ${SECRETS_DIR:-../.secrets}:/secrets:ro
+      - ${SECRETS_DIR:-../.secrets}:/secrets
     depends_on:
       migrate: { condition: service_completed_successfully }
 

@@ -63,6 +63,14 @@ export type ScanRecord = z.infer<typeof scanRecord>;
 
 export const firstScan = z.object({ gate: gateName, at: unixSeconds, device: uuid.nullable() });
 
+/** What a scanner needs to know about a ticket type besides what is signed into the QR. */
+export const scannerTicketType = z.object({
+  idx: z.number().int().min(0).max(255),
+  name: z.string(),
+  /** Minutes before `slot_start` that entry is allowed. */
+  early_entry_min: z.number().int().min(0).max(120),
+});
+
 export const keyBundle = z.object({
   event_id: z.number().int(),
   /** Base64 of the 32-byte AES-256 event key. */
@@ -74,4 +82,5 @@ export const keyBundle = z.object({
   ends_at: unixSeconds,
   /** Unix seconds of 00:00 local on the event's first day; the origin for slot minutes. */
   day_zero: unixSeconds,
+  ticket_types: z.array(scannerTicketType).default([]),
 });

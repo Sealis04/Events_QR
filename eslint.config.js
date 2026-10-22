@@ -11,6 +11,21 @@ export default tseslint.config(
       "packages/core/drizzle/**",
     ],
   },
+  {
+    // The scanner's service worker is plain browser JS served as-is.
+    files: ["apps/web/public/scan-sw.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        self: "readonly",
+        caches: "readonly",
+        fetch: "readonly",
+        Response: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+      },
+    },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

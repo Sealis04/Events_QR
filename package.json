@@ -12,7 +12,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun run --filter '*' test"
+    "test": "bun run --filter '*' test",
+    "test:e2e": "bun run --filter @events-qr/web test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

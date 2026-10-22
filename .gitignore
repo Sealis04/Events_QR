@@ -6,3 +6,8 @@ dist
 !.env.demo
 next-env.d.ts
 .secrets
+
+# Playwright
+/apps/web/e2e/.tmp
+/apps/web/test-results
+/apps/web/playwright-report

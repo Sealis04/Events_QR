@@ -137,3 +137,26 @@ describe("config", () => {
     expect(loadConfig({ DB_PASSWORD: "" }).DB_PASSWORD).toBe(""); // blank means unset
   });
 });
+
+describe("signer with a key file", () => {
+  it("canMint notices a secret retired by another process, and writes leave no temp files", async () => {
+    const { readdir } = await import("node:fs/promises");
+    const dir = await mkdtemp(join(tmpdir(), "eqr-sign2-"));
+    const path = join(dir, "key.json");
+    try {
+      await createSigningKeyFile(path, "pw");
+      await rotateSigningKey(path, "pw");
+      const signer = await Signer.load(path, "pw");
+      expect(await signer.canMint(1)).toBe(true);
+      await retireSigningKey(path, 1); // as the worker would, from its own process
+      expect(await signer.canMint(1)).toBe(false);
+      await expect(signer.mint(payload(1), generateEventKey())).rejects.toThrow(
+        SigningKeyUnavailable,
+      );
+      expect(await signer.canMint(2)).toBe(true);
+      expect(await readdir(dir)).toEqual(["key.json"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
