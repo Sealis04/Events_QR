@@ -100,6 +100,13 @@ async function cacheLoadedAssets(): Promise<void> {
 
 type Result = { view: ResultView; at: number };
 
+/** Battery level 0-100 where the browser has the Battery API (Chromium), else null. */
+async function readBattery(): Promise<number | null> {
+  const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number }> };
+  if (!nav.getBattery) return null;
+  return Math.round((await nav.getBattery()).level * 100);
+}
+
 export function ScannerApp() {
   const store = useMemo(() => new IdbStore(), []);
   const [booted, setBooted] = useState(false);
@@ -184,7 +191,7 @@ export function ScannerApp() {
       const current = deviceRef.current;
       if (!current || stopped) return;
       try {
-        const res = await syncCycle(store, current);
+        const res = await syncCycle(store, current, { battery: readBattery });
         if (stopped) return;
         if (res.kind === "revoked") {
           await wipeDevice("This phone was removed from the event. Set it up again.");

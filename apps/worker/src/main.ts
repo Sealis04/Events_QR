@@ -1,9 +1,10 @@
-/** `APP_MODE=worker`: drains the email queue and retires signing key secrets of finished events. Run with `bun src/main.ts` (see docker/compose.vm.yml). */
+/** `APP_MODE=worker`: drains the email queue and retires signing key secrets of finished events and runs the nightly retention job. Run with `bun src/main.ts` (see docker/compose.vm.yml). */
 import { loadConfig } from "@events-qr/web/server/config";
 import { buildContext } from "@events-qr/web/server/context";
 import { drainEmailQueue } from "./emailQueue";
 import { GmailSender } from "./gmail";
 import { cleanupSigningKeys, KEY_CLEANUP_INTERVAL_MS } from "./keyCleanup";
+import { RETENTION_CHECK_INTERVAL_MS, retentionDue, runRetention } from "./retention";
 
 const config = loadConfig();
 if (config.APP_MODE === "hub") {
@@ -30,6 +31,22 @@ async function keyCleanup(): Promise<void> {
 }
 await keyCleanup();
 setInterval(() => void keyCleanup(), KEY_CLEANUP_INTERVAL_MS).unref();
+
+// Nightly retention: checked hourly, runs once per UTC day after RETENTION_HOUR_UTC.
+let lastRetentionDay: string | undefined;
+async function retention(): Promise<void> {
+  const day = retentionDue(ctx.now(), ctx.config.RETENTION_HOUR_UTC, lastRetentionDay);
+  if (!day) return;
+  lastRetentionDay = day;
+  try {
+    await runRetention(ctx);
+  } catch (err) {
+    console.error("worker: retention failed", err);
+    lastRetentionDay = undefined; // try again at the next check
+  }
+}
+await retention();
+setInterval(() => void retention(), RETENTION_CHECK_INTERVAL_MS).unref();
 
 let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => (stopping = true));

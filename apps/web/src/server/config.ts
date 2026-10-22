@@ -56,6 +56,15 @@ const schema = z.object({
   EMAIL_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(250),
   EMAIL_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(6),
   WORKER_POLL_SECONDS: z.coerce.number().positive().default(5),
+
+  /** Retention (worker): holder names and emails are cleared this many days after an event ends... */
+  RETENTION_PII_DAYS: z.coerce.number().int().min(0).default(365),
+  /** ...and its scans are deleted after this many (ticket ids, types and counts stay). */
+  RETENTION_SCANS_DAYS: z.coerce.number().int().min(0).default(1095),
+  /** Log what the nightly job would do and change nothing. */
+  RETENTION_DRY_RUN: bool.default("false"),
+  /** UTC hour of the nightly run. */
+  RETENTION_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(2),
 });
 
 export type Config = z.infer<typeof schema>;

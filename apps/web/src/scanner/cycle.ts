@@ -29,6 +29,23 @@ export interface CycleOptions {
   clients?: Clients;
   /** Local clock, Unix seconds (the corrected clock is used for the end-of-event rule). */
   nowLocal?: () => number;
+  /** Battery level 0-100, or null where the browser has no Battery API. */
+  battery?: () => Promise<number | null>;
+}
+
+/** Best effort: the dashboard's device panel shows what the phone last said. */
+async function sendHeartbeat(
+  client: Clients["hub"] | Clients["cloud"],
+  outbox: number,
+  battery: CycleOptions["battery"],
+): Promise<void> {
+  if (!client?.heartbeat) return;
+  try {
+    const level = battery ? await battery().catch(() => null) : null;
+    await client.heartbeat({ outbox_size: outbox, battery_pct: level });
+  } catch {
+    // the panel just shows an older report
+  }
 }
 
 export async function syncCycle(
@@ -56,6 +73,7 @@ export async function syncCycle(
   try {
     const { device: next, link } = await syncFromBest(store, clients, nowLocal);
     result = { kind: "ok", device: next, link, outbox: await store.outboxCount() };
+    if (link !== "offline") await sendHeartbeat(clients[link], result.outbox, options.battery);
   } catch (err) {
     if (err instanceof AuthError) return revoked();
     if (!(err instanceof NetworkError)) throw err;

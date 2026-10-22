@@ -503,3 +503,19 @@ export async function listTickets(
     })),
   };
 }
+
+/** `GET /api/tickets/{id}`: everything the generator, print page and "download PNG" need for one ticket. */
+export async function ticketDetail(ctx: AppContext, idHexValue: string) {
+  const row = await loadTicket(ctx.db, idHexValue);
+  const event = await loadEvent(ctx.db, row.eventId);
+  const type = await loadType(ctx.db, row.eventId, row.ticketType);
+  const issued = await toIssued(ctx, event, row);
+  return {
+    ...issued,
+    event_id: event.id,
+    event_name: event.name,
+    type_name: type.name,
+    status: row.status,
+    holder_email: row.holderEmail,
+  };
+}

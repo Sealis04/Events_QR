@@ -106,3 +106,47 @@ export async function importTickets(
   }
   return { created, errors };
 }
+
+const csvCell = (v: string | number | null): string => {
+  const s = v === null ? "" : String(v);
+  // A leading = + - @ would be run as a formula by a spreadsheet; prefix it so it stays text.
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
+
+/** `GET /api/events/{id}/tickets/export`: one row per ticket, in the columns the import reads plus status and use. */
+export async function exportTicketsCsv(ctx: AppContext, eventId: number): Promise<string> {
+  await loadEvent(ctx.db, eventId);
+  const types = await ctx.db
+    .select()
+    .from(mysqlSchema.ticketTypes)
+    .where(eq(mysqlSchema.ticketTypes.eventId, eventId));
+  const typeName = new Map(types.map((t) => [t.idx, t.name]));
+  const rows = await ctx.db
+    .select()
+    .from(mysqlSchema.tickets)
+    .where(eq(mysqlSchema.tickets.eventId, eventId))
+    .orderBy(asc(mysqlSchema.tickets.issuedAt), asc(mysqlSchema.tickets.id));
+  const lines = [
+    ["ticket_id", "short_id", "holder_name", "holder_email", "ticket_type", "status", "admits_used", "inside", "note"].join(","),
+  ];
+  for (const r of rows) {
+    const id = Buffer.from(r.id).toString("hex");
+    lines.push(
+      [
+        id,
+        id.slice(-6).toUpperCase(),
+        r.holderName,
+        r.holderEmail,
+        typeName.get(r.ticketType) ?? r.ticketType,
+        r.status,
+        r.admitsUsed,
+        r.inside ? "yes" : "no",
+        r.note,
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  }
+  return lines.join("\r\n") + "\r\n";
+}
