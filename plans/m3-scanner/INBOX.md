@@ -18,7 +18,22 @@ Milestone M3 (online scanner) of `plans/offline-qr-ticketing/plan.md`, plus two 
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+
+**Environment:** `scripts/ccr-session-init.sh` ran as-is (bun deps, MariaDB, migrations, signing key). `mysqladmin ping` as root over TCP is denied, but the app and tests connect fine with the generated app user. Chromium at `/opt/pw-browsers/chromium-1194` worked for Playwright. No builder sub-branch exists (expected: builder-1 works directly on `m3-scanner`).
+
+**E2E results** (`bun run lint`, `bunx tsc --noEmit`, `bun run test`, `bun run test:e2e` on `m3-scanner` @ 045a9d2):
+- lint + prettier: pass. tsc: pass.
+- Vitest: core 58, web 133 (incl. 14 claim route tests: single/unlimited/limited, exit-before-reentry, cancelled, scan_id replay, parallel claims), worker 18: all pass.
+- Playwright (4): enrol with setup QR, green then red "already used" on rescan; amber unknown ticket + supervisor override; scanner loads with the network off; role "both" toggle and exits: all pass.
+- Decode + verify pipeline (ZXing WASM, 400 px): median 6.5 ms, max 18 ms in the sandbox. Phone timing stays a field test.
+- Cancel frees a place and key retirement (409 `signing_key_retired`) covered by passing tests.
+
+**Code review:** claim/exit use the conditional UPDATE inside a row-locked transaction and are idempotent on `scan_id`; routes are device-bearer gated; override requires a supervisor/admin `staff_id`; cancel decrement is single-flip under row lock; key file written atomically. Accepted choices from the builder (manual-search admit needs supervisor PIN, staff PIN login needs network until M5, rescanned single-entry shows "Already used") were noted as user-accepted. Non-blocking: `staff_id` is trusted from the device as in the spec; `/api/claim` ordering of SET columns relies on MariaDB left-to-right assignment (pinned by a test).
+
+**Issues filed:** none.
+
+**Summary:** M3 meets its plan items with solid test coverage and a clean combined run. No blocking findings.
 
 ## planner
 
