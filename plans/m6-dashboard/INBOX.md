@@ -18,7 +18,11 @@ Milestone M6 (admin dashboard) of `plans/offline-qr-ticketing/plan.md`, plus lon
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+**Environment:** ready as-is (`scripts/ccr-session-init.sh` ran clean: deps, migrations, signing key; MariaDB up; Chrome linked). `mysqladmin ping` without credentials is refused, which is expected for the app user setup.
+**E2E results:** `bun run lint` pass; `bunx tsc --noEmit` pass; `bun run test` pass (core 60, web 300, worker 24); `bun run test:e2e` 10/10 pass, including the dashboard spec (create event, generate, print page, last-6-hex search, live stats/devices) and the hub spec with the VM blocked (supervisor login on the hub, check-in visible, manual admit). Route tests cover role gating (staff gets 403 on devices, conflicts, review, export, overrides, admit), 6-digit supervisor PIN refusal, flagged-PIN lockout, #8 staff-scoped sync (removal and event end), #9 backfill idempotence, Revoke and rotate, and the retention dry run and cut-off dates. Every API route declares its access level.
+**Issues filed:** none.
+**Summary:** Complete and well covered; all of A1-A4, B5-B13 are implemented and the full suite is green. Builder's notes (all existing supervisors/admins flagged weak by migration, rotate flags the pressing supervisor too, hub-side conflict review VM-only) are acceptable known behaviours. Opening the PR to main; it closes #8 and #9.
 
 ## planner
 
