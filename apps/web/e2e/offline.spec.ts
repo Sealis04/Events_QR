@@ -120,7 +120,7 @@ test("offline: admit with the OFFLINE banner, 'Already inside (offline)', reload
   await page.getByPlaceholder("Name").fill("e2e-staff");
   await page.getByPlaceholder("PIN").fill("not-the-pin");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page.getByRole("alert")).toContainText("Wrong name or PIN");
+  await expect(page.locator("p[role=alert]")).toContainText("Wrong name or PIN");
   await page.getByPlaceholder("PIN").fill(E2E_PIN);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.locator("main[data-phase=scan]")).toBeVisible();

@@ -1,6 +1,6 @@
 # builder-1 — m5-offline
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -44,10 +44,34 @@ All of "Done when" for M5 in the plan holds (the chaos test reconciles and every
 
 ## Summary for reviewer
 
-Files changed:
-What was done:
-What to check:
-Conflicts resolved: (none)
+**Files changed:**
+- Core: `packages/core/src/rules/replay.ts` (new, shared replay/conflict rule), `rules/index.ts`, `api/common.ts` (`cancelled_at` on syncTicket), `api/hub.ts` (sync response gains `staff`, `settings`), `api/cloud.ts` (batch setup codes, `offline_gate_only`, conflicts feed schemas), `db/mysql.ts` + `db/sqlite.ts` (`tickets.cancelled_at`), migrations `drizzle/mysql/0003_*`, `drizzle/sqlite/0002_*`.
+- VM/hub server: `server/sync.ts` (#5 fix, `uploadPhoneScans`, `ingestScans`, sync response), `server/devices.ts` (batch hub codes), `server/events.ts`, `server/tickets.ts` (`cancelled_at`), `server/stats.ts` (`listConflicts`), `server/settings.ts` (new), `hub/recompute.ts`, `hub/sync.ts`, `hub/vmsync.ts`; routes `api/sync/scans`, `api/scans` (now VM + hub), `api/events/[id]/conflicts` (new); admin page `app/events/[id]/page.tsx` (printable hub setup QRs).
+- Phone: `scanner/secureBox.ts`, `idbStore.ts` (rewritten, AES-GCM at rest, DB v2), `memoryStore.ts`, `types.ts`, `client.ts`, `routes.ts`, `outbox.ts` (new), `cycle.ts` (new), `sync.ts`, `staff.ts`, `pipeline.ts`, `result.ts`, `app/scan/ScannerApp.tsx`.
+- Deps: `hash-wasm` (argon2id verify in the browser), `fake-indexeddb` (dev).
+- Tests: new `devices-sync` #5 block, `hub-codes`, `scanner-offline`, `scanner-idb`, `scanner-staff-offline`, `chaos`, fixtures; updated `scanner-pipeline`, `scanner-result`, `hub-mode`; e2e `offline.spec.ts`, `scanner.spec.ts` (old "fails closed" case now admits offline). `docs/deploy-hub.md`.
+
+**What was done:**
+- A1 (#5): `POST /api/sync/scans` is hub-token only and 403s the whole batch if any `device_id` is not a device of the hub's event; phones use `POST /api/scans` (VM: only own `device_id`, scanner tokens only; hub: unchanged). Unknown `result` values 400 by schema. Tests for each rejection.
+- A2: `POST /api/devices/enroll` with `for_hub:true,count:N` makes single-use codes expiring at `ends_at` (no schema change: the hub already caches unused unexpired codes; used-on-one-side/other-side via existing sync). Printable QR grid on the event page.
+- B3-B5: encrypted IndexedDB (non-extractable AES-GCM key, per-record AAD), persistent outbox (hub first, else VM, idempotent, ack-removal), pill count; offline branch uses core `decideClaim`/`decideExit`; orange OFFLINE banner; supervisor override works offline from the signed QR.
+- B6: sync delivers staff argon2id hashes; phone verifies with hash-wasm; 5 wrong PINs lock 60 s doubling to 15 min, persisted in the store.
+- B7: 60 s offline beep + banner; `offline_gate_only` event setting (PATCH event) delivered in sync.
+- B8: conflicts already flagged by recompute; now shared `replayScans`. Cancelled-while-offline: new `tickets.cancelled_at`; an offline admit scanned at/after it stays admitted and is flagged. `GET /api/events/{id}/conflicts` (supervisor).
+- B9: `syncCycle` drains outbox then syncs; revoked → full wipe; 2 h after `ends_at` → keys and tickets wiped (outbox + token kept until uploaded, then full wipe).
+- Chaos test (seeded, `CHAOS_SEED`): 5,000 scan attempts (about 4,280 recorded, 630 decided offline), 20 phones, random hub/AP/uplink cuts; asserts exactly-once on VM and hub, final state vs independent replay, conflict flags exact on both. Mutation-checked.
+
+**What to check:**
+- Schema change (`cancelled_at`, nullable) was needed although the inbox listed none; migrations generated with drizzle-kit (no db:dev).
+- `offline_gate_only` interpretation: when on, offline admits require an explicit gate in the signed mask (mask 0 = refused offline; supervisor override still works). Online and exits unaffected.
+- IndexedDB v2 upgrade drops v1 data (phones must re-enrol); ticket ids stay in clear as record keys. The CryptoKey sits in IDB beside the data: protects copies/backups, not an attacker with live script access.
+- Staff PIN hashes now go to every phone (needed for offline login; brute-forceable at 6 digits if a phone is stolen: revocation/lockout only help online).
+- Revoked device cannot upload its last scans (server 401s revoked tokens); only scans made since the last 10 s cycle are lost.
+- Scans for tickets the server does not know are left unacknowledged (stay queued).
+- Offline claim retry costs hub 800 ms + VM 1.2 s per scan while offline (VM timeout shortened from 4 s once the pill is offline).
+- `hub` has no conflicts endpoint (no staff session there); left to M6.
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 
