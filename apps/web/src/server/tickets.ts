@@ -203,6 +203,7 @@ export async function issueTickets(
       req.quantity,
       req.holder_name ?? null,
       req.holder_email ?? null,
+      req.holder_phone ?? null,
       rules,
       req.note ?? null,
     ]),
@@ -215,6 +216,7 @@ export async function issueTickets(
     ticketType: req.ticket_type,
     holderName,
     holderEmail: req.holder_email ?? null,
+    holderPhone: req.holder_phone ?? null,
     note: req.note ?? null,
     issuedBy: issuer.id,
     tokenNonce: toBuffer(randomBytes(12)),
@@ -462,34 +464,62 @@ export async function resendTicket(ctx: AppContext, idHexValue: string, email?: 
 export async function listTickets(
   ctx: AppContext,
   eventId: number,
-  opts: { q?: string; limit: number; offset: number },
+  opts: { q?: string; status?: string; limit: number; offset: number },
 ) {
   await loadEvent(ctx.db, eventId);
   const q = opts.q?.trim();
   const hex = (q ?? "").toUpperCase().replace(/[^0-9A-F]/g, "");
-  const like = (q ?? "").replace(/[%_\\]/g, "\\$&");
+  const like = "%" + (q ?? "").replace(/[%_\\]/g, "\\$&") + "%";
+  // Name or email always; the last characters of the ticket id when the text could be hex.
   const search = q
     ? hex.length === q.length && hex.length >= 4
-      ? sql`AND (${tickets.holderName} LIKE ${"%" + like + "%"} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
-      : sql`AND ${tickets.holderName} LIKE ${"%" + like + "%"}`
+      ? sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
+      : sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like})`
     : sql``;
+  const status = opts.status ? sql`AND ${tickets.status} = ${opts.status}` : sql``;
+  const where = sql`${tickets.eventId} = ${eventId} ${search} ${status}`;
   const rows = await ctx.db
     .select()
     .from(tickets)
-    .where(sql`${tickets.eventId} = ${eventId} ${search}`)
+    .where(where)
     .orderBy(tickets.issuedAt, tickets.id)
     .limit(opts.limit)
     .offset(opts.offset);
-  return rows.map((r) => ({
-    ticket_id: idHex(r),
-    short_id: shortTicketId({ ticketId: r.id }),
-    holder_name: r.holderName,
-    holder_email: r.holderEmail,
-    ticket_type: r.ticketType,
-    status: r.status,
-    admits_used: r.admitsUsed,
-    inside: r.inside,
-    issued_at: r.issuedAt,
-    updated_at: r.updatedAt,
-  }));
+  const [{ total = 0 } = {}] = await ctx.db
+    .select({ total: sql<number>`COUNT(*)` })
+    .from(tickets)
+    .where(where);
+  return {
+    total: Number(total),
+    tickets: rows.map((r) => ({
+      ticket_id: idHex(r),
+      short_id: shortTicketId({ ticketId: r.id }),
+      holder_name: r.holderName,
+      holder_email: r.holderEmail,
+      holder_phone: r.holderPhone,
+      ticket_type: r.ticketType,
+      status: r.status,
+      admits_used: r.admitsUsed,
+      inside: r.inside,
+      issued_at: r.issuedAt,
+      updated_at: r.updatedAt,
+    })),
+  };
+}
+
+/** `GET /api/tickets/{id}`: everything the generator, print page and "download PNG" need for one ticket. */
+export async function ticketDetail(ctx: AppContext, idHexValue: string) {
+  const row = await loadTicket(ctx.db, idHexValue);
+  const event = await loadEvent(ctx.db, row.eventId);
+  const type = await loadType(ctx.db, row.eventId, row.ticketType);
+  const issued = await toIssued(ctx, event, row);
+  return {
+    ...issued,
+    event_id: event.id,
+    event_name: event.name,
+    type_name: type.name,
+    status: row.status,
+    holder_email: row.holderEmail,
+    holder_phone: row.holderPhone,
+  };
 }

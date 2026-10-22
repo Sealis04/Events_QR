@@ -71,6 +71,13 @@ export const updateTicketTypeRequest = ticketTypeInput
 export const loginRequest = z.object({
   name: z.string().min(1).max(255),
   pin: z.string().min(1).max(128),
+  /** A phone only wants the yes/no: someone who must change their PIN is refused instead of getting a restricted session. */
+  for: z.literal("scanner").optional(),
+});
+/** `POST /auth/change-pin` (any logged-in staff, also while a PIN change is required). */
+export const changePinRequest = z.object({
+  current_pin: z.string().min(1).max(128),
+  new_pin: z.string().min(1).max(128),
 });
 /** `POST /staff` (admin). */
 export const createStaffRequest = z.object({
@@ -86,6 +93,7 @@ export const createTicketsRequest = z.object({
   quantity: z.number().int().min(1).max(500).default(1),
   holder_name: z.string().min(1).max(255).optional(),
   holder_email: z.string().email().optional(),
+  holder_phone: z.string().min(3).max(64).optional(),
   gate_mask: gateMask.optional(),
   slot: z.object({ start: slotMinute, end: slotMinute }).optional(),
   entry_rule: entryRule.optional(),
@@ -314,7 +322,114 @@ export const conflictsResponse = z.object({
       /** The earlier admit that stays canonical, or null when the ticket was cancelled first. */
       canonical: z.object({ gate: gateName, scanned_at: unixSeconds }).nullable(),
       ticket_status: ticketStatus,
+      /** Both scans side by side (M6): who scanned, on which device. */
+      staff_id: uuid.nullable().optional(),
+      staff_name: z.string().nullable().optional(),
+      device_label: z.string().nullable().optional(),
+      canonical_detail: z
+        .object({
+          gate: gateName,
+          scanned_at: unixSeconds,
+          offline: z.boolean(),
+          device_id: uuid.nullable(),
+          device_label: z.string().nullable(),
+          staff_name: z.string().nullable(),
+        })
+        .nullable()
+        .optional(),
+      reviewed_at: unixSeconds.nullable().optional(),
     }),
   ),
   total: z.number().int(),
+});
+
+/** `GET /events/{id}/staff` (admin) and `PUT /events/{id}/staff/{staffId}`: who works this event. */
+export const eventStaffResponse = z.object({
+  staff: z.array(
+    z.object({
+      id: uuid,
+      name: z.string(),
+      role: z.enum(STAFF_ROLES),
+      assignment: z.enum(["issued", "added", "removed"]).nullable(),
+      /** PIN hashes of assigned staff are on the event's phones and hub. */
+      assigned: z.boolean(),
+      pin_reset: z.enum(["weak", "rotate"]).nullable(),
+    }),
+  ),
+});
+/** `true` adds, `false` removes (their hash leaves the phones at the next sync), `null` restores the default. */
+export const setEventStaffRequest = z.object({ assigned: z.boolean().nullable() });
+
+/** `POST /devices/heartbeat` (device): what the phone knows about itself. */
+export const heartbeatRequest = z.object({
+  outbox_size: z.number().int().min(0).max(1_000_000),
+  /** 0-100 from the Battery API, or null where the browser has none. */
+  battery_pct: z.number().int().min(0).max(100).nullable().optional(),
+});
+
+/** `GET /events/{id}/devices` (supervisor). */
+export const devicePanelResponse = z.object({
+  devices: z.array(
+    z.object({
+      id: uuid,
+      kind: z.enum(["scanner", "hub"]),
+      label: z.string().nullable(),
+      gate: gateName,
+      direction: deviceDirection,
+      revoked: z.boolean(),
+      last_seen_at: unixSeconds.nullable(),
+      outbox_size: z.number().int().nullable(),
+      battery_pct: z.number().int().nullable(),
+      last_scan_at: unixSeconds.nullable(),
+    }),
+  ),
+  server_time: unixSeconds,
+});
+/** `PATCH /devices/{id}` (supervisor): move a phone to another gate or role. */
+export const updateDeviceRequest = z
+  .object({ gate: gateName, direction: deviceDirection, label: z.string().max(255).nullable() })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "nothing to update" });
+/** `POST /devices/{id}/revoke` (supervisor). `rotate` also forces a PIN change for staff whose hashes it may hold. */
+export const revokeDeviceRequest = z.object({ rotate: z.boolean().optional() });
+export const revokeDeviceResponse = z.object({
+  revoked: z.literal(true),
+  rotated_staff: z.array(z.object({ id: uuid, name: z.string() })),
+});
+
+/** `POST /scans/{id}/review` (supervisor): mark a conflict as looked at. */
+export const reviewConflictRequest = z.object({ reviewed: z.boolean().default(true) });
+
+/** `POST /events/{id}/admit` (supervisor): manual admit from attendee search; the PIN is re-checked. */
+export const manualAdmitRequest = z.object({
+  ticket_id: ticketIdHex,
+  pin: z.string().min(1).max(128),
+});
+export const manualAdmitResponse = z.object({
+  result: z.enum(["admitted", "rejected_used", "rejected_inside", "rejected_cancelled"]),
+  admits_used: z.number().int().min(0).optional(),
+});
+
+/** `GET /events/{id}/overrides` (supervisor): manual admits and overrides by staff. */
+export const overridesResponse = z.object({
+  overrides: z.array(
+    z.object({
+      scan_id: uuid,
+      ticket_id: ticketIdHex,
+      holder_name: z.string().nullable(),
+      staff_id: uuid.nullable(),
+      staff_name: z.string().nullable(),
+      gate: gateName,
+      device_id: uuid.nullable(),
+      scanned_at: unixSeconds,
+      offline: z.boolean(),
+    }),
+  ),
+  by_staff: z.array(
+    z.object({
+      staff_id: uuid.nullable(),
+      staff_name: z.string().nullable(),
+      count: z.number().int(),
+    }),
+  ),
 });

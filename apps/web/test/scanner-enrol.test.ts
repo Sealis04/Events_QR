@@ -20,6 +20,7 @@ import {
   eventBody,
   makeStaff,
   newKey,
+  PRIVILEGED_PIN,
   TEST_PIN,
   type TestEnv,
   type TestStaff,
@@ -180,7 +181,7 @@ describe.skipIf(!dbAvailable)("scanner enrolment, sync and scan against the real
   });
 
   it("staff login returns the role; wrong PIN is rejected", async () => {
-    const sup = await loginStaff("http://x", supervisor.name, TEST_PIN, fakeFetch);
+    const sup = await loginStaff("http://x", supervisor.name, PRIVILEGED_PIN, fakeFetch);
     expect(isSupervisor(sup)).toBe(true);
     expect(isSupervisor(await loginStaff("http://x", "Sam", TEST_PIN, fakeFetch))).toBe(false);
     await expect(loginStaff("http://x", "Sam", "wrong", fakeFetch)).rejects.toMatchObject({

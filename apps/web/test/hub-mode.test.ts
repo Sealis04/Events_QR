@@ -67,23 +67,25 @@ describe("hub mode: no issuance, no signing secret", () => {
         "/api/scans",
         "/api/auth/login",
         "/api/devices/enroll",
-      ]) {
-        expect(isPassThrough(run(ok, { method: "POST" })), ok).toBe(true);
-      }
-      for (const blocked of [
         "/",
         "/login",
         "/events/1",
         "/api/events",
-        "/api/events/1/tickets",
+        "/api/events/1/stats",
+        "/api/events/1/admit",
+        "/api/auth/me",
+      ]) {
+        expect(isPassThrough(run(ok, { method: "POST" })), ok).toBe(true);
+      }
+      for (const blocked of [
+        "/api/events/1/staff",
+        "/api/events/1/ticket-types",
         "/api/staff",
         "/api/tickets/abc/cancel",
         "/api/sync/tickets",
         "/api/sync/scans",
         "/api/sync/meta",
         "/api/hubs/setup",
-        "/api/auth/me",
-        "/api/auth/logout",
       ]) {
         expect(run(blocked).status, blocked).toBe(404);
       }

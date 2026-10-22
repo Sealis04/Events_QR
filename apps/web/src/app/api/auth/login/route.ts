@@ -7,7 +7,8 @@ import {
   sessionCookie,
   verifyPin,
 } from "../../../../server/auth";
-import { HttpError, json, route } from "../../../../server/http";
+import { HttpError, json, pinChangeRequired, route } from "../../../../server/http";
+import { settleLogin } from "../../../../server/pins";
 import { byMode } from "../../../../server/mode";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +31,12 @@ const vmLogin = route({ access: "public", body: api.loginRequest }, async ({ req
     throw new HttpError(401, "invalid_credentials", "wrong name or PIN");
   }
   loginLimiter.reset(key);
-  return json({ id: row.id, name: row.name, role: row.role }, 200, {
+  const pinReset = await settleLogin(ctx, row, body.pin);
+  // A phone gets no restricted session: it has to wait until the PIN is changed on the dashboard.
+  if (pinReset && body.for === "scanner") throw pinChangeRequired();
+  return json({ id: row.id, name: row.name, role: row.role, pin_reset: pinReset }, 200, {
     "set-cookie": sessionCookie(ctx, createSessionValue(ctx, row.id)),
   });
 });
 
-export const POST = byMode(vmLogin, async () => (await import("../../../../hub/routes")).login);
+export const POST = byMode(vmLogin, async () => (await import("../../../../hub/dashboard")).login);

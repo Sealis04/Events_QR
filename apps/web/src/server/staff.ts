@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
-import { hashPin, MIN_PIN_LENGTH, type StaffRole } from "./auth";
+import { hashPin, pinProblem, type StaffRole } from "./auth";
 import { badRequest, conflict } from "./http";
 
 const { staff } = mysqlSchema;
@@ -13,8 +13,8 @@ export async function createStaff(
 ): Promise<{ id: string; name: string; role: StaffRole }> {
   const name = input.name.trim();
   if (!name) throw badRequest("name is required");
-  if (input.pin.length < MIN_PIN_LENGTH)
-    throw badRequest(`PIN must be at least ${MIN_PIN_LENGTH} characters`);
+  const problem = pinProblem(input.role, input.pin);
+  if (problem) throw badRequest(problem);
   const [existing] = await ctx.db
     .select({ id: staff.id })
     .from(staff)

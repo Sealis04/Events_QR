@@ -22,6 +22,27 @@
       "when": 1792651931961,
       "tag": "0002_shallow_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792657209133,
+      "tag": "0003_m6_staff_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792657216273,
+      "tag": "0004_backfill_cancelled_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792658080078,
+      "tag": "0005_holder_phone",
+      "breakpoints": true
     }
   ]
 }

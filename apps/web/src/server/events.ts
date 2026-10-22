@@ -5,6 +5,7 @@ import type { AppContext } from "./context";
 import { type Db } from "./db";
 import { badRequest, conflict, HttpError, notFound } from "./http";
 import { decryptEventKey, encryptEventKey, b64 } from "./secrets";
+import { offlineGateOnly } from "./settings";
 import { isValidTimezone, localDayZero } from "./time";
 
 const { events, ticketTypes, tickets } = mysqlSchema;
@@ -140,6 +141,7 @@ export function eventView(ctx: AppContext, event: EventRow, types: TicketTypeRow
     sign_key_id: event.signKeyId,
     gates: event.gates,
     day_zero: eventDayZero(ctx, event),
+    offline_gate_only: offlineGateOnly(event.config),
     ticket_types: types.map(typeView),
   };
 }

@@ -19,7 +19,7 @@ export async function loginStaff(
     res = await doFetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, pin }),
+      body: JSON.stringify({ name, pin, for: "scanner" }),
       credentials: "omit",
       signal: AbortSignal.timeout(timeoutMs),
     });

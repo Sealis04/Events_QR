@@ -45,8 +45,26 @@ export const staff = sqliteTable(
     name: text("name").notNull(),
     pinHash: text("pin_hash").notNull(),
     role: text("role").notNull(),
+    pinReset: text("pin_reset"),
   },
-  (t) => [check("ck_staff_role", sql`${t.role} IN (${sql.raw(sqlList(STAFF_ROLES))})`)],
+  (t) => [
+    check("ck_staff_pin_reset", sql`${t.pinReset} IS NULL OR ${t.pinReset} IN ('weak', 'rotate')`),
+    check("ck_staff_role", sql`${t.role} IN (${sql.raw(sqlList(STAFF_ROLES))})`),
+  ],
+);
+
+export const eventStaff = sqliteTable(
+  "event_staff",
+  {
+    eventId: integer("event_id")
+      .notNull()
+      .references(() => events.id),
+    staffId: text("staff_id")
+      .notNull()
+      .references(() => staff.id),
+    assigned: bool("assigned").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.staffId] })],
 );
 
 export const ticketTypes = sqliteTable(
@@ -89,6 +107,7 @@ export const tickets = sqliteTable(
     holderName: text("holder_name"),
     holderEmail: text("holder_email"),
     note: text("note"),
+    holderPhone: text("holder_phone"),
     issuedBy: text("issued_by").references(() => staff.id),
     tokenNonce: blob("token_nonce").notNull(),
     entryMode: text("entry_mode").notNull(),
@@ -125,6 +144,9 @@ export const devices = sqliteTable(
     revoked: bool("revoked").notNull().default(false),
     lastSeenAt: unixCol("last_seen_at"),
     kind: text("kind").notNull().default("scanner"),
+    batteryPct: integer("battery_pct"),
+    outboxSize: integer("outbox_size"),
+    reportedAt: unixCol("reported_at"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
@@ -176,6 +198,8 @@ export const scans = sqliteTable(
     result: text("result").notNull(),
     offline: bool("offline").notNull(),
     conflict: bool("conflict").notNull().default(false),
+    reviewedAt: unixCol("reviewed_at"),
+    reviewedBy: text("reviewed_by"),
   },
   (t) => [
     index("ix_scans_ticket").on(t.ticketId),

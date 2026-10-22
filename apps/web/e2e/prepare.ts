@@ -5,6 +5,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { createConnection } from "mysql2/promise";
+import { mysqlSchema } from "@events-qr/core";
 import { loadConfig, requireSetting } from "../src/server/config";
 import { buildContext } from "../src/server/context";
 import { runMigrations } from "../src/server/db";
@@ -39,7 +40,7 @@ for (const [name, role] of [
   await createStaff(ctx, { name, role, pin: E2E_PIN });
 }
 const now = ctx.now();
-await createEvent(ctx, {
+const { id: eventId } = await createEvent(ctx, {
   name: "E2E Fest",
   timezone: "UTC",
   starts_at: now - 3600,
@@ -50,5 +51,10 @@ await createEvent(ctx, {
     { idx: 1, name: "VIP", entry_rule: { mode: "limited", max_admits: 3 } },
   ],
 });
+// Phones and the hub only get PIN hashes of the event's staff, so list all three accounts.
+const rows = await ctx.db.select({ id: mysqlSchema.staff.id }).from(mysqlSchema.staff);
+await ctx.db
+  .insert(mysqlSchema.eventStaff)
+  .values(rows.map((r) => ({ eventId, staffId: r.id, assigned: true })));
 console.log("e2e: database ready");
 process.exit(0);

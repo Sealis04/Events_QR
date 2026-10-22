@@ -33,6 +33,8 @@ export interface HubClient {
   /** Uploads scans decided offline (the outbox). Idempotent on `scan_id`. */
   uploadScans(scans: ScanRecord[]): Promise<UploadResponse>;
   health(): Promise<void>;
+  /** Tells the dashboard how this phone is doing. Optional: older fakes and servers may lack it. */
+  heartbeat?(body: { outbox_size: number; battery_pct: number | null }): Promise<void>;
 }
 
 export interface HttpClientOptions {
@@ -76,6 +78,10 @@ export class HttpClient implements HubClient {
     }
     return data as T;
   }
+
+  heartbeat = async (body: { outbox_size: number; battery_pct: number | null }) => {
+    await this.request("POST", "/api/devices/heartbeat", body);
+  };
 
   claim = (body: ClaimBody) => this.request<ClaimResponse>("POST", "/api/claim", body);
   exit = (body: ExitBody) => this.request<ExitResponse>("POST", "/api/exit", body);

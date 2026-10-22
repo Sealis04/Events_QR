@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { api } from "../_lib/client";
+import { api } from "../../_lib/client";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -11,6 +11,10 @@ export default function LoginPage() {
     const form = new FormData(e.currentTarget);
     try {
       await api("/api/auth/login", { body: { name: form.get("name"), pin: form.get("pin") } });
+      // A venue hub only lets supervisors and admins in; plain staff pass the PIN check but get no session.
+      await api("/api/auth/me").catch(() => {
+        throw new Error("This server only lets supervisors and admins into the dashboard.");
+      });
       window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "login failed");
@@ -18,9 +22,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="page" style={{ maxWidth: 380 }}>
       <h1>Events QR</h1>
-      <form onSubmit={submit} style={{ display: "grid", gap: 8, maxWidth: 320 }}>
+      <form className="grid card" onSubmit={submit}>
         <input name="name" placeholder="Name" autoComplete="username" required />
         <input
           name="pin"
@@ -31,9 +35,9 @@ export default function LoginPage() {
         />
         <button type="submit">Log in</button>
         {error && (
-          <p role="alert" style={{ color: "crimson" }}>
+          <div role="alert" className="notice bad">
             {error}
-          </p>
+          </div>
         )}
       </form>
     </main>

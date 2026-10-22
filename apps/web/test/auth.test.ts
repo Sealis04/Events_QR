@@ -18,6 +18,18 @@ import { POST as cancel } from "../src/app/api/tickets/[id]/cancel/route";
 import { POST as resend } from "../src/app/api/tickets/[id]/resend/route";
 import { POST as transfer } from "../src/app/api/tickets/[id]/transfer/route";
 import { POST as enroll } from "../src/app/api/devices/enroll/route";
+import { GET as getTicket } from "../src/app/api/tickets/[id]/route";
+import { GET as exportTickets } from "../src/app/api/events/[id]/tickets/export/route";
+import { GET as eventDevices } from "../src/app/api/events/[id]/devices/route";
+import { POST as manualAdmit } from "../src/app/api/events/[id]/admit/route";
+import { GET as overrides } from "../src/app/api/events/[id]/overrides/route";
+import { GET as eventStaff } from "../src/app/api/events/[id]/staff/route";
+import { PUT as setEventStaff } from "../src/app/api/events/[id]/staff/[staffId]/route";
+import { PATCH as patchDevice } from "../src/app/api/devices/[id]/route";
+import { POST as revokeDevice } from "../src/app/api/devices/[id]/revoke/route";
+import { POST as reviewConflict } from "../src/app/api/scans/[id]/review/route";
+import { GET as conflicts } from "../src/app/api/events/[id]/conflicts/route";
+
 import { GET as syncTickets } from "../src/app/api/sync/tickets/route";
 import { POST as syncScans } from "../src/app/api/sync/scans/route";
 import {
@@ -25,6 +37,7 @@ import {
   createTestEnv,
   dbAvailable,
   makeStaff,
+  PRIVILEGED_PIN,
   TEST_PIN,
   type TestEnv,
   type TestStaff,
@@ -101,6 +114,67 @@ const staffEndpoints: {
     need: "admin",
     opts: { params: { id: ID }, body: {} },
   },
+  { name: "GET /tickets/{id}", handler: getTicket, need: "staff", opts: { params: { id: ID } } },
+  {
+    name: "GET /events/{id}/tickets/export",
+    handler: exportTickets,
+    need: "admin",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/devices",
+    handler: eventDevices,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/conflicts",
+    handler: conflicts,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "GET /events/{id}/overrides",
+    handler: overrides,
+    need: "supervisor",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "POST /events/{id}/admit",
+    handler: manualAdmit,
+    need: "supervisor",
+    opts: { params: { id: "1" }, body: { ticket_id: ID, pin: "12345678" } },
+  },
+  {
+    name: "GET /events/{id}/staff",
+    handler: eventStaff,
+    need: "admin",
+    opts: { params: { id: "1" } },
+  },
+  {
+    name: "PUT /events/{id}/staff/{staffId}",
+    handler: setEventStaff,
+    need: "admin",
+    opts: { method: "PUT", params: { id: "1", staffId: "x" }, body: { assigned: true } },
+  },
+  {
+    name: "PATCH /devices/{id}",
+    handler: patchDevice,
+    need: "supervisor",
+    opts: { method: "PATCH", params: { id: "x" }, body: { gate: "A" } },
+  },
+  {
+    name: "POST /devices/{id}/revoke",
+    handler: revokeDevice,
+    need: "supervisor",
+    opts: { params: { id: "x" }, body: {} },
+  },
+  {
+    name: "POST /scans/{id}/review",
+    handler: reviewConflict,
+    need: "supervisor",
+    opts: { params: { id: "x" }, body: {} },
+  },
   {
     name: "POST /devices/enroll (setup)",
     handler: enroll,
@@ -168,14 +242,15 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
       call(login, { body: { name, pin }, headers: { "x-forwarded-for": ip } });
 
     it("sets an httpOnly, SameSite=Lax, Secure session cookie", async () => {
-      const res = await attempt(staff.supervisor!.name, TEST_PIN);
+      const res = await attempt(staff.supervisor!.name, PRIVILEGED_PIN);
       expect(res.status).toBe(200);
       expect(res.json).toMatchObject({ id: staff.supervisor!.id, role: "supervisor" });
       const cookie = res.headers.get("set-cookie")!;
       expect(cookie).toMatch(new RegExp(`^${SESSION_COOKIE}=`));
       for (const attr of ["HttpOnly", "SameSite=Lax", "Secure", "Path=/"])
         expect(cookie).toContain(attr);
-      expect(res.text).not.toContain("pin");
+      expect(res.text).not.toContain("pin_hash");
+      expect(res.text).not.toContain(PRIVILEGED_PIN);
 
       const value = cookie.split(";")[0]!;
       const who = await call(me, { staff: { cookie: value } });
@@ -272,7 +347,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
     it("stores an argon2id hash, never the PIN, and refuses duplicates and short PINs", async () => {
       const res = await call(createStaff, {
         staff: staff.admin!,
-        body: { name: "Dana", pin: "123456", role: "supervisor" },
+        body: { name: "Dana", pin: "12345678", role: "supervisor" },
       });
       expect(res.status).toBe(201);
       const [row] = await env.handle.db
@@ -280,7 +355,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
         .from(mysqlSchema.staff)
         .where(eq(mysqlSchema.staff.id, res.json.id));
       expect(row!.pinHash).toMatch(/^\$argon2id\$/);
-      expect(row!.pinHash).not.toContain("123456");
+      expect(row!.pinHash).not.toContain("12345678");
       expect(
         (
           await call(createStaff, {
@@ -308,7 +383,7 @@ describe.skipIf(!dbAvailable)("auth (MariaDB)", () => {
       expect(
         (
           await call(login, {
-            body: { name: "Dana", pin: "123456" },
+            body: { name: "Dana", pin: "12345678" },
             headers: { "x-forwarded-for": "10.0.0.77" },
           })
         ).status,

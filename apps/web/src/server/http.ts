@@ -8,7 +8,7 @@ import {
   type AuthedStaff,
 } from "./auth";
 import type { StaffRole } from "./auth";
-import { badRequest, conflict, HttpError, json, notFound } from "./errors";
+import { assertSameOrigin, badRequest, conflict, HttpError, json, notFound } from "./errors";
 
 export { badRequest, conflict, HttpError, json, notFound };
 
@@ -28,26 +28,16 @@ export interface RouteOptions<B, Q> {
   access: Access;
   body?: ZodType<B, ZodTypeDef, unknown>;
   query?: ZodType<Q, ZodTypeDef, unknown>;
+  /** Let someone who must still change their PIN through (only `/auth/me`, `/auth/logout`, `/auth/change-pin`). */
+  allowPinReset?: boolean;
 }
 
 type RouteContext = { params: Promise<Record<string, string>> };
 
-const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+export const pinChangeRequired = () =>
+  new HttpError(403, "pin_change_required", "choose a new PIN before doing anything else");
 
-/** Cookie-authenticated writes must come from our own origin (on top of SameSite=Lax). */
-function assertSameOrigin(req: Request): void {
-  const origin = req.headers.get("origin");
-  if (!origin) return;
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  let originHost: string;
-  try {
-    originHost = new URL(origin).host;
-  } catch {
-    throw new HttpError(403, "bad_origin", "bad origin");
-  }
-  if (host && originHost !== host)
-    throw new HttpError(403, "bad_origin", "cross-origin request refused");
-}
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /**
  * Wraps a route handler: resolves the context, authenticates by role, validates JSON body and
@@ -75,6 +65,7 @@ export function route<B = undefined, Q = undefined>(
         staff = await authenticateStaff(ctx, req);
         if (!staff) throw new HttpError(401, "unauthenticated", "log in first");
         if (MUTATING.has(req.method)) assertSameOrigin(req);
+        if (staff.pinReset && !options.allowPinReset) throw pinChangeRequired();
         if (!hasRole(staff.role, options.access.staff)) {
           throw new HttpError(403, "forbidden", `requires ${options.access.staff}`);
         }
@@ -134,6 +125,7 @@ export async function requireStaff(
   const staff = await authenticateStaff(ctx, req);
   if (!staff) throw new HttpError(401, "unauthenticated", "log in first");
   if (MUTATING.has(req.method)) assertSameOrigin(req);
+  if (staff.pinReset) throw pinChangeRequired();
   if (!hasRole(staff.role, need)) throw new HttpError(403, "forbidden", `requires ${need}`);
   return staff;
 }

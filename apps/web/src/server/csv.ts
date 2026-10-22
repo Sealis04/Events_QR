@@ -44,7 +44,7 @@ export const MAX_IMPORT_ROWS = 5000;
 
 /**
  * CSV columns (header row required): `holder_name`, `ticket_type` (index or name), and optional
- * `holder_email`, `note`. Every row goes through the same capacity transaction as the generator;
+ * `holder_email`, `holder_phone`, `note`. Every row goes through the same capacity transaction as the generator;
  * a failing row is reported and the rest carry on. Rows have their own idempotency key, derived
  * from the request's key, so repeating an import does not issue anything twice.
  */
@@ -92,6 +92,7 @@ export async function importTickets(
         quantity: 1,
         holder_name: get("holder_name") || undefined,
         holder_email: get("holder_email") || undefined,
+        holder_phone: get("holder_phone") || undefined,
         note: get("note") || undefined,
       });
       if (!parsed.success)
@@ -105,4 +106,62 @@ export async function importTickets(
     }
   }
   return { created, errors };
+}
+
+const csvCell = (v: string | number | null): string => {
+  const s = v === null ? "" : String(v);
+  // A leading = + - @ would be run as a formula by a spreadsheet; prefix it so it stays text.
+  // A plain phone number such as +63 917 000 1111 is not a formula and stays as typed.
+  const plainPhone = /^\+[\d\s()-]+$/.test(s);
+  const safe = !plainPhone && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
+
+/** `GET /api/events/{id}/tickets/export`: one row per ticket, in the columns the import reads plus status and use. */
+export async function exportTicketsCsv(ctx: AppContext, eventId: number): Promise<string> {
+  await loadEvent(ctx.db, eventId);
+  const types = await ctx.db
+    .select()
+    .from(mysqlSchema.ticketTypes)
+    .where(eq(mysqlSchema.ticketTypes.eventId, eventId));
+  const typeName = new Map(types.map((t) => [t.idx, t.name]));
+  const rows = await ctx.db
+    .select()
+    .from(mysqlSchema.tickets)
+    .where(eq(mysqlSchema.tickets.eventId, eventId))
+    .orderBy(asc(mysqlSchema.tickets.issuedAt), asc(mysqlSchema.tickets.id));
+  const lines = [
+    [
+      "ticket_id",
+      "short_id",
+      "holder_name",
+      "holder_email",
+      "holder_phone",
+      "ticket_type",
+      "status",
+      "admits_used",
+      "inside",
+      "note",
+    ].join(","),
+  ];
+  for (const r of rows) {
+    const id = Buffer.from(r.id).toString("hex");
+    lines.push(
+      [
+        id,
+        id.slice(-6).toUpperCase(),
+        r.holderName,
+        r.holderEmail,
+        r.holderPhone,
+        typeName.get(r.ticketType) ?? r.ticketType,
+        r.status,
+        r.admitsUsed,
+        r.inside ? "yes" : "no",
+        r.note,
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  }
+  return lines.join("\r\n") + "\r\n";
 }

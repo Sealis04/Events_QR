@@ -5,6 +5,7 @@ import type { AppContext } from "./context";
 import type { Db } from "./db";
 import { toBuffer } from "./dbutil";
 import type { AuthedDevice } from "./auth";
+import { hashesForEvent } from "./eventStaff";
 import { loadEvent, loadTypes, scannerTypes } from "./events";
 import { badRequest, HttpError } from "./http";
 import { offlineGateOnly } from "./settings";
@@ -246,15 +247,9 @@ export async function syncForDevice(
   const page = await syncTickets(ctx, device, { cursor: query.cursor, limit: 1000 });
   const types = await loadTypes(ctx.db, device.eventId);
   const event = await loadEvent(ctx.db, device.eventId);
-  const staffRows = await ctx.db.select().from(staff);
   return {
     tickets: page.tickets,
-    staff: staffRows.map((s) => ({
-      id: s.id,
-      name: s.name,
-      role: s.role as "staff" | "supervisor" | "admin",
-      pin_hash: s.pinHash,
-    })),
+    staff: await hashesForEvent(ctx, device.eventId),
     settings: { offline_gate_only: offlineGateOnly(event.config) },
     // A revoked device is refused at authentication (401) and wipes itself, so only itself here.
     devices: [
@@ -273,8 +268,8 @@ export async function syncForDevice(
 }
 
 /**
- * `GET /api/sync/meta` (hub): the small tables the hub mirrors: the event, ticket types, staff
- * with PIN hashes (phone login at the hub), the event's scanner devices and unused phone codes.
+ * `GET /api/sync/meta` (hub): the small tables the hub mirrors: the event, ticket types, the
+ * event's staff with PIN hashes (phone login at the hub; see `hashesForEvent`), the event's scanner devices and unused phone codes.
  */
 export async function syncMeta(
   ctx: AppContext,
@@ -283,7 +278,6 @@ export async function syncMeta(
   const now = ctx.now();
   const event = await loadEvent(ctx.db, device.eventId);
   const types = await loadTypes(ctx.db, event.id);
-  const staffRows = await ctx.db.select().from(staff);
   const deviceRows = await ctx.db
     .select()
     .from(devices)
@@ -320,12 +314,7 @@ export async function syncMeta(
       slots: t.slots ?? null,
       early_entry_min: t.earlyEntryMin,
     })),
-    staff: staffRows.map((s) => ({
-      id: s.id,
-      name: s.name,
-      pin_hash: s.pinHash,
-      role: s.role as "staff" | "supervisor" | "admin",
-    })),
+    staff: await hashesForEvent(ctx, event.id),
     devices: deviceRows.map((d) => ({
       id: d.id,
       gate: d.gate,

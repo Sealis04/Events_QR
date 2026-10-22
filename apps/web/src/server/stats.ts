@@ -4,7 +4,7 @@ import { api, bytesToHex, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { loadEvent } from "./events";
 
-const { scans, tickets } = mysqlSchema;
+const { scans, tickets, staff, devices } = mysqlSchema;
 
 const ADMIT_RESULTS = ["admitted", "override"];
 
@@ -92,11 +92,11 @@ export async function listConflicts(
     .innerJoin(tickets, eq(scans.ticketId, tickets.id))
     .where(and(eq(tickets.eventId, eventId), eq(scans.conflict, true)));
 
-  const canonical = new Map<string, { gate: string; scanned_at: number }>();
+  const canonical = new Map<string, typeof scans.$inferSelect>();
   const ids = [...new Set(rows.map((r) => r.scan.ticketId))];
   if (ids.length) {
     const firsts = await ctx.db
-      .select({ ticketId: scans.ticketId, gate: scans.gate, scannedAt: scans.scannedAt })
+      .select()
       .from(scans)
       .where(
         and(
@@ -109,22 +109,65 @@ export async function listConflicts(
       .orderBy(scans.scannedAt, scans.id);
     for (const f of firsts) {
       const key = bytesToHex(f.ticketId);
-      if (!canonical.has(key)) canonical.set(key, { gate: f.gate, scanned_at: f.scannedAt });
+      if (!canonical.has(key)) canonical.set(key, f);
     }
   }
+  const staffIds = new Set<string>();
+  const deviceIds = new Set<string>();
+  for (const s of [...rows.map((r) => r.scan), ...canonical.values()]) {
+    if (s.staffId) staffIds.add(s.staffId);
+    if (s.deviceId) deviceIds.add(s.deviceId);
+  }
+  const staffNames = new Map(
+    staffIds.size
+      ? (
+          await ctx.db
+            .select({ id: staff.id, name: staff.name })
+            .from(staff)
+            .where(inArray(staff.id, [...staffIds]))
+        ).map((s) => [s.id, s.name])
+      : [],
+  );
+  const deviceLabels = new Map(
+    deviceIds.size
+      ? (
+          await ctx.db
+            .select({ id: devices.id, label: devices.label })
+            .from(devices)
+            .where(inArray(devices.id, [...deviceIds]))
+        ).map((d) => [d.id, d.label])
+      : [],
+  );
   return {
-    conflicts: rows.map(({ scan: s, holder, status }) => ({
-      scan_id: s.id,
-      ticket_id: bytesToHex(s.ticketId),
-      holder_name: holder,
-      gate: s.gate,
-      device_id: s.deviceId,
-      scanned_at: s.scannedAt,
-      received_at: s.receivedAt,
-      offline: s.offline,
-      canonical: canonical.get(bytesToHex(s.ticketId)) ?? null,
-      ticket_status: status as "valid" | "used_up" | "cancelled",
-    })),
+    conflicts: rows.map(({ scan: s, holder, status }) => {
+      const first = canonical.get(bytesToHex(s.ticketId));
+      return {
+        scan_id: s.id,
+        ticket_id: bytesToHex(s.ticketId),
+        holder_name: holder,
+        gate: s.gate,
+        device_id: s.deviceId,
+        scanned_at: s.scannedAt,
+        received_at: s.receivedAt,
+        offline: s.offline,
+        canonical: first ? { gate: first.gate, scanned_at: first.scannedAt } : null,
+        ticket_status: status as "valid" | "used_up" | "cancelled",
+        staff_id: s.staffId,
+        staff_name: s.staffId ? (staffNames.get(s.staffId) ?? null) : null,
+        device_label: s.deviceId ? (deviceLabels.get(s.deviceId) ?? null) : null,
+        canonical_detail: first
+          ? {
+              gate: first.gate,
+              scanned_at: first.scannedAt,
+              offline: first.offline,
+              device_id: first.deviceId,
+              device_label: first.deviceId ? (deviceLabels.get(first.deviceId) ?? null) : null,
+              staff_name: first.staffId ? (staffNames.get(first.staffId) ?? null) : null,
+            }
+          : null,
+        reviewed_at: s.reviewedAt,
+      };
+    }),
     total: Number(total),
   };
 }

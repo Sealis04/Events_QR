@@ -46,20 +46,29 @@ class ScanReplay extends Error {}
 
 const RANK: Record<string, number> = { staff: 0, supervisor: 1, admin: 2 };
 
+/** `dashboard`: a supervisor's manual admit from the dashboard, which has no device row. */
+export interface ClaimOptions {
+  dashboard?: boolean;
+}
+
 async function checkRequest(
   ctx: AppContext,
   device: AuthedDevice,
   body: ClaimBody,
   need: "entry" | "exit",
+  options: ClaimOptions = {},
 ): Promise<void> {
-  if (body.device_id !== device.id) throw new HttpError(403, "wrong_device", "device_id mismatch");
-  if (device.kind !== "scanner") throw new HttpError(403, "forbidden", "a hub cannot scan");
-  if (device.direction !== "both" && device.direction !== need) {
-    throw new HttpError(403, "wrong_direction", `this device is set up for ${device.direction}`);
+  if (!options.dashboard) {
+    if (body.device_id !== device.id)
+      throw new HttpError(403, "wrong_device", "device_id mismatch");
+    if (device.kind !== "scanner") throw new HttpError(403, "forbidden", "a hub cannot scan");
+    if (device.direction !== "both" && device.direction !== need) {
+      throw new HttpError(403, "wrong_direction", `this device is set up for ${device.direction}`);
+    }
   }
   if (body.staff_id) {
     const [member] = await ctx.db
-      .select({ role: staff.role })
+      .select({ role: staff.role, pinReset: staff.pinReset })
       .from(staff)
       .where(eq(staff.id, body.staff_id))
       .limit(1);
@@ -67,6 +76,12 @@ async function checkRequest(
     if (body.override && (RANK[member.role] ?? 0) < RANK.supervisor!) {
       throw new HttpError(403, "forbidden", "an override needs a supervisor");
     }
+    if (body.override && member.pinReset)
+      throw new HttpError(
+        403,
+        "pin_change_required",
+        "this supervisor must choose a new PIN first",
+      );
   } else if (body.override) {
     throw badRequest("an override needs the supervisor's staff_id");
   }
@@ -108,12 +123,13 @@ async function insertScan(
   body: ClaimBody,
   direction: "entry" | "exit",
   result: ScanResultValue,
+  options: ClaimOptions = {},
 ): Promise<void> {
   try {
     await tx.insert(scans).values({
       id: body.scan_id,
       ticketId: toBuffer(hexToBytes(body.ticket_id)),
-      deviceId: device.id,
+      deviceId: options.dashboard ? null : device.id,
       staffId: body.staff_id ?? null,
       gate: device.gate,
       direction,
@@ -157,8 +173,9 @@ export async function claimTicket(
   ctx: AppContext,
   device: AuthedDevice,
   body: ClaimBody,
+  options: ClaimOptions = {},
 ): Promise<ClaimResponse> {
-  await checkRequest(ctx, device, body, "entry");
+  await checkRequest(ctx, device, body, "entry", options);
   const id = toBuffer(hexToBytes(body.ticket_id));
   try {
     return await ctx.db.transaction(async (tx): Promise<ClaimResponse> => {
@@ -190,20 +207,28 @@ export async function claimTicket(
         );
       const row = await lockTicket(tx, device, body.ticket_id);
       if (affectedRows(res) === 1) {
-        await insertScan(ctx, tx, device, body, "entry", body.override ? "override" : "admitted");
+        await insertScan(
+          ctx,
+          tx,
+          device,
+          body,
+          "entry",
+          body.override ? "override" : "admitted",
+          options,
+        );
         return { result: "admitted", admits_used: row.admitsUsed, limit: row.maxAdmits };
       }
 
       const decision = decideClaim(stateOf(row));
       if (decision.result === "rejected_cancelled") {
-        await insertScan(ctx, tx, device, body, "entry", "rejected_invalid");
+        await insertScan(ctx, tx, device, body, "entry", "rejected_invalid", options);
         return { result: "rejected_cancelled" };
       }
       if (decision.result === "admitted") {
         // The conditional UPDATE refused but the pure rule would admit: the two have drifted.
         throw new Error("claim: SQL and decideClaim disagree");
       }
-      await insertScan(ctx, tx, device, body, "entry", decision.result);
+      await insertScan(ctx, tx, device, body, "entry", decision.result, options);
       const first = await lastAdmission(tx, row.id);
       return {
         result: decision.result,

@@ -61,6 +61,7 @@ export default defineConfig({
         ...hubEnv(process.env as Record<string, string>),
         NODE_ENV: "production",
         APP_MODE: "hub",
+        COOKIE_SECURE: "false",
         HUB_DB_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub.sqlite"),
         SYNC_HORIZON_SECONDS: "1",
       },

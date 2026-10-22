@@ -112,7 +112,21 @@ Builder 1 writes `docs/runbook.md` (the spec's event-day runbook as a checklist,
 - Old signing secrets are kept only while an upcoming event uses that key generation, then deleted automatically; public keys stay.
 - After M3 (accepted 2026-10-22): manual-search admits need a supervisor PIN; staff PIN login on the phone needs the network until M5 adds offline login; a rescanned single-entry ticket shows "Already used".
 - After M4 (2026-10-22): setup codes made for the hub stay valid until the event ends (single use) so phones can be set up offline at the hub; normal on-screen codes keep the 10-minute expiry. Only hubs may upload scans to the VM (#5).
+- After M5 (2026-10-22): supervisor and admin PINs need 8+ digits and use slower hashing, because phones hold PIN hashes for offline login; phones get hashes only for the event's assigned staff (#8); after a lost phone, revoke it and rotate the affected PINs.
 - From M3 on, the reviewer writes fix requests into `plans/<branch>/inbox/builder-1.md` as well as GitHub issues.
+
+### M8 — Step-by-step setup guide (added 2026-10-22)
+One guide, `docs/setup-guide.md`, for an IT person doing the first install from zero. It replaces nothing: it links the deeper `docs/deploy-vm.md` and `docs/deploy-hub.md` where useful, but can be followed on its own top to bottom.
+- Prerequisites checklist: VM specs and OS, domain on Cloudflare, Gmail Workspace admin access, hub hardware (Pi 5 / mini PC, SSD, UPS, router, access points), phones.
+- VM: install Docker, clone the repo, fill `.env` (every variable explained, which are secrets), generate the signing key and event-key master, `docker compose up`, run migrations, create the first admin (8+ digit PIN), backups.
+- Nginx Proxy Manager: proxy host for the app, SSL, port forward; Cloudflare DNS record for the app.
+- Gmail: create the service account, domain-wide delegation scope, key file, sender mailbox, send a test email.
+- Hub: OS install, Docker, `docker/compose.hub.yml`, Cloudflare DNS-only `hub.<domain>` record, DNS-01 certificate and renewal, router or dnsmasq local DNS override, `scripts/hub-enroll.ts`, standby hub.
+- First event end to end: create event, gates, ticket types, staff assignment; generate a test ticket; print hub setup codes; set up a phone; scan it; check the dashboard; pull the internet cable and scan again.
+- Every step ends with a "Check" (a command or what you should see) and a "If it fails" line.
+- Troubleshooting table: common errors (certificate not trusted on phones, `hub.<domain>` not resolving offline, Gmail 403 / delegation, migrations, phone stuck on Cloud-only, clock drift) with fixes.
+- Upgrading to a new version and rotating keys.
+- **Done when:** the reviewer follows the guide in a clean sandbox as far as it can (everything except real Cloudflare, Let's Encrypt, Gmail and router steps) without needing any knowledge outside the guide, and every command in it runs.
 
 ## Out of scope for v1
 Payments and online checkout, resale, rotating QR codes, wallet passes, seat maps.

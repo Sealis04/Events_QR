@@ -6,9 +6,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * 1. CORS on the scanner-facing API. The phone loads the page from one server (usually the hub)
  *    and also calls the other (the VM) when the hub does not answer, so the calls are cross-origin.
  *    They carry a bearer token and no cookies, so any origin may call them.
- * 2. On a venue hub (`APP_MODE=hub`), everything else answers 404: the admin pages and the
- *    issuance, staff and sync routes that need the signing key or MariaDB. The hub serves the
- *    scanner and the scanner-facing API only.
+ * 2. On a venue hub (`APP_MODE=hub`), everything but the scanner, its API and the read-only
+ *    dashboard answers 404: the issuance, staff and sync routes need the signing key or MariaDB.
  */
 const SCANNER_API = new Set([
   "/api/claim",
@@ -19,7 +18,22 @@ const SCANNER_API = new Set([
   "/api/scans",
   "/api/devices/enroll",
   "/api/auth/login",
+  "/api/devices/heartbeat",
 ]);
+
+/**
+ * What a hub also serves besides the scanner API: the read-only dashboard (same pages and URLs as
+ * the VM, so the UI code is shared) and the supervisor's manual admit. Routes that do not exist
+ * on a hub (issuance, setup, cancellation) answer 404 from their own handlers.
+ */
+const HUB_DASHBOARD = [
+  /^\/$/,
+  /^\/login$/,
+  /^\/events(\/.*)?$/,
+  /^\/api\/auth\/(logout|me)$/,
+  /^\/api\/events$/,
+  /^\/api\/events\/\d+(\/(stats|conflicts|devices|tickets|admit|overrides))?$/,
+];
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -32,7 +46,11 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const scannerApi = SCANNER_API.has(pathname);
 
-  if (process.env.APP_MODE === "hub" && !scannerApi) {
+  if (
+    process.env.APP_MODE === "hub" &&
+    !scannerApi &&
+    !HUB_DASHBOARD.some((re) => re.test(pathname))
+  ) {
     return new NextResponse(
       JSON.stringify({ error: { code: "not_found", message: "not found" } }),
       {
