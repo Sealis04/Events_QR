@@ -30,7 +30,8 @@ async function setupQr(direction: "entry" | "exit" | "both" = "entry", gate = "G
   return (await res.json()).setup_qr as string;
 }
 
-async function newTicket(ticketType = 0, holder = "Ada Lovelace") {
+/** `settle`: wait out the sync horizon (SYNC_HORIZON_SECONDS = 1) so the next phone sync includes it. */
+async function newTicket(ticketType = 0, holder = "Ada Lovelace", settle = true) {
   const staff = await loggedIn("e2e-staff");
   const res = await staff.post(`/api/events/${await eventId(staff)}/tickets`, {
     data: {
@@ -40,6 +41,7 @@ async function newTicket(ticketType = 0, holder = "Ada Lovelace") {
     },
   });
   expect(res.status()).toBe(201);
+  if (settle) await new Promise((resolve) => setTimeout(resolve, 1100));
   return (await res.json()).tickets[0].token as string;
 }
 
@@ -91,7 +93,7 @@ test("a ticket unknown to the phone shows amber; a supervisor override admits it
   page,
 }) => {
   await enrolAndLogin(page, await setupQr());
-  const fresh = await newTicket(0, "Late Issue"); // issued after the phone's sync
+  const fresh = await newTicket(0, "Late Issue", false); // issued after the phone's sync
   await feed(page, fresh);
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "amber");
   await page.getByRole("button", { name: "Supervisor override" }).click();

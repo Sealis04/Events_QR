@@ -11,7 +11,7 @@ import {
 } from "react";
 import { Camera } from "./Camera";
 import { warmZxing } from "../../scanner/decoder";
-import { AuthError, HttpClient, NetworkError } from "../../scanner/client";
+import { AuthError, NetworkError } from "../../scanner/client";
 import { feedback, unlockAudio } from "../../scanner/feedback";
 import { IdbStore } from "../../scanner/idbStore";
 import {
@@ -22,8 +22,9 @@ import {
   type ScanOutcome,
 } from "../../scanner/pipeline";
 import { resultView, type ResultView, type Tone } from "../../scanner/result";
-import { EnrollFailed, enrollFromSetupQr, syncAll } from "../../scanner/sync";
-import { isSupervisor, loginStaff } from "../../scanner/staff";
+import { clientsFor, RoutedClient, type Link } from "../../scanner/routes";
+import { EnrollFailed, enrollFromSetupQr, syncFromBest } from "../../scanner/sync";
+import { isSupervisor, loginStaffRouted } from "../../scanner/staff";
 import type { DeviceRecord, Direction, StaffSession, SyncTicket } from "../../scanner/types";
 
 declare global {
@@ -101,7 +102,7 @@ export function ScannerApp() {
   const [direction, setDirection] = useState<Direction>("entry");
   const [settingUp, setSettingUp] = useState(false);
   const [notice, setNotice] = useState("");
-  const [link, setLink] = useState<"cloud" | "offline">("cloud");
+  const [link, setLink] = useState<Link>("cloud");
   const [outbox, setOutbox] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -174,15 +175,15 @@ export function ScannerApp() {
       const current = deviceRef.current;
       if (!current || stopped) return;
       try {
-        const client = new HttpClient({
-          baseUrl: current.serverUrl,
-          token: current.token,
-          timeoutMs: 4000,
-        });
-        const next = await syncAll(store, client, () => Math.floor(Date.now() / 1000));
+        // The hub first (800 ms), then the VM: the pill says which one answered.
+        const { device: next, link: answered } = await syncFromBest(
+          store,
+          clientsFor(current, { cloudTimeoutMs: 4000 }),
+          () => Math.floor(Date.now() / 1000),
+        );
         if (!stopped) {
           setDevice(next);
-          setLink("cloud");
+          setLink(answered);
         }
       } catch (err) {
         if (err instanceof AuthError)
@@ -191,6 +192,7 @@ export function ScannerApp() {
       }
       setOutbox(await store.outboxCount().catch(() => 0));
     };
+    void run();
     const timer = setInterval(run, SYNC_EVERY_MS);
     window.addEventListener("online", run);
     return () => {
@@ -202,8 +204,6 @@ export function ScannerApp() {
 
   const show = useCallback((outcome: ScanOutcome) => {
     const view = resultView(outcome);
-    if (outcome.kind === "no_connection") setLink("offline");
-    else setLink("cloud");
     feedback(view);
     setResult({ view, at: Date.now() });
   }, []);
@@ -220,7 +220,8 @@ export function ScannerApp() {
     if (!d) return undefined;
     return {
       store,
-      client: new HttpClient({ baseUrl: d.serverUrl, token: d.token, timeoutMs: 4000 }),
+      // Hub first with an 800 ms limit, retried on every scan; the VM when the hub is silent.
+      client: new RoutedClient(clientsFor(d), setLink),
       device: d,
       staff: staffRef.current,
       now: () => Math.floor(Date.now() / 1000) + d.clockOffset,
@@ -250,13 +251,13 @@ export function ScannerApp() {
       busy.current = true;
       setNotice("Setting up…");
       try {
-        const next = await enrollFromSetupQr(store, raw);
+        const next = await enrollFromSetupQr(store, raw, { pageOrigin: location.origin });
         void navigator.storage?.persist?.();
         setDevice(next);
         setDirection(next.direction === "exit" ? "exit" : "entry");
         setSettingUp(false);
         setNotice("");
-        setLink("cloud");
+        setLink(next.hubUrl ? "hub" : "cloud");
       } catch (err) {
         setNotice(err instanceof EnrollFailed ? err.message : "Setup failed. Try the code again.");
       } finally {
@@ -303,7 +304,7 @@ export function ScannerApp() {
 
   async function login(name: string, pin: string) {
     const d = deviceRef.current!;
-    const session = await loginStaff(d.serverUrl, name, pin);
+    const session = await loginStaffRouted(d, name, pin);
     unlockAudio();
     sessionStorage.setItem(STAFF_KEY, JSON.stringify(session));
     setStaff(session);
@@ -412,7 +413,7 @@ export function ScannerApp() {
           view={result.view}
           onDismiss={() => setResult(null)}
           onOverride={async (name, pin) => {
-            const sup = await loginStaff(deviceRef.current!.serverUrl, name, pin);
+            const sup = await loginStaffRouted(deviceRef.current!, name, pin);
             if (!isSupervisor(sup)) throw new Error("That account is not a supervisor");
             const dd = deps();
             const ov = result.view.override;
@@ -434,7 +435,7 @@ function Header({
 }: {
   device: DeviceRecord;
   staff: StaffSession;
-  link: "cloud" | "offline";
+  link: Link;
   outbox: number;
 }) {
   const role =
@@ -457,7 +458,13 @@ function Header({
   );
 }
 
-function Pill({ link, outbox }: { link: "cloud" | "offline"; outbox: number }) {
+const PILL: Record<Link, { label: string; bg: string }> = {
+  hub: { label: "Hub", bg: "#15803d" },
+  cloud: { label: "Cloud-only", bg: "#1d4ed8" },
+  offline: { label: "Offline", bg: "#ea580c" },
+};
+
+function Pill({ link, outbox }: { link: Link; outbox: number }) {
   return (
     <span
       data-testid="pill"
@@ -466,12 +473,12 @@ function Pill({ link, outbox }: { link: "cloud" | "offline"; outbox: number }) {
         padding: "4px 10px",
         borderRadius: 999,
         fontSize: 13,
-        background: link === "cloud" ? "#1d4ed8" : "#ea580c",
+        background: PILL[link].bg,
         color: "#fff",
         whiteSpace: "nowrap",
       }}
     >
-      {link === "cloud" ? "Cloud-only" : "Offline"} · {outbox} queued
+      {PILL[link].label} · {outbox} queued
     </span>
   );
 }
@@ -560,7 +567,7 @@ function Login({
   device: DeviceRecord;
   onLogin: (name: string, pin: string) => Promise<void>;
   onSetupAgain: () => void;
-  link: "cloud" | "offline";
+  link: Link;
   outbox: number;
 }) {
   const [error, setError] = useState("");
@@ -810,8 +817,8 @@ function Search({
                 const form = new FormData(e.currentTarget);
                 setError("");
                 try {
-                  const sup = await loginStaff(
-                    device.serverUrl,
+                  const sup = await loginStaffRouted(
+                    device,
                     String(form.get("name")),
                     String(form.get("pin")),
                   );

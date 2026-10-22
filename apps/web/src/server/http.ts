@@ -8,32 +8,11 @@ import {
   type AuthedStaff,
 } from "./auth";
 import type { StaffRole } from "./auth";
+import { badRequest, conflict, HttpError, json, notFound } from "./errors";
 
-export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly details?: unknown,
-  ) {
-    super(message);
-  }
-}
+export { badRequest, conflict, HttpError, json, notFound };
 
-export const badRequest = (message: string, details?: unknown) =>
-  new HttpError(400, "invalid_request", message, details);
-export const notFound = (what = "not found") => new HttpError(404, "not_found", what);
-export const conflict = (code: string, message: string, details?: unknown) =>
-  new HttpError(409, code, message, details);
-
-export function json(data: unknown, status = 200, headers?: HeadersInit): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store", ...headers },
-  });
-}
-
-export type Access = "public" | "device" | { staff: StaffRole };
+export type Access = "public" | "device" | "hub" | { staff: StaffRole };
 
 export interface RouteArgs<B, Q> {
   req: Request;
@@ -81,13 +60,17 @@ export function route<B = undefined, Q = undefined>(
 ): (req: Request, routeCtx: RouteContext) => Promise<Response> {
   return async (req, routeCtx) => {
     try {
+      // Routes built with `route()` run on MariaDB and need the signing key: never on a hub.
+      if (process.env.APP_MODE === "hub") throw new HttpError(404, "not_found", "not found");
       const ctx = await getContext();
       let staff: AuthedStaff | undefined;
       let device: AuthedDevice | undefined;
 
-      if (options.access === "device") {
+      if (options.access === "device" || options.access === "hub") {
         device = await authenticateDevice(ctx, req);
         if (!device) throw new HttpError(401, "unauthenticated", "device token required");
+        if (options.access === "hub" && device.kind !== "hub")
+          throw new HttpError(403, "forbidden", "only a venue hub may call this");
       } else if (options.access !== "public") {
         staff = await authenticateStaff(ctx, req);
         if (!staff) throw new HttpError(401, "unauthenticated", "log in first");
@@ -165,4 +148,12 @@ export function hexParam(params: Record<string, string>, name: string): string {
   const value = params[name]?.toLowerCase();
   if (!value || !/^[0-9a-f]{32}$/.test(value)) throw badRequest(`bad ${name}`);
   return value;
+}
+
+/** Public base URL of this request, honouring the proxy's forwarded headers. */
+export function requestOrigin(req: Request): string {
+  const url = new URL(req.url);
+  return `${req.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "")}://${
+    req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? url.host
+  }`;
 }

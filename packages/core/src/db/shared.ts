@@ -9,6 +9,8 @@ export { ENTRY_MODES };
 export const TICKET_STATUSES = ["valid", "used_up", "cancelled"] as const;
 export const DIRECTIONS = ["entry", "exit"] as const;
 export const DEVICE_DIRECTIONS = ["entry", "exit", "both"] as const;
+/** A device row is a scanner phone or a venue hub (the hub authenticates to the VM like a device). */
+export const DEVICE_KINDS = ["scanner", "hub"] as const;
 export const STAFF_ROLES = ["staff", "supervisor", "admin"] as const;
 export const SCAN_RESULTS = [
   "admitted",

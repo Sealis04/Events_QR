@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STAFF_ROLES } from "../db/shared";
+import { DEVICE_DIRECTIONS, ENTRY_MODES, STAFF_ROLES } from "../db/shared";
 import {
   cursor,
   deviceDirection,
@@ -10,6 +10,7 @@ import {
   scanRecord,
   slotMinute,
   syncTicket,
+  scanCursor,
   ticketIdHex,
   ticketStatus,
   token,
@@ -173,6 +174,104 @@ export const syncScansResponse = z.object({
   acknowledged: z.array(uuid),
   conflicts: z.array(uuid),
 });
+
+/** `POST /hubs/setup` (supervisor): a one-time code that binds one hub to one event. */
+export const hubSetupRequest = z.object({
+  event_id: z.number().int(),
+  label: z.string().max(255).optional(),
+});
+export const hubSetupResponse = z.object({
+  /** Typed into `scripts/hub-enroll.ts` on the hub. */
+  setup_code: z.string().min(1),
+  expires_at: unixSeconds,
+});
+
+/** `GET /sync/meta` (hub): everything small that the hub mirrors, in one snapshot. */
+export const syncMetaResponse = z.object({
+  event: z.object({
+    id: z.number().int(),
+    name: z.string(),
+    starts_at: unixSeconds,
+    ends_at: unixSeconds,
+    sign_key_id: z.number().int(),
+    gates: z.array(gateName),
+    config: z.record(z.unknown()).nullable(),
+  }),
+  ticket_types: z.array(
+    z.object({
+      idx: z.number().int().min(0).max(255),
+      name: z.string(),
+      capacity: z.number().int().nullable(),
+      issued: z.number().int(),
+      entry_mode: z.enum(ENTRY_MODES),
+      max_admits: z.number().int().nullable(),
+      gate_mask: gateMask,
+      slots: z.array(z.object({ start: z.number().int(), end: z.number().int() })).nullable(),
+      early_entry_min: z.number().int(),
+    }),
+  ),
+  /** All staff, with PIN hashes, so phones can log in at the hub with no internet. */
+  staff: z.array(
+    z.object({
+      id: uuid,
+      name: z.string(),
+      pin_hash: z.string(),
+      role: z.enum(STAFF_ROLES),
+    }),
+  ),
+  /** Scanner devices of the event (token hashes included), revoked ones too. */
+  devices: z.array(
+    z.object({
+      id: uuid,
+      gate: gateName,
+      direction: z.enum(DEVICE_DIRECTIONS),
+      label: z.string().nullable(),
+      token_hash: z.string(),
+      revoked: z.boolean(),
+    }),
+  ),
+  /** Phone enrolment codes that are neither used nor expired. */
+  enrolment_codes: z.array(
+    z.object({
+      code_hash: z.string().length(64),
+      gate: gateName,
+      direction: z.enum(DEVICE_DIRECTIONS),
+      label: z.string().nullable(),
+      expires_at: unixSeconds,
+    }),
+  ),
+  server_time: unixSeconds,
+});
+
+/** `GET /sync/scans?cursor=` (hub): scans the VM holds, so the hub converges on the same state. */
+export const syncVmScansQuery = z.object({
+  cursor: scanCursor.optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(500),
+});
+export const syncVmScansResponse = z.object({
+  scans: z.array(scanRecord.extend({ received_at: unixSeconds.nullable() })),
+  next_cursor: scanCursor.nullable(),
+  has_more: z.boolean(),
+});
+
+/** `POST /sync/devices` (hub): phones enrolled at the hub, so their tokens work on the VM too. */
+export const syncDevicesRequest = z.object({
+  devices: z
+    .array(
+      z.object({
+        id: uuid,
+        gate: gateName,
+        direction: z.enum(DEVICE_DIRECTIONS),
+        label: z.string().nullable(),
+        token_hash: z.string().length(64),
+        code_hash: z.string().length(64),
+        enrolled_at: unixSeconds,
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+export const syncDevicesResponse = z.object({ acknowledged: z.array(uuid) });
 
 /** `GET /events/{id}/stats` (dashboard). */
 export const eventStatsResponse = z.object({

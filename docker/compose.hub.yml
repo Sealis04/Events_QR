@@ -1,0 +1,116 @@
+# The venue hub: app (APP_MODE=hub) + sync worker, SQLite on a volume. Run from the repo root:
+#   docker compose --env-file .env -f docker/compose.hub.yml up -d --build
+# See docs/deploy-hub.md. The hub has no database server and no signing key: the only secrets it
+# holds are its credential for the VM and the event key, both inside the SQLite file on the volume.
+name: events-qr-hub
+
+x-hub-env: &hub-env
+  APP_MODE: hub
+  HUB_DB_PATH: /data/hub.sqlite
+  HOME: /tmp
+
+x-hub-user: &hub-user "1000:1000"
+
+services:
+  # One-shot: creates / upgrades the SQLite file. The app and worker wait for it.
+  migrate:
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    command: ["bun", "scripts/hub-migrate.ts"]
+    user: *hub-user
+    environment: *hub-env
+    volumes:
+      - hub-data:/data
+    restart: "no"
+
+  # Serves the phones: the scanner PWA and the scanner-facing API. Plain HTTP on the venue LAN;
+  # TLS is added in front of it (docs/deploy-hub.md section 4).
+  app:
+    build: { context: .., dockerfile: docker/Dockerfile, target: app }
+    restart: unless-stopped
+    user: *hub-user
+    environment:
+      <<: *hub-env
+      # Next reads the hub's own copy of its settings (intervals, session-free: no secrets needed).
+      SYNC_HORIZON_SECONDS: ${SYNC_HORIZON_SECONDS:-2}
+    volumes:
+      - hub-data:/data
+    ports:
+      # The venue LAN (and the reverse proxy on this machine) reach the hub here.
+      - "${HUB_BIND:-0.0.0.0}:${HUB_PORT:-3000}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # The sync loops: ticket pull from the VM every 30 s, scan push every 5 s, with backoff while the
+  # uplink is down. Shares the SQLite file with the app (WAL mode; each waits for the other's write).
+  worker:
+    build: { context: .., dockerfile: docker/Dockerfile, target: worker }
+    restart: unless-stopped
+    user: *hub-user
+    environment:
+      <<: *hub-env
+      SYNC_HORIZON_SECONDS: ${SYNC_HORIZON_SECONDS:-2}
+      HUB_TICKET_PULL_SECONDS: ${HUB_TICKET_PULL_SECONDS:-30}
+      HUB_SCAN_PUSH_SECONDS: ${HUB_SCAN_PUSH_SECONDS:-5}
+    volumes:
+      - hub-data:/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Binds the hub to an event (once per event):
+  #   docker compose --env-file .env -f docker/compose.hub.yml run --rm tools \
+  #     bun scripts/hub-enroll.ts https://tickets.example.org <setup code>
+  tools:
+    profiles: ["tools"]
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    user: *hub-user
+    environment: *hub-env
+    volumes:
+      - hub-data:/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Optional, TLS for `hub.<domain>` with a Let's Encrypt certificate from the Cloudflare DNS-01
+  # challenge. Enable with `--profile proxy` (admin UI on :81); see docs/deploy-hub.md section 4.
+  # The Cloudflare API token is typed into its UI and stored in its volume: never in this repo.
+  proxy:
+    profiles: ["proxy"]
+    image: jc21/nginx-proxy-manager:2.12.3
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+
+  # Optional, answers `hub.<domain>` with this machine's LAN address when the venue router cannot
+  # do it (and the internet is down). Enable with `--profile dns`; see docs/deploy-hub.md section 5.
+  dns:
+    profiles: ["dns"]
+    image: 4km3/dnsmasq:2.90-r3
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    command:
+      - "--no-resolv"
+      - "--server=1.1.1.1"
+      - "--address=/${HUB_DOMAIN:-hub.example.org}/${HUB_LAN_IP:-192.168.50.10}"
+
+volumes:
+  hub-data:
+  npm-data:
+  npm-letsencrypt:

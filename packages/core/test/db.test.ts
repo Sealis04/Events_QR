@@ -101,6 +101,43 @@ describe("SQLite migrations", () => {
     }
   });
 
+  it("has the hub-only bookkeeping tables, which MariaDB does not have", () => {
+    const { sqlite } = freshDb();
+    const names = sqlite
+      .prepare("select name from sqlite_master where type='table'")
+      .all()
+      .map((r) => (r as { name: string }).name);
+    for (const n of ["hub_state", "hub_scan_outbox", "hub_device_outbox"])
+      expect(names).toContain(n);
+    const mysql = readdirSync(resolve(here, "../drizzle/mysql"))
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => readFileSync(resolve(here, "../drizzle/mysql", f), "utf8"))
+      .join("\n");
+    expect(mysql).not.toContain("hub_state");
+  });
+
+  it("keeps the device and code kinds to scanner or hub, defaulting to scanner", () => {
+    const { db, sqlite } = freshDb();
+    const [e] = db.insert(sqliteSchema.events).values(event).returning().all();
+    const device = { eventId: e!.id, gate: "A", tokenHash: "h" };
+    db.insert(sqliteSchema.devices)
+      .values({ id: "d1", ...device })
+      .run();
+    db.insert(sqliteSchema.devices)
+      .values({ id: "d2", ...device, kind: "hub" })
+      .run();
+    expect(
+      db.select().from(sqliteSchema.devices).where(eq(sqliteSchema.devices.id, "d1")).get()?.kind,
+    ).toBe("scanner");
+    expect(() =>
+      sqlite
+        .prepare(
+          "insert into devices (id, event_id, gate, token_hash, kind) values ('d3', ?, 'A', 'h', 'robot')",
+        )
+        .run(e!.id),
+    ).toThrow();
+  });
+
   it("round-trips a ticket with binary id and nonce", () => {
     const { db } = freshDb();
     const [e] = db.insert(sqliteSchema.events).values(event).returning().all();

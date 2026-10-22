@@ -1,10 +1,18 @@
 /** `APP_MODE=worker`: drains the email queue and retires signing key secrets of finished events. Run with `bun src/main.ts` (see docker/compose.vm.yml). */
+import { loadConfig } from "@events-qr/web/server/config";
 import { buildContext } from "@events-qr/web/server/context";
 import { drainEmailQueue } from "./emailQueue";
 import { GmailSender } from "./gmail";
 import { cleanupSigningKeys, KEY_CLEANUP_INTERVAL_MS } from "./keyCleanup";
 
-const ctx = await buildContext();
+const config = loadConfig();
+if (config.APP_MODE === "hub") {
+  const { hubMain } = await import("./hubMain");
+  await hubMain(config);
+  process.exit(0);
+}
+
+const ctx = await buildContext(config);
 const { GMAIL_SA_KEY_PATH, GMAIL_SENDER } = ctx.config;
 if (!GMAIL_SA_KEY_PATH || !GMAIL_SENDER) {
   console.error("worker: GMAIL_SA_KEY_PATH and GMAIL_SENDER must be set");

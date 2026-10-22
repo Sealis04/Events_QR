@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/mysql-core";
 import {
   DEVICE_DIRECTIONS,
+  DEVICE_KINDS,
   DIRECTIONS,
   EMAIL_STATUSES,
   ENTRY_MODES,
@@ -135,9 +136,11 @@ export const devices = mysqlTable(
     tokenHash: text("token_hash").notNull(),
     revoked: boolean("revoked").notNull().default(false),
     lastSeenAt: unixCol("last_seen_at"),
+    kind: varchar("kind", { length: 8 }).notNull().default("scanner"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
+    check("ck_devices_kind", sql`${t.kind} IN (${sql.raw(sqlList(DEVICE_KINDS))})`),
   ],
 );
 
@@ -158,6 +161,7 @@ export const enrolmentCodes = mysqlTable(
     expiresAt: unixCol("expires_at").notNull(),
     usedAt: unixCol("used_at"),
     deviceId: uuidCol("device_id").references(() => devices.id),
+    kind: varchar("kind", { length: 8 }).notNull().default("scanner"),
   },
   (t) => [
     uniqueIndex("ux_enrolment_codes_hash").on(t.codeHash),
@@ -165,6 +169,7 @@ export const enrolmentCodes = mysqlTable(
       "ck_enrolment_codes_direction",
       sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`,
     ),
+    check("ck_enrolment_codes_kind", sql`${t.kind} IN (${sql.raw(sqlList(DEVICE_KINDS))})`),
   ],
 );
 

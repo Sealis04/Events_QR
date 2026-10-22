@@ -38,6 +38,18 @@ const schema = z.object({
   /** Ticket sync only serves rows older than this, so a late commit can't slip behind a cursor. */
   SYNC_HORIZON_SECONDS: z.coerce.number().int().min(0).default(2),
 
+  /** This server's own public base URL; goes into key bundles so phones know where the VM is. */
+  PUBLIC_URL: z.string().url().optional(),
+
+  /** Hub (`APP_MODE=hub`): the SQLite file. Holds the hub's credential and the event key, so keep the volume private. */
+  HUB_DB_PATH: z.string().min(1).default("data/hub.sqlite"),
+  HUB_TICKET_PULL_SECONDS: z.coerce.number().positive().default(30),
+  HUB_SCAN_PUSH_SECONDS: z.coerce.number().positive().default(5),
+  /** Longest wait between retries while the VM is unreachable. */
+  HUB_MAX_BACKOFF_SECONDS: z.coerce.number().positive().default(60),
+  /** Per-request timeout towards the VM. */
+  HUB_VM_TIMEOUT_SECONDS: z.coerce.number().positive().default(10),
+
   GMAIL_SA_KEY_PATH: z.string().min(1).optional(),
   GMAIL_SENDER: z.string().email().optional(),
   EMAIL_DAILY_LIMIT: z.coerce.number().int().positive().default(1800),
@@ -61,7 +73,7 @@ export function findRepoRoot(from: string = process.cwd()): string {
   }
 }
 
-const FILE_PATH_SETTINGS = ["SIGNING_KEY_PATH", "GMAIL_SA_KEY_PATH"] as const;
+const FILE_PATH_SETTINGS = ["SIGNING_KEY_PATH", "GMAIL_SA_KEY_PATH", "HUB_DB_PATH"] as const;
 
 export function loadConfig(
   env: Record<string, string | undefined> = process.env,

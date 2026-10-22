@@ -324,6 +324,7 @@ export function keyBundle(
   ctx: AppContext,
   event: EventRow,
   types: TicketTypeRow[],
+  cloudUrl?: string,
 ): z.infer<typeof api.keyBundle> {
   return {
     event_id: event.id,
@@ -336,6 +337,9 @@ export function keyBundle(
     ends_at: event.endsAt,
     day_zero: eventDayZero(ctx, event),
     ticket_types: scannerTypes(types),
+    ...((cloudUrl ?? ctx.config.PUBLIC_URL)
+      ? { cloud_url: cloudUrl ?? ctx.config.PUBLIC_URL }
+      : {}),
   };
 }
 

@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   DEVICE_DIRECTIONS,
+  DEVICE_KINDS,
   DIRECTIONS,
   EMAIL_STATUSES,
   ENTRY_MODES,
@@ -121,9 +122,11 @@ export const devices = sqliteTable(
     tokenHash: text("token_hash").notNull(),
     revoked: bool("revoked").notNull().default(false),
     lastSeenAt: unixCol("last_seen_at"),
+    kind: text("kind").notNull().default("scanner"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
+    check("ck_devices_kind", sql`${t.kind} IN (${sql.raw(sqlList(DEVICE_KINDS))})`),
   ],
 );
 
@@ -143,6 +146,7 @@ export const enrolmentCodes = sqliteTable(
     expiresAt: unixCol("expires_at").notNull(),
     usedAt: unixCol("used_at"),
     deviceId: text("device_id").references(() => devices.id),
+    kind: text("kind").notNull().default("scanner"),
   },
   (t) => [
     uniqueIndex("ux_enrolment_codes_hash").on(t.codeHash),
@@ -150,6 +154,7 @@ export const enrolmentCodes = sqliteTable(
       "ck_enrolment_codes_direction",
       sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`,
     ),
+    check("ck_enrolment_codes_kind", sql`${t.kind} IN (${sql.raw(sqlList(DEVICE_KINDS))})`),
   ],
 );
 
@@ -197,3 +202,30 @@ export const emailQueue = sqliteTable(
     check("ck_email_queue_status", sql`${t.status} IN (${sql.raw(sqlList(EMAIL_STATUSES))})`),
   ],
 );
+
+/**
+ * Hub-only bookkeeping (not in the MariaDB schema): the hub's own credential, its sync cursors,
+ * and what has not yet reached the VM. Scan rows pulled from the VM never enter the scan outbox.
+ */
+export const hubState = sqliteTable("hub_state", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
+/** Scans the hub produced (claims, exits, uploads from phones) and whether the VM acknowledged them. */
+export const hubScanOutbox = sqliteTable(
+  "hub_scan_outbox",
+  {
+    scanId: text("scan_id").primaryKey(),
+    ackedAt: unixCol("acked_at"),
+  },
+  (t) => [index("ix_hub_scan_outbox_pending").on(t.ackedAt)],
+);
+
+/** Devices enrolled at the hub that the VM has not seen yet, with the one-time code they used. */
+export const hubDeviceOutbox = sqliteTable("hub_device_outbox", {
+  deviceId: text("device_id").primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  usedAt: unixCol("used_at").notNull(),
+  ackedAt: unixCol("acked_at"),
+});
