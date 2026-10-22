@@ -123,20 +123,17 @@ test.afterAll(async () => {
   await uplink.stop();
 });
 
-test("the hub serves the scanner only, and holds no signing secret", async () => {
+test("the hub serves the scanner and the read-only dashboard only, and holds no signing secret", async () => {
   const anon = await playwrightRequest.newContext({ baseURL: HUB });
   expect((await anon.get("/api/health")).ok()).toBe(true);
   expect((await anon.get("/api/health")).headers()["access-control-allow-origin"]).toBe("*");
-  for (const path of [
-    "/api/events",
-    "/api/staff",
-    "/api/sync/tickets",
-    "/api/sync/meta",
-    "/login",
-    "/",
-  ]) {
+  for (const path of ["/api/staff", "/api/sync/tickets", "/api/sync/meta", "/api/events/1/staff"]) {
     expect((await anon.get(path)).status(), path).toBe(404);
   }
+  // The read-only dashboard is served, but only to a logged-in supervisor or admin.
+  expect((await anon.get("/api/events")).status()).toBe(401);
+  expect((await anon.get(`/api/events/${eventId}/stats`)).status()).toBe(401);
+  expect((await anon.get("/login")).status()).toBe(200);
   expect((await anon.post("/api/hubs/setup", { data: {} })).status()).toBe(404);
   const admin = await loggedIn("e2e-admin");
   const cookie = (await admin.storageState()).cookies.map((c) => `${c.name}=${c.value}`).join("; ");
@@ -248,4 +245,72 @@ test("with the hub's uplink cut the hub keeps admitting, and when it is back the
   expect(await admitted()).toBe(before + 1); // uploaded once, not repeatedly
   await feed(page, other);
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
+});
+
+test("the hub dashboard works with the VM unreachable: a supervisor logs in, sees the check-in and devices, and admits manually", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const scanned = await newTicket("Hub Dash Dan");
+  await newTicket("Hub Dash Dora");
+  const qr = await setupQr();
+  await settle();
+
+  // A phone admits Dan through the hub.
+  const phoneContext = await browser.newContext({ baseURL: VM });
+  const phone = await phoneContext.newPage();
+  await phone.goto("/scan");
+  await phone.waitForFunction(() => !!window.__scannerFeed);
+  await feed(phone, qr);
+  await expect(phone.getByTestId("ready")).toHaveText("Gate A · Entry");
+  await phone.getByPlaceholder("Name").fill("e2e-staff");
+  await phone.getByPlaceholder("PIN").fill(E2E_PIN);
+  await phone.getByRole("button", { name: "Log in" }).click();
+  await expect(phone.locator("main[data-phase=scan]")).toBeVisible();
+  await feed(phone, scanned);
+  await expect(phone.getByTestId("result")).toHaveAttribute("data-tone", "green");
+
+  // The VM becomes unreachable for the hub, and the dashboard is used on the hub alone.
+  uplink.mode = "down";
+  await settle(1500);
+  await page.goto(`${HUB}/login`);
+  await page.getByPlaceholder("Name").fill("e2e-staff");
+  await page.getByPlaceholder("PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.getByText(/only lets supervisors and admins/)).toBeVisible(); // plain staff: no dashboard session
+  await page.getByPlaceholder("Name").fill("e2e-super");
+  await page.getByPlaceholder("PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page).toHaveURL(new RegExp(`${HUB}/events/\\d+`));
+  await expect(page.getByTestId("server-mode")).toHaveText("Hub");
+  await expect(page.getByTestId("who")).toContainText("e2e-super");
+
+  // Issuance and setup are shown disabled; stats, devices and search work.
+  await expect(page.locator(".tabs .disabled")).toHaveCount(1); // supervisors do not see Setup at all
+  const stats = await (await page.request.get(`${HUB}/api/events/${eventId}/stats`)).json();
+  expect(stats.total_admitted).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("stat-total")).toHaveText(String(stats.total_admitted));
+  await page.getByRole("link", { name: "Devices" }).click();
+  await expect(page.getByTestId("device-table")).toContainText("hub phone");
+  await page.getByRole("link", { name: "Conflicts" }).click();
+  await expect(page.getByTestId("conflicts")).toBeVisible();
+
+  await page.getByRole("link", { name: "Attendees & overrides" }).click();
+  await page.getByLabel("Find an attendee").fill("Hub Dash Dora");
+  await page.getByTestId("attendees").getByRole("button", { name: "Admit" }).click();
+  await page.getByLabel("Supervisor PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Confirm admit" }).click();
+  await expect(page.getByText(/Admitted \(logged as an override\)/)).toBeVisible();
+  await expect(page.getByTestId("overrides")).toContainText("e2e-super");
+  const after = await (await page.request.get(`${HUB}/api/events/${eventId}/stats`)).json();
+  expect(after.total_admitted).toBe(stats.total_admitted + 1);
+
+  // The VM has heard nothing yet; when the uplink returns the manual admit arrives once.
+  const vmCount = async () =>
+    (await (await supervisor.get(`/api/events/${eventId}/overrides`)).json()).overrides.length;
+  const vmBefore = await vmCount();
+  uplink.mode = "up";
+  await expect.poll(vmCount, { timeout: 20_000 }).toBeGreaterThan(vmBefore);
+  await phoneContext.close();
 });
