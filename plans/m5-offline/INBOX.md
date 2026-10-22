@@ -19,7 +19,11 @@ Milestone M5 (offline mode) of `plans/offline-qr-ticketing/plan.md`, plus the fi
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+**Environment:** ready as-is (session init script ran; MariaDB up; Chrome linked; no SQL Server/Prisma in this repo).
+**E2E results (all pass):** `bun run lint` ok; `bunx tsc --noEmit` ok; `bun run test` 23 web files / 264 tests + 18 worker tests pass (chaos test: 4279 scans, 627 decided offline, 279 double admissions flagged exactly); `bun run test:e2e` 8/8 pass (hub, hub-uplink-cut, offline admit + banner + reload outbox + offline staff login + drain, scanner enrol/override/exit).
+**Issues filed:** none.
+**Summary:** #5 is fixed (hub-only `/api/sync/scans` with event-device check; phone-scoped `/api/scans` on the VM; schema rejects unknown results). Long-lived hub codes, encrypted IndexedDB, persistent outbox, offline PIN login, conflicts and wipe are implemented and tested. Planner notes: staff PIN hashes (argon2id) are now sent to every phone and are brute-forceable offline if a phone is stolen; the offline gate-only interpretation and the v1->v2 IndexedDB reset (phones re-enrol) are noted in builder-1's summary. Not manually reviewed in depth: M6 conflict feed UI (out of scope).
 
 ## planner
 
