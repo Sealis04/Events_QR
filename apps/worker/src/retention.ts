@@ -24,7 +24,7 @@ export interface RetentionOptions {
 }
 
 /**
- * Data retention (docs/spec.md "Security"): `holder_name` and `holder_email` become NULL
+ * Data retention (docs/spec.md "Security"): `holder_name`, `holder_email` and `holder_phone` become NULL
  * `RETENTION_PII_DAYS` after an event's `ends_at` (queued emails for those tickets go too), and
  * scans are deleted `RETENTION_SCANS_DAYS` after it. Ticket ids, types, admit counts and status
  * stay. Idempotent: each pass only touches what is still there. A dry run counts without changing.
@@ -52,7 +52,11 @@ export async function runRetention(
   if (piiEvents.length) {
     const hasPii = and(
       inArray(tickets.eventId, piiEvents),
-      or(isNotNull(tickets.holderName), isNotNull(tickets.holderEmail)),
+      or(
+        isNotNull(tickets.holderName),
+        isNotNull(tickets.holderEmail),
+        isNotNull(tickets.holderPhone),
+      ),
     );
     const [{ n = 0 } = {}] = await ctx.db
       .select({ n: sql<number>`COUNT(*)` })
@@ -79,7 +83,10 @@ export async function runRetention(
               .where(inArray(tickets.eventId, piiEvents)),
           ),
         );
-      await ctx.db.update(tickets).set({ holderName: null, holderEmail: null }).where(hasPii);
+      await ctx.db
+        .update(tickets)
+        .set({ holderName: null, holderEmail: null, holderPhone: null })
+        .where(hasPii);
     }
   }
 

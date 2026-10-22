@@ -203,6 +203,7 @@ export async function issueTickets(
       req.quantity,
       req.holder_name ?? null,
       req.holder_email ?? null,
+      req.holder_phone ?? null,
       rules,
       req.note ?? null,
     ]),
@@ -215,6 +216,7 @@ export async function issueTickets(
     ticketType: req.ticket_type,
     holderName,
     holderEmail: req.holder_email ?? null,
+    holderPhone: req.holder_phone ?? null,
     note: req.note ?? null,
     issuedBy: issuer.id,
     tokenNonce: toBuffer(randomBytes(12)),
@@ -471,8 +473,8 @@ export async function listTickets(
   // Name or email always; the last characters of the ticket id when the text could be hex.
   const search = q
     ? hex.length === q.length && hex.length >= 4
-      ? sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
-      : sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like})`
+      ? sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
+      : sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like})`
     : sql``;
   const status = opts.status ? sql`AND ${tickets.status} = ${opts.status}` : sql``;
   const where = sql`${tickets.eventId} = ${eventId} ${search} ${status}`;
@@ -494,6 +496,7 @@ export async function listTickets(
       short_id: shortTicketId({ ticketId: r.id }),
       holder_name: r.holderName,
       holder_email: r.holderEmail,
+      holder_phone: r.holderPhone,
       ticket_type: r.ticketType,
       status: r.status,
       admits_used: r.admitsUsed,
@@ -517,5 +520,6 @@ export async function ticketDetail(ctx: AppContext, idHexValue: string) {
     type_name: type.name,
     status: row.status,
     holder_email: row.holderEmail,
+    holder_phone: row.holderPhone,
   };
 }

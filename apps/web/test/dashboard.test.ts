@@ -208,6 +208,7 @@ describe.skipIf(!dbAvailable)("dashboard APIs", () => {
           ticket_type: 0,
           holder_name: "Zelda Searchable",
           holder_email: "zelda@find.me",
+          holder_phone: "+63 917 000 1111",
         },
       });
       const tid = gen.json.tickets[0].ticket_id as string;
@@ -218,6 +219,7 @@ describe.skipIf(!dbAvailable)("dashboard APIs", () => {
         (await find("Searchable")).tickets.map((t: { ticket_id: string }) => t.ticket_id),
       ).toEqual([tid]);
       expect((await find("find.me")).tickets).toHaveLength(1);
+      expect((await find("917 000")).tickets).toHaveLength(1);
       expect((await find(short)).tickets.map((t: { ticket_id: string }) => t.ticket_id)).toContain(
         tid,
       );
@@ -229,7 +231,7 @@ describe.skipIf(!dbAvailable)("dashboard APIs", () => {
       const csv = await call(vmExport, { staff: w.admin, params: params() });
       expect(csv.headers.get("content-type")).toContain("text/csv");
       expect(csv.text.split("\r\n")[0]).toContain("ticket_id,short_id,holder_name,holder_email");
-      expect(csv.text).toContain("Zelda Searchable,zelda@find.me,Single,valid");
+      expect(csv.text).toContain("Zelda Searchable,zelda@find.me,+63 917 000 1111,Single,valid");
 
       const detail = await call(vmTicket, { staff: w.staff, params: { id: tid } });
       expect(detail.status).toBe(200);

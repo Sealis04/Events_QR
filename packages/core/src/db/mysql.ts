@@ -126,6 +126,8 @@ export const tickets = mysqlTable(
     holderName: varchar("holder_name", { length: 255 }),
     holderEmail: varchar("holder_email", { length: 320 }),
     note: text("note"),
+    /** Contact number typed at the generator; never sent anywhere, cleared with the email by the retention job. */
+    holderPhone: varchar("holder_phone", { length: 64 }),
     issuedBy: uuidCol("issued_by").references(() => staff.id),
     tokenNonce: binary(NONCE_BYTES)("token_nonce", { length: NONCE_BYTES }).notNull(),
     entryMode: varchar("entry_mode", { length: 16 }).notNull(),

@@ -93,6 +93,7 @@ export const createTicketsRequest = z.object({
   quantity: z.number().int().min(1).max(500).default(1),
   holder_name: z.string().min(1).max(255).optional(),
   holder_email: z.string().email().optional(),
+  holder_phone: z.string().min(3).max(64).optional(),
   gate_mask: gateMask.optional(),
   slot: z.object({ start: slotMinute, end: slotMinute }).optional(),
   entry_rule: entryRule.optional(),

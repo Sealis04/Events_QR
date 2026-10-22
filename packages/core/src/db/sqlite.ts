@@ -107,6 +107,7 @@ export const tickets = sqliteTable(
     holderName: text("holder_name"),
     holderEmail: text("holder_email"),
     note: text("note"),
+    holderPhone: text("holder_phone"),
     issuedBy: text("issued_by").references(() => staff.id),
     tokenNonce: blob("token_nonce").notNull(),
     entryMode: text("entry_mode").notNull(),
