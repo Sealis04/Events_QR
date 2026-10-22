@@ -13,5 +13,6 @@ Coordination now follows the Agent Team Protocol in `CLAUDE.md`: each milestone 
 | M5 | Offline mode | `m5-offline` | merged 2026-10-22 (#7) |
 | M6 | Dashboard | `m6-dashboard` | builder-1 fired 2026-10-22 |
 | M7 | Dress-rehearsal docs | `m7-rehearsal` | not started |
+| M8 | Step-by-step setup guide | `m8-setup-guide` | not started |
 
 When the reviewer opens the PR for a milestone, the planner sets up the next branch and fires builder-1.
