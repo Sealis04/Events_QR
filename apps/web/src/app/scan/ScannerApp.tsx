@@ -25,6 +25,7 @@ import {
 } from "../../scanner/pipeline";
 import { resultView, type ResultView, type Tone } from "../../scanner/result";
 import { clientsFor, RoutedClient, type Link } from "../../scanner/routes";
+import { setUpAgain } from "../../scanner/reset";
 import { EnrollFailed, enrollFromSetupQr } from "../../scanner/sync";
 import { isSupervisor, loginStaffAny } from "../../scanner/staff";
 import type { DeviceRecord, Direction, StaffSession, SyncTicket } from "../../scanner/types";
@@ -114,6 +115,8 @@ export function ScannerApp() {
   const [staff, setStaff] = useState<StaffSession | null>(null);
   const [direction, setDirection] = useState<Direction>("entry");
   const [settingUp, setSettingUp] = useState(false);
+  /** Set when "Set up again" found scans that would be lost: how many, until a supervisor confirms. */
+  const [confirmWipe, setConfirmWipe] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [link, setLink] = useState<Link>("cloud");
   const [outbox, setOutbox] = useState(0);
@@ -285,6 +288,26 @@ export function ScannerApp() {
     [show, store, wipeDevice],
   );
 
+  /** "Set up again": upload what is queued, wipe the phone, show the setup screen. */
+  async function beginSetUpAgain(supervisor?: { name: string; pin: string }) {
+    const d = deviceRef.current;
+    if (!d) return;
+    setNotice("Uploading queued scans…");
+    const res = await setUpAgain(store, d, { supervisor });
+    if (res.kind === "needs_supervisor") {
+      setNotice("");
+      setConfirmWipe(res.lost);
+      return;
+    }
+    setConfirmWipe(null);
+    sessionStorage.removeItem(STAFF_KEY);
+    setDevice(undefined);
+    setStaff(null);
+    setOutbox(0);
+    setSettingUp(false);
+    setNotice("");
+  }
+
   const enrol = useCallback(
     async (raw: string) => {
       busy.current = true;
@@ -382,7 +405,9 @@ export function ScannerApp() {
         <Login
           device={device}
           onLogin={login}
-          onSetupAgain={() => setSettingUp(true)}
+          onSetupAgain={() =>
+            void beginSetUpAgain().catch(() => setNotice("Could not set up again."))
+          }
           link={link}
           outbox={outbox}
         />
@@ -439,7 +464,12 @@ export function ScannerApp() {
             <button style={button} onClick={() => setShowSearch(true)}>
               Manual search
             </button>
-            <button style={button} onClick={() => setSettingUp(true)}>
+            <button
+              style={button}
+              onClick={() =>
+                void beginSetUpAgain().catch(() => setNotice("Could not set up again."))
+              }
+            >
               Set up again
             </button>
             <button style={button} onClick={signOut}>
@@ -452,6 +482,13 @@ export function ScannerApp() {
             )}
           </div>
         </>
+      )}
+      {confirmWipe !== null && (
+        <WipeConfirm
+          lost={confirmWipe}
+          onConfirm={(name, pin) => beginSetUpAgain({ name, pin })}
+          onCancel={() => setConfirmWipe(null)}
+        />
       )}
       {showSearch && device && staff && (
         <Search
@@ -479,6 +516,73 @@ export function ScannerApp() {
         />
       )}
     </main>
+  );
+}
+
+function WipeConfirm({
+  lost,
+  onConfirm,
+  onCancel,
+}: {
+  lost: number;
+  onConfirm: (name: string, pin: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [error, setError] = useState("");
+  return (
+    <div
+      role="alertdialog"
+      data-testid="wipe-confirm"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 60,
+        background: "#7f1d1d",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        textAlign: "center",
+        gap: 8,
+      }}
+    >
+      <h1 style={{ fontSize: 28, margin: 0 }}>
+        {lost} scan{lost === 1 ? "" : "s"} not uploaded
+      </h1>
+      <p style={{ fontSize: 18, margin: 0 }}>
+        They could not reach the hub or the server and will be lost if this phone is set up again. A
+        supervisor can confirm.
+      </p>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const form = new FormData(e.currentTarget);
+          setError("");
+          try {
+            await onConfirm(String(form.get("name")), String(form.get("pin")));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not confirm");
+          }
+        }}
+        style={{ display: "grid", gap: 8, marginTop: 16, width: "min(320px, 100%)" }}
+      >
+        <input style={input} name="name" placeholder="Supervisor name" required />
+        <input style={input} name="pin" type="password" placeholder="Supervisor PIN" required />
+        <button style={{ ...button, background: "#111827" }} type="submit">
+          Discard scans and set up again
+        </button>
+        <button style={button} type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        {error && (
+          <p role="alert" style={{ margin: 0 }}>
+            {error}
+          </p>
+        )}
+      </form>
+    </div>
   );
 }
 

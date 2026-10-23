@@ -425,6 +425,7 @@ export async function pullCycle(ctx: HubContext, vm: VmClient) {
     const ticketsIn = await pullTickets(ctx, vm);
     const scansIn = await pullScans(ctx, vm);
     markCloud(ctx, null);
+    setState(ctx, "last_pull_at", String(ctx.now()));
     return { tickets: ticketsIn, scans: scansIn };
   } catch (err) {
     markCloud(ctx, err);

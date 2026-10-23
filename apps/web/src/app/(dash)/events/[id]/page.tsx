@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Notice, Shell } from "../../../_components/Shell";
+import { PullNow } from "../../../_components/PullNow";
 import { api, ApiError, formatTime } from "../../../_lib/client";
 import { RANK, type EventView, type Me, type Role } from "../../../_lib/types";
 import { Admit } from "./_tabs/Admit";
@@ -102,6 +103,7 @@ function Workspace({ me, id }: { me: Me; id: string }) {
           internet; issuance, setup and cancellation are VM-only.
         </Notice>
       )}
+      {hub && <PullNow />}
       <nav className="tabs" aria-label="Event sections">
         {TABS.filter((t) => RANK[me.role] >= RANK[t.need]).map((t) =>
           hub && t.vmOnly ? (

@@ -3,6 +3,7 @@
  *
  *   pull  VM -> hub   every HUB_TICKET_PULL_SECONDS (30 s): meta, tickets, the VM's scans
  *   push  hub -> VM   every HUB_SCAN_PUSH_SECONDS (5 s): devices enrolled here, then scans
+ *   watch             every second: a "Pull tickets now" request left by the dashboard (hub/pullnow.ts)
  *
  * Both retry forever. While the VM is unreachable each waits twice as long after every failure
  * (up to HUB_MAX_BACKOFF_SECONDS) and goes back to its normal pace after the first success. The
@@ -11,6 +12,7 @@
  * the phone polling `GET /api/sync`.
  */
 import type { HubContext } from "./context";
+import { servePullRequest } from "./pullnow";
 import { vmClientFor, pullCycle, pushCycle } from "./vmsync";
 
 export interface HubLoops {
@@ -47,6 +49,13 @@ export function startHubLoops(ctx: HubContext, options: HubLoopOptions = {}): Hu
   const sleep = options.sleep ?? defaultSleep;
   const abort = new AbortController();
   const maxBackoff = ctx.config.HUB_MAX_BACKOFF_SECONDS * 1000;
+  // The scheduled pull and a "Pull tickets now" never run at the same time.
+  let pulling: Promise<unknown> = Promise.resolve();
+  const exclusive = <T>(work: () => Promise<T>): Promise<T> => {
+    const next = pulling.then(work, work);
+    pulling = next.catch(() => undefined);
+    return next;
+  };
 
   async function run(
     name: string,
@@ -77,8 +86,20 @@ export function startHubLoops(ctx: HubContext, options: HubLoopOptions = {}): Hu
   }
 
   const running = [
-    run("pull", ctx.config.HUB_TICKET_PULL_SECONDS * 1000, (vm) => pullCycle(ctx, vm)),
+    run("pull", ctx.config.HUB_TICKET_PULL_SECONDS * 1000, (vm) =>
+      exclusive(() => pullCycle(ctx, vm)),
+    ),
     run("push", ctx.config.HUB_SCAN_PUSH_SECONDS * 1000, (vm) => pushCycle(ctx, vm)),
+    (async () => {
+      while (!abort.signal.aborted) {
+        try {
+          if (await exclusive(() => servePullRequest(ctx))) log("hub: pulled on request");
+        } catch (err) {
+          log(`hub: pull request failed: ${err instanceof Error ? err.message : err}`);
+        }
+        await sleep(1000, abort.signal);
+      }
+    })(),
   ];
   return {
     async stop() {

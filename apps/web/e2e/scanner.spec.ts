@@ -153,3 +153,79 @@ test("a device set to 'both' shows the Entry / Exit toggle and records exits", a
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "blue");
   await expect(page.getByTestId("result")).toContainText("Entries left: 2");
 });
+
+/** Every record in every object store of the scanner's IndexedDB. */
+const idbRecordCounts = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<Record<string, number>>((resolve, reject) => {
+        const open = indexedDB.open("events-qr-scanner");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const names = Array.from(db.objectStoreNames);
+          const counts: Record<string, number> = {};
+          const tx = db.transaction(names);
+          for (const name of names) {
+            const req = tx.objectStore(name).count();
+            req.onsuccess = () => (counts[name] = req.result);
+          }
+          tx.oncomplete = () => {
+            db.close();
+            resolve(counts);
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+  );
+
+test("'Set up again' with scans still queued asks a supervisor, then leaves no ticket or key on the phone", async ({
+  page,
+  context,
+}) => {
+  const ticket = await newTicket(0, "Queued Quinn");
+  await enrolAndLogin(page, await setupQr());
+  await page.waitForFunction(() => !!window.__scannerFeed);
+  const before = await idbRecordCounts(page);
+  expect(before.device).toBe(1);
+  expect(before.tickets).toBeGreaterThan(0);
+
+  // With no network the admit stays in the outbox, so wiping would lose it.
+  await context.setOffline(true);
+  await feed(page, ticket);
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
+  await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
+  await expect(page.getByTestId("pill")).toContainText("1 queued");
+
+  await page.getByRole("button", { name: "Set up again" }).click();
+  const confirm = page.getByTestId("wipe-confirm");
+  await expect(confirm).toContainText("1 scan not uploaded");
+  expect((await idbRecordCounts(page)).outbox).toBe(1); // nothing wiped yet
+
+  // A staff member's PIN is not enough.
+  await page.getByPlaceholder("Supervisor name").fill("e2e-staff");
+  await page.getByPlaceholder("Supervisor PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Discard scans and set up again" }).click();
+  await expect(confirm.getByRole("alert")).toContainText("not a supervisor");
+  expect((await idbRecordCounts(page)).outbox).toBe(1);
+
+  await page.getByPlaceholder("Supervisor name").fill("e2e-super");
+  await page.getByRole("button", { name: "Discard scans and set up again" }).click();
+  await expect(page.locator("main[data-phase=setup]")).toBeVisible();
+  expect(await idbRecordCounts(page)).toEqual({
+    device: 0,
+    keys: 0,
+    tickets: 0,
+    outbox: 0,
+    meta: 0,
+  });
+  await context.setOffline(false);
+});
+
+test("'Set up again' with nothing queued wipes at once", async ({ page }) => {
+  await enrolAndLogin(page, await setupQr());
+  await page.getByRole("button", { name: "Set up again" }).click();
+  await expect(page.locator("main[data-phase=setup]")).toBeVisible();
+  const counts = await idbRecordCounts(page);
+  expect(Object.values(counts).every((n) => n === 0)).toBe(true);
+});

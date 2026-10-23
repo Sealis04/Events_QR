@@ -31,6 +31,7 @@ const HUB_DASHBOARD = [
   /^\/login$/,
   /^\/events(\/.*)?$/,
   /^\/api\/auth\/(logout|me)$/,
+  /^\/api\/hub\/pull$/,
   /^\/api\/events$/,
   /^\/api\/events\/\d+(\/(stats|conflicts|devices|tickets|admit|overrides))?$/,
 ];

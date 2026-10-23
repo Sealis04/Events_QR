@@ -3,10 +3,11 @@
  * runs as a hub; shapes match the VM's so the scanner client does not change.
  */
 import { api } from "@events-qr/core";
-import { json } from "../server/errors";
+import { HttpError, json } from "../server/errors";
 import { claimTicket, exitTicket } from "./claim";
 import { exchangeHubEnrolment } from "./enroll";
 import { hubRoute } from "./http";
+import { PullRateLimited, requestPull } from "./pullnow";
 import { uploadScans } from "./scans";
 import { getState } from "./state";
 import { syncForDevice } from "./sync";
@@ -49,3 +50,17 @@ export const health = hubRoute({ access: "public" }, ({ ctx }) => {
 
 /** Staff PIN login: phones get the answer only, supervisors and admins on the dashboard also a session. */
 export { login } from "./dashboard";
+
+/**
+ * `POST /api/hub/pull` ("Pull tickets now"): asks the sync worker for one VM -> hub pass and
+ * answers with what it did. An unreachable VM is a normal answer (`ok: false`), not an error.
+ */
+export const pullNow = hubRoute({ access: { staff: "supervisor" } }, async ({ ctx }) => {
+  try {
+    return json(await requestPull(ctx));
+  } catch (err) {
+    if (err instanceof PullRateLimited)
+      throw new HttpError(429, "rate_limited", err.message, { retry_after: err.retryAfter });
+    throw err;
+  }
+});

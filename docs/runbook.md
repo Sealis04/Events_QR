@@ -67,7 +67,7 @@ Do this with internet, at the office or at the venue.
 
 **Tickets on the hub and the standby hub**
 
-- [ ] Hub: open `https://hub.example.org/api/health`. `last_cloud_sync_at` is within the last minute and `pending_scans` is `0`. To make the hub fetch the latest tickets straight away, restart its sync worker: `docker compose -f docker/compose.hub.yml restart worker`, then reload the health page.
+- [ ] Hub: open `https://hub.example.org/api/health`. `last_cloud_sync_at` is within the last minute and `pending_scans` is `0`. To make the hub fetch the latest tickets straight away, log in to the hub dashboard (`https://hub.example.org`) as a supervisor and press **Pull tickets now** (once per 10 s); it answers `Pulled N changes from the VM` or `VM not reachable` with the last successful pull. Fallback if the button does not answer (the sync worker is down): `docker compose -f docker/compose.hub.yml restart worker`, then reload the health page.
 - [ ] Standby hub: same check on its address, with the standby on its own network (it must **not** be on the venue network at the same time as the main hub).
 - [ ] Make one last ticket on the VM and scan it on a phone showing **Hub**. It should go green. (If it says "ticket not found", the hub has not pulled yet: wait 30 seconds, try again.)
 
@@ -87,7 +87,7 @@ Do this with internet, at the office or at the venue.
 - [ ] Power on the router, then the access points, then the hub. The hub needs about two minutes. Plug the hub into the UPS.
 - [ ] Open `https://hub.example.org/api/health` on a phone connected to the venue Wi-Fi. It shows `"mode":"hub"` and a padlock, with no warning.
 - [ ] Every phone is on the venue Wi-Fi and its pill is **Hub** (green). Walk each gate and look.
-- [ ] **Forced ticket pull:** if the internet is up, restart the hub's sync worker (`docker compose -f docker/compose.hub.yml restart worker`) and check `last_cloud_sync_at` in the health page is within the last minute. If the internet is down, skip: the hub keeps the tickets it already has.
+- [ ] **Forced ticket pull:** if the internet is up, press **Pull tickets now** on the hub dashboard and check it says `Pulled N changes`. If it says `VM not reachable`, the internet is down: skip, the hub keeps the tickets it already has. (Fallback if the button gives no answer: `docker compose -f docker/compose.hub.yml restart worker`, then check `last_cloud_sync_at` in the health page is within the last minute.)
 - [ ] **Dashboard on the hub:** open `https://hub.example.org/` on the supervisor's phone or laptop and log in with the supervisor name and PIN. You see the event, **Live stats**, **Devices**, **Conflicts** and **Attendees & overrides**. The grey tabs (**QR generator**, **Setup**) are VM-only.
 - [ ] Power banks at every gate, plugged in.
 - [ ] Spare phones charged and signed in, and the printed hub setup codes at hand.
@@ -162,7 +162,7 @@ Do this with internet, at the office or at the venue.
 
 ## After the event
 
-- [ ] Wipe the phones: on each, press **Revoke** on the VM's **Devices** tab; the phone wipes itself the next time it is online. **Set up again** only returns the phone to the setup screen and does not wipe it. If a phone cannot get online, clear the browser's site data for the scanner address by hand. Close the browser tabs.
+- [ ] Wipe the phones: on each, press **Revoke** on the VM's **Devices** tab; the phone wipes itself the next time it is online. **Set up again** on the phone also wipes it (token, event keys, ticket list, staff PIN hashes, queued scans): it first uploads what is queued, and if scans are still stuck it shows how many would be lost and needs a supervisor PIN. If a phone cannot get online, clear the browser's site data for the scanner address by hand. Close the browser tabs.
 - [ ] Power down the hub and the standby. IT wipes the hub's data (`docker compose -f docker/compose.hub.yml down -v`) and revokes its link to the VM, as in `docs/deploy-hub.md` section 8.
 - [ ] Export the ticket list if you need it: VM, **Tickets** tab, **Export CSV** (admins).
 - [ ] Nothing else to delete by hand. Holder names, emails and phone numbers are cleared automatically a year after the event, and scan records three years after it.
