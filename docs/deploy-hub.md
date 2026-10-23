@@ -130,11 +130,13 @@ Every scan asks the hub first and waits 800 ms. The pill on the phone says which
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | **Hub** (green)       | The hub answered. This is the normal state.                                                                                              |
 | **Cloud-only** (blue) | The hub did not answer in time, the VM did. Safe, but the hub is not seeing these scans live: find out why.                              |
-| **Offline** (orange)  | Neither answered. The phone refuses to admit anyone until M5's offline mode exists.                                                      |
+| **Offline** (orange)  | Neither answered. The phone decides alone with its own copy of the ticket list and shows an orange `OFFLINE` bar; its scans are saved and uploaded when a link is back. |
 
 The hub is asked again on every scan, so a hub that comes back is used straight away. Staff PIN login also tries the hub first; the hub has the staff list (with PIN hashes) mirrored from the VM, so logging in works with no internet.
 
 ## 7. Event day
+
+The step-by-step checklist for staff and supervisors is `docs/runbook.md`; the rehearsal that proves the setup is `docs/field-test.md`.
 
 **Before the doors open** (about 30 minutes, with internet):
 
@@ -160,7 +162,7 @@ To fail over: switch the standby on the venue network, give it the primary's LAN
 1. Check `pending_scans` is 0 and the VM's stats match.
 2. Wipe the hub: `docker compose -f docker/compose.hub.yml down -v`. This deletes the SQLite volume: the ticket list, the staff list and the event key.
 3. On the VM revoke the hub's credential (`UPDATE devices SET revoked = 1 WHERE kind = 'hub' AND event_id = <id>;`), and consider rotating the event key as the spec's "After the event" section says.
-4. Wipe the phones (the scanner's "Set up again", or revoke them on the VM).
+4. Wipe the phones (revoke them on the VM's Devices tab; "Set up again" does not wipe a phone. If a phone cannot get online, clear the browser's site data by hand).
 
 ## 9. How the sync works
 
