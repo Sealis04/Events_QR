@@ -113,6 +113,7 @@ Builder 1 writes `docs/runbook.md` (the spec's event-day runbook as a checklist,
 - After M3 (accepted 2026-10-22): manual-search admits need a supervisor PIN; staff PIN login on the phone needs the network until M5 adds offline login; a rescanned single-entry ticket shows "Already used".
 - After M4 (2026-10-22): setup codes made for the hub stay valid until the event ends (single use) so phones can be set up offline at the hub; normal on-screen codes keep the 10-minute expiry. Only hubs may upload scans to the VM (#5).
 - After M5 (2026-10-22): supervisor and admin PINs need 8+ digits and use slower hashing, because phones hold PIN hashes for offline login; phones get hashes only for the event's assigned staff (#8); after a lost phone, revoke it and rotate the affected PINs.
+- After M7 (2026-10-23): "Set up again" on a phone must wipe it (uploading queued scans first); the hub dashboard gets a "Pull tickets now" button. Both go into M8.
 - From M3 on, the reviewer writes fix requests into `plans/<branch>/inbox/builder-1.md` as well as GitHub issues.
 
 ### M8 — Step-by-step setup guide (added 2026-10-22)
