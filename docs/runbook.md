@@ -58,9 +58,9 @@ Do this with internet, at the office or at the venue.
 **On the VM dashboard, open the event, then the Devices tab.**
 
 - [ ] For every phone, under **Add a scanner**: pick the **Gate**, pick the **Role**, type a **Label** such as "Gate A – phone 2", press **Show setup QR**. The code works for 10 minutes and once only.
-- [ ] On the phone, open `https://hub.example.org/scan` (use your own address). Press **Set up for event** and scan the code. If the camera will not work, open **Type the code instead**, paste the `DEV1:…` text and press **Use code**.
+- [ ] On the phone, open `https://hub.example.org/scan` (use your own address). Press **Set up for event** and scan the code. If the camera will not work, allow camera access for the page in the browser settings and try again, or set this phone up with a printed hub setup code. The dashboard shows the setup code only as a picture, so there is no text to type or paste.
 - [ ] The phone shows **Staff login**. Type the name and **PIN**, press **Log in**.
-- [ ] **Ready screen check:** the top of the screen reads the right gate and role, for example `Gate A · Entry`, with the staff name and phone label underneath. A phone set to Entry and exit shows **Entry** and **Exit** buttons. The pill reads **Hub** (green) and `0 queued`.
+- [ ] **Ready screen check:** the top of the screen reads the right gate and role, for example `Gate A · Entry`, with the staff name and phone label underneath. A phone set to Entry and exit reads `Gate A · Entry / Exit` and shows **Entry** and **Exit** buttons. The pill reads **Hub** (green) and `0 queued`.
 - [ ] Install the page as an app if the phone offers it (**Install app** button).
 - [ ] Under **Devices**, the phone appears in the table as **Online**, with the right gate and role. A phone set up wrongly is fixed with **Move** (pick the gate and role, **Save**); the phone follows within a few seconds.
 - [ ] Make a batch of spare codes for phones that need setting up at the venue with no internet. In the card **Batch codes for the venue hub**, pick a **Gate** and **Role**, set **How many** (for example 10), press **Make hub setup codes**. Press **Print** at once: the codes are shown only this one time. Each works once and stays valid until the event ends. Repeat for each gate and role you may need. Keep the printouts with the hub.
@@ -117,7 +117,7 @@ Do this with internet, at the office or at the venue.
 
 **Screens at the gate**
 
-- **Amber (`Valid signature, not in list – call supervisor`).** The code is genuine but this phone does not have the ticket yet (made very recently). Supervisor: check the name on a printed list or the dashboard, then press the override button on the phone, type **Supervisor name** and **Supervisor PIN**, press **Admit**. The phone does not have to be online for this.
+- **Amber (`Valid signature, not in list – call supervisor`).** The code is genuine but this phone does not have the ticket yet (made very recently). Supervisor: check the name on a printed list or the dashboard, then press **Supervisor override** on the phone, type **Supervisor name** and **Supervisor PIN**, press **Admit**. The phone does not have to be online for this.
 - **Wrong gate (`Use Gate B`).** Send them to that gate. Do not override unless a supervisor decides to.
 - **Too early.** Politely ask them to wait. The screen says when their slot starts. Supervisors may admit by hand (override) for a late or early guest.
 - **Slot ended.** The supervisor decides. If admitted, use an override.
@@ -162,7 +162,7 @@ Do this with internet, at the office or at the venue.
 
 ## After the event
 
-- [ ] Wipe the phones: on each, press **Set up again** and leave it, or revoke it from the **Devices** tab (**Revoke**: it wipes itself the next time it is online). Close the browser tabs.
+- [ ] Wipe the phones: on each, press **Revoke** on the VM's **Devices** tab; the phone wipes itself the next time it is online. **Set up again** only returns the phone to the setup screen and does not wipe it. If a phone cannot get online, clear the browser's site data for the scanner address by hand. Close the browser tabs.
 - [ ] Power down the hub and the standby. IT wipes the hub's data (`docker compose -f docker/compose.hub.yml down -v`) and revokes its link to the VM, as in `docs/deploy-hub.md` section 8.
 - [ ] Export the ticket list if you need it: VM, **Tickets** tab, **Export CSV** (admins).
 - [ ] Nothing else to delete by hand. Holder names, emails and phone numbers are cleared automatically a year after the event, and scan records three years after it.

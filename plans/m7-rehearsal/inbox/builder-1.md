@@ -1,6 +1,6 @@
 # builder-1 — m7-rehearsal
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -46,6 +46,8 @@ Conflicts resolved: (none)
 3. Issue #12, minor: name the amber screen's button **Supervisor override**; note an Entry and exit phone's header reads `Gate A · Entry / Exit`.
 
 Everything else I walked matched (see INBOX.md `## reviewer`). Docs only; do not change app code. Then re-run lint, tsc, tests, push, set DONE.
+
+Fix requests handled (docs only): #11 runbook T-24 h no longer tells staff to paste `DEV1:` text (camera permission / printed hub setup code instead); #12 wipe now uses **Revoke** (Devices tab) with manual site-data clearing as fallback in `docs/runbook.md` and `docs/deploy-hub.md`; amber step names **Supervisor override**; Entry and exit header `Gate A · Entry / Exit` noted. Lint, tsc, tests pass (DB-backed tests skipped locally, no MariaDB).
 
 ## Blocker
 
