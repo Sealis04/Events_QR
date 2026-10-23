@@ -19,7 +19,19 @@ M8 of `plans/offline-qr-ticketing/plan.md`: the step-by-step setup guide for an 
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+
+**Environment:** ready as-is (`scripts/ccr-session-init.sh`: MariaDB, deps, .env, migrations and signing key all fine; no merge needed, builder-1 worked directly on the branch).
+
+**E2E results (all pass):** `bun run test:e2e` 13/13, including A1 "Set up again" with a queued scan (supervisor PIN asked, IndexedDB holds no ticket/key/staff-hash afterwards) and with nothing queued (wipes at once), and A2 "Pull tickets now" (unreachable VM reported, rate-limited 429, then pulls) on the real hub + worker. `bun run lint`, `bunx tsc --noEmit` clean; `bun run test` 319 web + 24 worker + core all pass. `docker compose config` for VM and hub OK; guide has 33 Check / 34 If-it-fails entries.
+
+**Not verified by me:** guide steps needing real Cloudflare, Let's Encrypt, Gmail, a router or a container build (builder-1 also could not; see its summary). I rely on the builder's clean-clone run for the rest.
+
+**Code review:** no blocking findings. Pull-now is hub-only, supervisor-gated, rate limit atomic (`BEGIN IMMEDIATE`), result matched by request id, web process gets no VM credentials. The compose `user: 1000:1000` and `APP_PORT=3001` changes are accepted.
+
+**Issues filed:** none.
+
+**Summary:** Both app fixes are implemented and tested, the guide follows the required step structure and its commands were exercised by the builder. Approved; #12 closes with the PR.
 
 ## planner
 
