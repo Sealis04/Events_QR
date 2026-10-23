@@ -74,6 +74,7 @@ describe("hub mode: no issuance, no signing secret", () => {
         "/api/events/1/stats",
         "/api/events/1/admit",
         "/api/auth/me",
+        "/api/hub/pull",
       ]) {
         expect(isPassThrough(run(ok, { method: "POST" })), ok).toBe(true);
       }

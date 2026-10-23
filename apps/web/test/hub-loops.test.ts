@@ -45,6 +45,14 @@ describe.skipIf(!dbAvailable)("hub sync loops", () => {
       log: (m) => logs.push(m),
       sleep: (ms, signal) =>
         new Promise((resolve) => {
+          // The one-second "Pull tickets now" watcher (hub/pullnow.ts) is not part of this test.
+          if (ms === 1000) {
+            const timer = setTimeout(resolve, 20);
+            signal.addEventListener("abort", () => (clearTimeout(timer), resolve()), {
+              once: true,
+            });
+            return;
+          }
           const release = () => resolve();
           sleeps.push({ ms, release });
           signal.addEventListener("abort", release, { once: true });

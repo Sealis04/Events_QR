@@ -16,6 +16,11 @@ export type StateKey =
   | "cursor_scans" // `<received_at>:<id>` on the VM
   | "last_cloud_sync_at"
   | "last_cloud_error"
+  | "last_pull_at" // last fully successful VM -> hub pull (unix seconds)
+  | "pull_request" // "Pull tickets now": id set by the web app, polled by the worker (hub/pullnow.ts)
+  | "pull_requested_at" // when the last request was accepted (rate limit)
+  | "pull_handled" // id of the last request the worker answered
+  | "pull_result" // JSON `PullNowResult` of that request
   | "session_secret"; // HMAC key for dashboard sessions on this hub
 
 export function getState(ctx: Pick<HubContext, "db">, key: StateKey): string | undefined {

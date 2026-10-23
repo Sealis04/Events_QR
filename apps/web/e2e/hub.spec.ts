@@ -314,3 +314,31 @@ test("the hub dashboard works with the VM unreachable: a supervisor logs in, see
   await expect.poll(vmCount, { timeout: 20_000 }).toBeGreaterThan(vmBefore);
   await phoneContext.close();
 });
+
+test("'Pull tickets now' on the hub dashboard: reports an unreachable VM, is rate-limited, then pulls", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.goto(`${HUB}/login`);
+  await page.getByPlaceholder("Name").fill("e2e-super");
+  await page.getByPlaceholder("PIN").fill(E2E_PIN);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page).toHaveURL(new RegExp(`${HUB}/events/\\d+`));
+  const result = page.getByTestId("pull-now-result");
+  const button = page.getByRole("button", { name: "Pull tickets now" });
+
+  uplink.mode = "down";
+  await settle(1500);
+  await button.click();
+  await expect(result).toContainText("Last successful pull:");
+  await expect(result).not.toContainText("Pulled");
+
+  // A second press within 10 s is refused with the wait.
+  await button.click();
+  await expect(result).toContainText(/Try again in \d+ s/);
+
+  uplink.mode = "up";
+  await settle(11_000);
+  await button.click();
+  await expect(result).toContainText(/Pulled \d+ changes? from the VM/);
+});
