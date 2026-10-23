@@ -205,7 +205,8 @@ describe("IdbStore (encrypted at rest)", () => {
     await store.wipe();
     expect(await store.getDevice()).toBeUndefined();
     expect(await store.outboxCount()).toBe(0);
-    expect(await rawRows("keys")).toHaveLength(0);
+    for (const name of ["device", "keys", "tickets", "outbox", "meta"])
+      expect(await rawRows(name)).toHaveLength(0);
     // Usable again after a wipe, with a fresh key.
     await store.setDevice(fx.device());
     expect(await store.getDevice()).toBeDefined();
