@@ -27,4 +27,5 @@ M8 of `plans/offline-qr-ticketing/plan.md`: the step-by-step setup guide for an 
 
 ## Follow-ups
 
-(none)
+- No tooling to rotate `EVENT_KEY_MASTER` or an event's AES key (spec "After the event" says to rotate the event key). The setup guide says so plainly (section 7); a re-encrypt script would be a new task.
+

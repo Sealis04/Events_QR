@@ -76,6 +76,7 @@ fill EVENT_KEY_MASTER "$(openssl rand -hex 32)"
 fill SIGNING_KEY_PASSPHRASE "$(openssl rand -hex 24)"
 fill EVENT_TIMEZONE "Asia/Manila"
 sed -i '/^COOKIE_SECURE=/d' .env
+echo 'APP_PORT=3001' >> .env
 sed -i 's|^# PUBLIC_URL=.*|PUBLIC_URL=https://tickets.example.org|' .env
 ```
 
@@ -101,7 +102,7 @@ What each variable means, and whether it is a secret:
 | `GMAIL_SA_KEY_PATH`, `GMAIL_SENDER`        | no\*    | The Gmail setup of section 3. (\*The key _file_ is a secret; these two lines are not.) The compose file sets the path to `/secrets/gmail-sa.json`.                                                      |
 | `EMAIL_DAILY_LIMIT`                        | no      | Emails per rolling 24 hours (default 1800, under Gmail's 2,000).                                                                                                                                         |
 | `RETENTION_*`                              | no      | The nightly privacy job: names and emails are cleared `RETENTION_PII_DAYS` (365) after an event ends, scans deleted after `RETENTION_SCANS_DAYS` (1095). Defaults are fine; `RETENTION_DRY_RUN=true` only logs. |
-| `APP_BIND`, `APP_PORT`                     | no      | Where the app listens on the host: `127.0.0.1:3000` by default. Use `APP_BIND=0.0.0.0` only if NPM runs on another machine (not in this guide).                                                          |
+| `APP_BIND`, `APP_PORT`                     | no      | Where the app listens on the host. This guide uses `127.0.0.1:3001` (the default port 3000 is taken by NPM itself, step 2.1); the `.env` lines below set it. Use `APP_BIND=0.0.0.0` only if NPM runs on another machine (not in this guide).                                                          |
 | `SECRETS_DIR`                              | no      | Host folder with the key files, mounted at `/secrets`. Default `.secrets` in the repository folder.                                                                                                      |
 | `HUB_DB_PATH`, `HUB_*_SECONDS`             | no      | Hub-only settings; ignore on the VM.                                                                                                                                                                     |
 
@@ -127,14 +128,14 @@ Copy `.env` into your password manager or an encrypted vault (it holds `EVENT_KE
 The signing key makes tickets. It never leaves the VM.
 
 ```bash
-mkdir -p .secrets && chmod 700 .secrets
+mkdir -p .secrets && sudo chown 1000:1000 .secrets && chmod 700 .secrets
 docker compose --env-file .env -f docker/compose.vm.yml run --rm tools bun scripts/gen-signing-key.ts
 ```
 
-The first run builds the image (a few minutes). Then copy `.secrets/signing-key.json` to your vault too (it is encrypted with the passphrase).
+The `.secrets` folder belongs to user id 1000 because the containers (the app, the worker and `tools`) run as that user, whatever your own user id is; that is why the `ls` and `cp` commands on it below need `sudo`. The first run builds the image (a few minutes). Then copy the key to your vault too (it is encrypted with the passphrase): `sudo cp .secrets/signing-key.json ~/signing-key.json && sudo chown "$USER" ~/signing-key.json`.
 
-**Check:** `ls -l .secrets/signing-key.json` shows the file, and the script printed `wrote ... with key 1 (public ...)`.
-**If it fails:** `refuses to overwrite` means a key already exists (keep it). A build error mentioning the network means the VM cannot reach Docker Hub or npm: fix DNS/proxy and re-run.
+**Check:** `sudo ls -ln .secrets/signing-key.json` shows the file owned by `1000 1000`, and the script printed `wrote ... with key 1 (public ...)`.
+**If it fails:** `refuses to overwrite` means a key already exists (keep it). `EACCES` / `permission denied` means `.secrets` is not owned by 1000 (run the `chown` above). A build error mentioning the network means the VM cannot reach Docker Hub or npm: fix DNS/proxy and re-run.
 
 ### 1.6 Start the stack (without the email worker yet)
 
@@ -148,7 +149,7 @@ This starts MariaDB, runs the database migrations, then starts the app. The emai
 
 ```bash
 docker compose --env-file .env -f docker/compose.vm.yml ps
-curl -s http://127.0.0.1:3000/api/health
+curl -s http://127.0.0.1:3001/api/health
 ```
 
 `mariadb` and `app` are `running`/`healthy` (`migrate` shows `exited (0)`), and the second command prints `{"ok":true,"mode":"server",...}`.
@@ -166,7 +167,7 @@ It asks for a PIN. **Admins and supervisors need 8 or more digits; staff need 6 
 
 ```bash
 read -rsp "PIN: " PIN; echo
-curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:3000/api/auth/login \
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:3001/api/auth/login \
   -H 'content-type: application/json' -d "{\"name\":\"Alex\",\"pin\":\"$PIN\"}"
 ```
 
@@ -183,21 +184,22 @@ Three things, and a restore is impossible without all of them:
    cd $PWD && docker compose --env-file .env -f docker/compose.vm.yml exec -T mariadb sh -c 'mariadb-dump -uroot -p"\$MARIADB_ROOT_PASSWORD" --single-transaction --routines events_qr' | gzip > /backups/events_qr-\$(date +%F).sql.gz
    EOF
    sudo install -m 755 /tmp/events-qr-backup /usr/local/bin/events-qr-backup
+   sudo apt install -y cron   # only if `crontab` is missing
    (crontab -l 2>/dev/null; echo '15 2 * * * /usr/local/bin/events-qr-backup') | crontab -
    /usr/local/bin/events-qr-backup
    ```
    Keep 14 days, and copy the files off the VM (another machine, object storage).
-2. `.secrets/signing-key.json` **and its passphrase**.
+2. `.secrets/signing-key.json` (copy it with `sudo`, step 1.5) **and its passphrase**.
 3. `.env` (especially `EVENT_KEY_MASTER`).
 
-**Check:** `ls -l /backups` shows an `events_qr-<today>.sql.gz` of more than a few kilobytes, and `gunzip -c /backups/events_qr-*.sql.gz | head -5` starts with `-- MariaDB dump`.
+**Check:** `ls -l /backups` shows an `events_qr-<today>.sql.gz` (not empty), `gunzip -c /backups/events_qr-*.sql.gz | head -5` shows a `-- MariaDB dump` line, and `crontab -l` lists the `events-qr-backup` line.
 **If it fails:** `mariadb-dump: Got error ... Access denied` means `DB_ROOT_PASSWORD` in `.env` is not the one MariaDB was created with (changed after first start; see section 7); an empty file means the `exec` failed: run the `docker compose ... exec` part by hand to see the error. Before the first event, also try a restore into a scratch database (`docs/deploy-vm.md` section 7).
 
 ---
 
 ## 2. Nginx Proxy Manager, certificate, port forward and Cloudflare
 
-The app listens on `127.0.0.1:3000` only. NPM puts HTTPS in front of it.
+The app listens on `127.0.0.1:3001` only (`APP_PORT` in `.env`). NPM puts HTTPS in front of it.
 
 ### 2.1 Run Nginx Proxy Manager
 
@@ -209,10 +211,10 @@ docker run -d --name npm --restart unless-stopped --network host \
   jc21/nginx-proxy-manager:2.12.3
 ```
 
-`--network host` lets NPM forward to `127.0.0.1:3000`. Open `http://<VM address>:81` from your own computer; first login `admin@example.com` / `changeme`, and it makes you change both at once.
+`--network host` lets NPM forward to `127.0.0.1:3001`. (NPM's own backend uses port 3000 on the host, which is why the app is on 3001: two programs cannot both listen on 3000.) Open `http://<VM address>:81` from your own computer; first login `admin@example.com` / `changeme`, and it makes you change both at once.
 
 **Check:** `curl -sI http://127.0.0.1:81 | head -1` prints `HTTP/1.1 200 OK` and the NPM login page opens.
-**If it fails:** `address already in use` means something else holds port 80, 81 or 443 on this VM (`sudo ss -ltnp | grep -E ':(80|81|443) '`): stop it, remove the container (`docker rm -f npm`) and run the command again.
+**If it fails:** `address already in use` (see `docker logs npm`) means something else holds port 80, 81, 443 or 3000 on this VM (`sudo ss -ltnp | grep -E ':(80|81|443|3000) '`): stop it, remove the container (`docker rm -f npm`) and run the command again. `socket() [::]:80 failed` in the log means this VM has IPv6 switched off: remove the container and add `-e DISABLE_IPV6=true` to the `docker run` line.
 
 ### 2.2 Cloudflare DNS record for the app
 
@@ -235,14 +237,14 @@ On the router (or cloud firewall) forward TCP 80 and 443 to the VM, and allow th
 In NPM:
 
 1. **SSL Certificates → Add SSL Certificate → Let's Encrypt**: domain `tickets.example.org`, turn on **Use a DNS Challenge**, provider **Cloudflare**, credentials `dns_cloudflare_api_token = <your token>`, accept the terms, **Save**. NPM renews it on its own.
-2. **Hosts → Proxy Hosts → Add Proxy Host**: Domain Names `tickets.example.org`; Scheme `http`; Forward Hostname/IP `127.0.0.1`; Forward Port `3000`; **Block Common Exploits** on. SSL tab: pick the certificate, **Force SSL** and **HTTP/2** on. Advanced tab, so CSV imports of a few thousand rows fit:
+2. **Hosts → Proxy Hosts → Add Proxy Host**: Domain Names `tickets.example.org`; Scheme `http`; Forward Hostname/IP `127.0.0.1`; Forward Port `3001`; **Block Common Exploits** on. SSL tab: pick the certificate, **Force SSL** and **HTTP/2** on. Advanced tab, so CSV imports of a few thousand rows fit:
    ```
    client_max_body_size 8m;
    ```
    Save. NPM already forwards `Host`, `X-Forwarded-Proto` and `X-Forwarded-For`; the app uses them for the setup-QR address, the login rate limit and its same-origin check.
 
 **Check:** `curl -s https://tickets.example.org/api/health` prints `{"ok":true,"mode":"server",...}`, and a browser shows the login page with a padlock.
-**If it fails:** `502` means NPM cannot reach `127.0.0.1:3000` (the container is not on the host network, or the app is down: re-do step 2.1 / 1.6). `522`/timeout from Cloudflare means ports 80/443 are not forwarded (step 2.3). A certificate error from Cloudflare means the SSL mode is not **Full (strict)** or the certificate was not attached to the host.
+**If it fails:** `502` means NPM cannot reach `127.0.0.1:3001` (the container is not on the host network, or the app is down: re-do step 2.1 / 1.6). `522`/timeout from Cloudflare means ports 80/443 are not forwarded (step 2.3). A certificate error from Cloudflare means the SSL mode is not **Full (strict)** or the certificate was not attached to the host.
 
 ### 2.5 Log in
 
@@ -262,12 +264,12 @@ Tickets are emailed through the Gmail API, as a mailbox in your Workspace, by a 
 1. In Google Cloud (<https://console.cloud.google.com>) pick or create a project. **APIs & Services → Library → Gmail API → Enable**.
 2. **IAM & Admin → Service Accounts → Create service account** (any name, for example `events-qr-mailer`; no project roles needed).
 3. Open the account → **Keys → Add key → Create new key → JSON**. Your browser downloads a file. Note the account's **Unique ID** (a long number, also called the client ID) on its Details tab.
-4. Copy the file to the VM as `.secrets/gmail-sa.json` and lock it down:
+4. Copy the file to the VM as `.secrets/gmail-sa.json`, owned by user 1000 like the rest of that folder, and locked down (replace the first path with where the download landed):
    ```bash
-   chmod 600 .secrets/gmail-sa.json
+   sudo install -o 1000 -g 1000 -m 600 ~/Downloads/<downloaded file>.json .secrets/gmail-sa.json
    ```
 
-**Check:** `grep -c '"client_email"' .secrets/gmail-sa.json` prints `1`.
+**Check:** `sudo grep -c '"client_email"' .secrets/gmail-sa.json` prints `1`.
 **If it fails:** the file is not the JSON key (a P12 download or a web page): create the key again as JSON. Your organisation may block key creation (policy `iam.disableServiceAccountKeyCreation`): ask a Google Cloud admin to lift it for this project.
 
 ### 3.2 Allow the service account to send as your sender (domain-wide delegation)
@@ -344,7 +346,7 @@ curl -s -b jar -X POST https://tickets.example.org/api/hubs/setup \
 rm -f jar
 ```
 
-**Check:** the second `curl` prints `{"setup_code":"…","expires_at":…}`; copy the code. `curl -s http://127.0.0.1:3000/api/health` still says `ok`.
+**Check:** the second `curl` prints `{"setup_code":"…","expires_at":…}`; copy the code. `curl -s http://127.0.0.1:3001/api/health` still says `ok`.
 **If it fails:** `401` is a wrong PIN; `403 forbidden` means the account is not a supervisor or admin; `404` means there is no event with that number (step 5.1).
 
 ### 4.3 Start the hub and bind it to the event
@@ -445,10 +447,10 @@ Event → **QR generator** → pick a **Ticket type**, type a **Holder name** (f
 
 ### 5.4 Print the hub setup codes
 
-Event → **Devices** → **Batch codes for the venue hub**: pick a **Gate** and **Role**, **How many** (10), **Make hub setup codes**, then press **Print** at once: the codes are shown only this one time. Each works once and stays valid until the event ends. Keep the printouts with the hub. These let you set phones up at the venue with no internet.
+Event → **Devices** → **Batch codes for the venue hub**: pick a **Gate** and **Role**, **How many** (10), **Make hub setup codes**, then press **Print / Save as PDF** at once: the codes are shown only this one time. Each works once and stays valid until the event ends. Keep the printouts with the hub. These let you set phones up at the venue with no internet.
 
 **Check:** the page shows a grid of QR codes, and printing (or "Save as PDF") produces the same grid.
-**If it fails:** the card only exists for admins and on the VM.
+**If it fails:** the card is on the VM's Devices tab, not the hub's, and needs a supervisor or admin login.
 
 ### 5.5 Set up a phone
 
@@ -532,7 +534,7 @@ Do it between events, never on the day, and with each phone showing **0 queued**
 | Migrations fail (`migrate` exits non-zero, app never starts)           | MariaDB not ready, or `.env` passwords differ from the ones the data volume was created with (you edited `.env` after the first start).                                                       | `docker compose --env-file .env -f docker/compose.vm.yml logs migrate mariadb`. Put the original passwords back, or change them in the database too (section 7). On a brand-new install with nothing in it: `docker compose ... down -v` and start again. |
 | A phone stays **Cloud-only**                                           | It cannot reach the hub within 800 ms: DNS (step 4.6), certificate, weak Wi-Fi or AP client isolation, hub down; or the setup QR had no hub address because `HUB_URL` was not set when it was made. | Check `https://hub.example.org/api/health` from the phone's browser. If `HUB_URL` was missing, set it (step 4.2), recreate the app, and set the phone up again with a new code (**Set up again**).                                                        |
 | Clock drift between phone, hub and VM                                  | NTP is off on the hub or VM (a Pi has no battery clock), or a phone has a manual time. Symptoms: "Too early"/"Slot ended" at the wrong times, odd `scanned_at` in conflicts.                  | `timedatectl status` must say `System clock synchronized: yes` on VM and hub (`sudo timedatectl set-ntp true`, `chrony`); phones: automatic date and time. Phones correct themselves against the hub on each sync, so fix the hub first.                  |
-| Worker cannot write the key file (`EACCES`, `signing-key.json`)        | The key folder is not writable by the user the worker runs as (a `.secrets` folder created by another user, or mounted read-only).                                                            | `ls -ln .secrets`; make the folder and file writable for the user the containers use (`sudo chown -R 0:0 .secrets` for root-run containers), `chmod 700 .secrets`, then `docker compose ... up -d --force-recreate app worker`.                            |
+| Worker or app cannot read or write the key files (`EACCES`, `signing-key.json`) | `.secrets` or a file in it is not owned by user id 1000, which is who the containers run as (created with `sudo`, as root, or by another user).                              | `sudo ls -ln .secrets`; then `sudo chown -R 1000:1000 .secrets && sudo chmod 700 .secrets && sudo chmod 600 .secrets/*`, and `docker compose --env-file .env -f docker/compose.vm.yml up -d --force-recreate app worker`.                                |
 | A 6-digit PIN is refused for a supervisor or admin                     | Supervisor and admin PINs need 8 or more digits. An older 6-digit PIN is refused on phones (its hash is not sent) and must be replaced at the next dashboard login.                            | Log in once to the VM dashboard with the old PIN; it asks for a new 8+ digit PIN. Phones pick it up on their next sync (about 10 s). A forgotten PIN has no reset in v1: an admin can add the person again under a new name.                              |
 | "Setup code is invalid" on a phone                                     | Older than 10 minutes, already used, or (for a hub code) the hub has not pulled it yet.                                                                                                       | Make a new code; wait 30 s after making hub batch codes; check the hub's `last_cloud_sync_at`.                                                                                                                                                            |
-| `502 Bad Gateway` on `tickets.example.org`                             | NPM cannot reach the app.                                                                                                                                                                     | `docker compose --env-file .env -f docker/compose.vm.yml ps` and `curl http://127.0.0.1:3000/api/health` on the VM; NPM must run with `--network host` (step 2.1).                                                                                        |
+| `502 Bad Gateway` on `tickets.example.org`                             | NPM cannot reach the app.                                                                                                                                                                     | `docker compose --env-file .env -f docker/compose.vm.yml ps` and `curl http://127.0.0.1:3001/api/health` on the VM; NPM must run with `--network host` (step 2.1).                                                                                        |

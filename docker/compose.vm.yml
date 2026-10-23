@@ -3,6 +3,10 @@
 # See docs/deploy-vm.md.
 name: events-qr
 
+# The app runs as `node` (uid 1000), so the worker and the admin scripts run as 1000 too: the key
+# files they create or rewrite (mode 0600) must stay readable by the app. `.secrets` is owned by 1000.
+x-secrets-user: &secrets-user "1000:1000"
+
 x-app-env: &app-env
   DB_HOST: mariadb
   DB_PORT: "3306"
@@ -11,6 +15,8 @@ x-app-env: &app-env
   GMAIL_SA_KEY_PATH: /secrets/gmail-sa.json
   # TLS ends at Nginx Proxy Manager; browsers only get the session cookie over https.
   COOKIE_SECURE: "true"
+  # bun writes its cache under $HOME, which is not writable for uid 1000 in the image.
+  HOME: /tmp
 
 services:
   mariadb:
@@ -69,6 +75,7 @@ services:
   worker:
     build: { context: .., dockerfile: docker/Dockerfile, target: worker }
     restart: unless-stopped
+    user: *secrets-user
     env_file: ../.env
     environment:
       <<: *app-env
@@ -84,6 +91,7 @@ services:
   tools:
     profiles: ["tools"]
     build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    user: *secrets-user
     env_file: ../.env
     environment: *app-env
     # Not read-only: gen-signing-key writes the key file here once.

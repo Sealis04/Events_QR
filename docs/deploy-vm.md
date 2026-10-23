@@ -39,15 +39,17 @@ Delete the `COOKIE_SECURE=false` line from `.env` for production. The compose fi
 The signing key never leaves the VM and is only read by `apps/web/src/server/signing.ts`.
 
 ```bash
-mkdir -p .secrets && chmod 700 .secrets
+mkdir -p .secrets && sudo chown 1000:1000 .secrets && chmod 700 .secrets
 docker compose --env-file .env -f docker/compose.vm.yml run --rm tools bun scripts/gen-signing-key.ts
 ```
+
+The containers (app, worker, `tools`) all run as user id 1000, so `.secrets` and the files in it must be owned by 1000 (mode 0700 / 0600); otherwise the app cannot read the key.
 
 This writes `.secrets/signing-key.json`: the Ed25519 secret key encrypted with `SIGNING_KEY_PASSPHRASE`, plus its public key. It refuses to overwrite an existing file.
 
 **Rotation.** `bun scripts/gen-signing-key.ts --rotate` adds a new generation (`key_id` 2, 3, and so on) and makes it current for _new events_. Existing events keep signing with their own generation, so re-sent tickets stay byte-identical, and every public key stays valid for verification. After a suspected compromise, rotate, then drop the old secret with `--retire <id>` and re-issue the affected tickets (transfer, or cancel and generate again). **Automatic clean-up.** The worker (on start and every hour) deletes the secret of every non-current key generation once no event signed with it has an end time in the future; the public key stays, so issued tickets keep verifying. After that, re-sending a ticket of such an event answers `409 signing_key_retired`. The key id is one byte, so there are at most 255 generations.
 
-For Gmail, put the service-account JSON at `.secrets/gmail-sa.json` (section 6).
+For Gmail, put the service-account JSON at `.secrets/gmail-sa.json`, owned by 1000 (section 6).
 
 ## 4. Start the stack and create the first admin
 
@@ -76,7 +78,7 @@ Open the app, log in, create an event, add ticket types, and generate a ticket.
 **NPM proxy host** (Hosts → Proxy Hosts → Add):
 
 - Domain Names: `tickets.example.org`
-- Scheme `http`, Forward Hostname/IP: `127.0.0.1` if NPM shares the VM's host network, otherwise the VM's LAN IP (which needs `APP_BIND=0.0.0.0`) or a shared Docker network. Forward Port `3000`.
+- Scheme `http`, Forward Hostname/IP: `127.0.0.1` if NPM shares the VM's host network, otherwise the VM's LAN IP (which needs `APP_BIND=0.0.0.0`) or a shared Docker network. Forward Port: the app's `APP_PORT` (default `3000`). **NPM on the host network uses port 3000 itself** (its own backend), so there set `APP_PORT=3001` in `.env` and forward to 3001 (`docs/setup-guide.md` does this).
 - Block Common Exploits: on. Websockets: not needed.
 - SSL tab: request a Let's Encrypt certificate (the DNS challenge with a Cloudflare API token limited to DNS edit on the zone works with the proxied record), enable Force SSL and HTTP/2.
 - Advanced tab, so CSV imports of a few thousand rows fit:
@@ -89,7 +91,7 @@ MariaDB is not published to the host by this compose file. If the firewall allow
 
 ## 6. Email through Gmail
 
-1. In Google Cloud, create a service account, enable the **Gmail API**, and download its JSON key to `.secrets/gmail-sa.json`.
+1. In Google Cloud, create a service account, enable the **Gmail API**, and download its JSON key to `.secrets/gmail-sa.json` (`sudo install -o 1000 -g 1000 -m 600 <file> .secrets/gmail-sa.json`).
 2. In the Workspace Admin console (Security → API controls → Domain-wide delegation) add the service account's client ID with the scope `https://www.googleapis.com/auth/gmail.send`.
 3. Set `GMAIL_SENDER` to the mailbox the tickets should come from (the service account impersonates it).
 
