@@ -299,7 +299,7 @@ Put your own mailbox in `GMAIL_SENDER`. (The compose file mounts the key at `/se
 
 ### 3.4 Send a test email
 
-In the dashboard: create the event of step 5.1 first if there is none (a ticket needs an event), open it → **QR generator**, make one ticket with **your own address** in the Email box and press **Generate**. You should see "Email queued to …".
+In the dashboard: create the event of step 5.1 first if there is none (a ticket needs an event), open it → **Issue tickets**, make one ticket with **your own address** in the Email box and press **Generate**. You should see "Email queued to …".
 
 **Check:** within a minute your mailbox has the ticket email, and
 
@@ -460,7 +460,7 @@ Open the event → **Setup** → **Staff on this event**. Everyone who will scan
 
 ### 5.3 Make a test ticket
 
-Event → **QR generator** → pick a **Ticket type**, type a **Holder name** (for example "Test Person"), put your own address in **Email**, press **Generate**.
+Event → **Issue tickets** → pick a **Ticket type**, type a **Holder name** (for example "Test Person"), put your own address in **Email**, press **Generate**.
 
 **Check:** "Ticket ready" shows a QR code, and "Email queued to …" (the email arrives within a few minutes).
 **If it fails:** no "Email queued" means the Email box was empty or the worker is down (step 3.3); the QR still works.
@@ -535,7 +535,7 @@ Do it between events, never on the day, and with each phone showing **0 queued**
 | `SESSION_SECRET`         | Edit `.env`, then `docker compose --env-file .env -f docker/compose.vm.yml up -d --force-recreate app worker`. Everyone is logged out once.                                                                                                                                                                                                                                     |
 | Database passwords       | `.env` only sets them when MariaDB first creates its volume. To change: `docker compose ... exec mariadb sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "ALTER USER \"events_qr\"@\"%\" IDENTIFIED BY \"<new>\"; ALTER USER root@\"%\" IDENTIFIED BY \"<new root>\"; ALTER USER root@localhost IDENTIFIED BY \"<new root>\"; FLUSH PRIVILEGES"'`, then edit `.env` to match and recreate the app and worker. |
 | A hub's credential       | Wipe the hub (`docker compose -f docker/compose.hub.yml down -v`), revoke its old credential on the VM (`docs/deploy-hub.md` section 8), make a new setup code (step 4.2) and enrol again (step 4.3).                                                                                                                                                                          |
-| A lost phone             | Event → **Devices** → **Revoke and rotate**. Everyone tied to the event chooses a new PIN at their next login.                                                                                                                                                                                                                                                                  |
+| A lost phone             | Event → **Devices** → the phone's **⋯** menu → **Revoke…**, and tick **This phone was lost or stolen**. The box lists who must then choose a new PIN; without the tick, no PIN changes.                                                                                                                                                                                                                                                                  |
 
 **Check (signing key):** `.secrets/signing-key.json` now lists a new `key_id`, a ticket made for a **new** event verifies at a phone (step 5.6), and a ticket re-sent for an older event still scans.
 **If it fails:** `docker compose ... logs app` for `signing key` errors; restore `.secrets/signing-key.json` from your vault and recreate the app.

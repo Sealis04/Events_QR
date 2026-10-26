@@ -95,6 +95,7 @@ export function exchangeHubEnrolment(
     device_token: token,
     key_bundle: {
       ...bundle,
+      ...(event ? { event_name: event.name } : {}),
       gates: event?.gates ?? bundle.gates,
       ticket_types: types.map((t) => ({
         idx: t.idx,

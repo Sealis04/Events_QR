@@ -81,6 +81,7 @@ describe.skipIf(!dbAvailable)("the VM's hub endpoints", () => {
         "ends_at",
         "event_id",
         "event_key",
+        "event_name",
         "gates",
         "public_keys",
         "starts_at",

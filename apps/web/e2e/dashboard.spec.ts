@@ -118,7 +118,7 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   await popup.close();
 
   // --- Ticket list: found by the last 6 hex, and by name; CSV import adds rows.
-  await page.getByRole("link", { name: "Tickets" }).click();
+  await page.getByRole("link", { name: "Tickets", exact: true }).click();
   await page.getByLabel("Search tickets").fill(shortId.toLowerCase());
   await expect(page.getByTestId("ticket-table")).toContainText("Dash Tester");
   await expect(page.getByTestId("ticket-table").locator("tbody tr")).toHaveCount(1);

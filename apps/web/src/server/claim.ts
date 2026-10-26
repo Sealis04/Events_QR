@@ -26,7 +26,7 @@ import type { Db } from "./db";
 import { affectedRows, isDuplicate, toBuffer } from "./dbutil";
 import { badRequest, HttpError, notFound } from "./http";
 
-const { tickets, scans, staff } = mysqlSchema;
+const { tickets, scans, staff, devices } = mysqlSchema;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type TicketRow = typeof tickets.$inferSelect;
 type ClaimBody = z.infer<typeof api.claimRequest>;
@@ -113,7 +113,15 @@ async function lastAdmission(tx: Tx, ticketId: Uint8Array) {
     )
     .orderBy(desc(scans.scannedAt), desc(scans.receivedAt))
     .limit(1);
-  return row;
+  if (!row) return row;
+  const [dev] = row.device
+    ? await tx
+        .select({ label: devices.label })
+        .from(devices)
+        .where(eq(devices.id, row.device))
+        .limit(1)
+    : [];
+  return { ...row, ...(dev?.label ? { device_label: dev.label } : {}) };
 }
 
 async function insertScan(

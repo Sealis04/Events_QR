@@ -118,7 +118,7 @@ const staffEndpoints: {
   {
     name: "GET /events/{id}/tickets/export",
     handler: exportTickets,
-    need: "admin",
+    need: "supervisor",
     opts: { params: { id: "1" } },
   },
   {

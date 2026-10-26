@@ -136,26 +136,39 @@ test("the login ends at the cut-off (next 05:00 event time or the event end), no
     await page.waitForFunction(() => !!window.__scannerFeed);
     await feed(page, qr);
     await logIn(page);
+    // Offline loads below need the service worker's cache, and the phone must not re-sync its
+    // clock offset against the server while the test skews the local clock.
+    await page.waitForFunction(async () => {
+      if (!navigator.serviceWorker.controller) return false;
+      const assets = await caches.open("scan-assets-v1");
+      return (await assets.keys()).some((r) => r.url.endsWith(".wasm"));
+    });
     const cutoff = sessionExpiry(Math.floor(Date.now() / 1000), dayZero, endsAt);
     const nowSec = () => Math.floor(Date.now() / 1000);
     await context.close();
 
     // A minute before the cut-off: still logged in.
     ({ context, page } = await openProfile(dir, (cutoff - 60 - nowSec()) * 1000));
+    await context.setOffline(true);
     await page.goto("/scan");
     await expect(scanning(page)).toBeVisible();
     await context.close();
 
     // A minute after it: asked again (the saved login is deleted, not just hidden).
     ({ context, page } = await openProfile(dir, (cutoff + 60 - nowSec()) * 1000));
+    await context.setOffline(true);
     await page.goto("/scan");
-    await expect(loginScreen(page)).toBeVisible();
+    // Before the event end the cut-off is 05:00 and the login screen shows; when the event end is
+    // the cut-off (this event ends in 6 h) the phone has also wiped itself and shows the setup.
+    await expect(page.locator("main[data-phase=login], main[data-phase=setup]")).toBeVisible();
+    await expect(scanning(page)).toHaveCount(0);
     await context.close();
 
-    // Back on the real clock the login is gone: it had to be entered again.
+    // Back on the real clock the saved login is gone: it must not scan without logging in again.
     ({ context, page } = await openProfile(dir));
     await page.goto("/scan");
-    await expect(loginScreen(page)).toBeVisible();
+    await expect(page.locator("main[data-phase]")).toBeVisible();
+    await expect(scanning(page)).toHaveCount(0);
     await context.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -367,6 +367,7 @@ export function keyBundle(
 ): z.infer<typeof api.keyBundle> {
   return {
     event_id: event.id,
+    event_name: event.name,
     event_key: b64(eventKeyOf(ctx, event)),
     public_keys: Object.fromEntries(
       [...ctx.signer.publicKeys()].map(([id, key]) => [String(id), b64(key)]),

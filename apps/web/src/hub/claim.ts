@@ -27,7 +27,7 @@ import { badRequest, HttpError, notFound } from "../server/errors";
 import { immediate, type HubContext } from "./context";
 import { pullTicketsQuietly } from "./vmsync";
 
-const { tickets, scans, staff, hubScanOutbox } = sqliteSchema;
+const { tickets, scans, staff, hubScanOutbox, devices } = sqliteSchema;
 type TicketRow = typeof tickets.$inferSelect;
 type ClaimBody = z.infer<typeof api.claimRequest>;
 type ClaimResponse = z.infer<typeof api.claimResponse>;
@@ -93,7 +93,7 @@ async function requireTicket(ctx: HubContext, device: AuthedDevice, ticketIdHex:
 
 /** The ticket's most recent admission, for the red "already used / still inside" screen. */
 function lastAdmission(ctx: HubContext, ticketId: Uint8Array) {
-  return ctx.db
+  const row = ctx.db
     .select({ gate: scans.gate, at: scans.scannedAt, device: scans.deviceId })
     .from(scans)
     .where(
@@ -106,6 +106,11 @@ function lastAdmission(ctx: HubContext, ticketId: Uint8Array) {
     .orderBy(desc(scans.scannedAt), desc(scans.receivedAt))
     .limit(1)
     .get();
+  if (!row) return row;
+  const dev = row.device
+    ? ctx.db.select({ label: devices.label }).from(devices).where(eq(devices.id, row.device)).get()
+    : undefined;
+  return { ...row, ...(dev?.label ? { device_label: dev.label } : {}) };
 }
 
 function insertScan(
