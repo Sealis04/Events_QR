@@ -109,8 +109,15 @@ Let's Encrypt certificates last 90 days and are renewed when 30 days remain. **T
 
 Public DNS is not reachable when the uplink is down, and some routers refuse to hand out private addresses from public DNS ("DNS rebinding protection"). Either way the venue network must answer `hub.example.org` itself.
 
-- **On the router** (OpenWrt: _Network → DHCP and DNS → Hostnames_ or an `address=/hub.example.org/192.168.50.10` line in dnsmasq; pfSense/OPNsense: _Host Overrides_; UniFi: _Local DNS Records_): `hub.example.org` → `192.168.50.10`.
-- **Or dnsmasq on the hub**, if the router cannot: `HUB_DOMAIN=hub.example.org HUB_LAN_IP=192.168.50.10 docker compose -f docker/compose.hub.yml --profile dns up -d dns`, then make the router's DHCP hand out `192.168.50.10` as the only DNS server. Everything but the hub's name is forwarded to `1.1.1.1` while the internet is up.
+Works with any router (full steps with TP-Link Archer menus: `docs/setup-guide.md` step 4.6):
+
+1. **Fixed address for the hub:** a DHCP reservation in the router, e.g. `192.168.50.10`.
+2. **Start the hub's DNS service:** `HUB_DOMAIN=hub.example.org HUB_LAN_IP=192.168.50.10 HUB_DNS_BIND=192.168.50.10 docker compose --env-file .env -f docker/compose.hub.yml --profile dns up -d dns`. Everything but the hub's name is forwarded to `1.1.1.1` while the internet is up. `HUB_DNS_BIND` limits port 53 to the LAN address; on Ubuntu that avoids the clash with `systemd-resolved` (`127.0.0.53:53`), or set `DNSStubListener=no` in `/etc/systemd/resolved.conf` and restart it.
+3. **Router DHCP:** Primary DNS = the hub's address, Secondary DNS **empty**. Phones renew the lease when Wi-Fi is switched off and on.
+
+When the hub is off, phones on that Wi-Fi cannot resolve names; keep the hub on a UPS.
+
+**Alternative, if the router can hold a name override** (OpenWrt: _Network → DHCP and DNS → Hostnames_ or an `address=/hub.example.org/192.168.50.10` line in dnsmasq; pfSense/OPNsense: _Host Overrides_; UniFi: _Local DNS Records_; Omada: local DNS records): `hub.example.org` → `192.168.50.10`.
 
 Check from a phone on the venue Wi-Fi **with the uplink unplugged**: open `https://hub.example.org/api/health`. It must show the JSON with `"mode":"hub"` and a padlock, not an error page.
 

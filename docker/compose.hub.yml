@@ -97,14 +97,16 @@ services:
 
   # Optional, answers `hub.<domain>` with this machine's LAN address when the venue router cannot
   # do it (and the internet is down). Enable with `--profile dns`; see docs/deploy-hub.md section 5.
+  # Ubuntu's systemd-resolved already listens on 127.0.0.53:53, so set HUB_DNS_BIND=<the hub's LAN
+  # address> (same as HUB_LAN_IP) to bind port 53 to that address only; default: all addresses.
   dns:
     profiles: ["dns"]
     image: 4km3/dnsmasq:2.90-r3
     restart: unless-stopped
     cap_add: [NET_ADMIN]
     ports:
-      - "53:53/udp"
-      - "53:53/tcp"
+      - "${HUB_DNS_BIND:-0.0.0.0}:53:53/udp"
+      - "${HUB_DNS_BIND:-0.0.0.0}:53:53/tcp"
     command:
       - "--no-resolv"
       - "--server=1.1.1.1"
