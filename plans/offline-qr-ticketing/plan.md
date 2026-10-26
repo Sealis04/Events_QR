@@ -151,6 +151,13 @@ User feedback after trying the test copy: logging in again on the phone is a pai
 - **Hub DNS for any router:** setup guide section 4.6 rewritten around the hub's `dns` service (router only needs DHCP reservation + DNS server), with a TP-Link Archer example, the Ubuntu port-53 (`systemd-resolved`) conflict, and what happens when the hub is off.
 - **Done when:** the mockup screens are matched (layout, wording, behaviour), Playwright at 390×844 and 360×740 finds no horizontal overflow and no visible scrollbar on any page, the phone login survives a reload and a browser restart, and lint, typecheck, unit and e2e tests pass.
 
+### M12 — In-app hub setup checklist with live checks (added 2026-10-26, draft, starts after M11)
+A "Set up a hub" page in the dashboard (admin), in the M11 look, that walks through hub setup step by step. Each step has a **Check** button that tests it for real and shows green/red with the fix.
+- Steps follow `docs/setup-guide.md` section 4 (hardware and OS, Docker and the hub stack, `hub.<domain>` DNS record, certificate, local DNS on the router or the hub's `dns` service, enrol the hub, first ticket pull, set up a phone through the hub, unplug the internet and scan).
+- Live checks, run from the browser on the venue Wi-Fi where needed: hub reachable at `https://hub.<domain>` with a valid certificate (health JSON in hub mode), certificate days left, the hub linked to this VM and its last pull, tickets and staff present on the hub, a phone enrolled through the hub. Server-side checks (VM: hub last seen and sync cursors; hub: its own state) come from APIs; anything a browser cannot test (e.g. which IP a name resolves to) is explained with the command to run.
+- Commands shown with copy buttons; progress remembered per event.
+- **Done when:** to be set in the M12 interview.
+
 ## Decisions after the test copy (2026-10-26)
 - Staff login on phones lasts until sign-out or the end of the event day ("unli" for now); biometrics only together with an idle timeout, later.
 - "Revoke and rotate" worked as designed; the UI changes so rotation is an explicit checkbox in the revoke dialog.
