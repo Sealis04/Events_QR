@@ -26,6 +26,8 @@ bun run test          # Vitest across all workspaces
 bun dev               # Next.js dev server on :3000 (from M2 on)
 ```
 
+Test copy on the VM (separate Docker project `events-qr-test`, Mailpit instead of Gmail, red TEST banner): `docker/compose.test.yml`, `scripts/test-reset.ts`, `docs/test-setup.md`.
+
 ## Conventions
 
 - `packages/core` must run in Node and browsers: no `fs`, `crypto` (Node), `Buffer` or other Node-only imports. Use `Uint8Array`, WebCrypto and libsodium-wrappers.

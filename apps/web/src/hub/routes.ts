@@ -45,6 +45,7 @@ export const health = hubRoute({ access: "public" }, ({ ctx }) => {
     mode: "hub",
     last_cloud_sync_at: last ? Number(last) : null,
     pending_scans: pendingScanCount(ctx),
+    ...(ctx.config.INSTANCE_LABEL ? { instance_label: ctx.config.INSTANCE_LABEL } : {}),
   });
 });
 

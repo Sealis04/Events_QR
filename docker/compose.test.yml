@@ -1,0 +1,114 @@
+# The TEST copy: the same stack as docker/compose.vm.yml, run as a separate Docker project beside
+# production on the same VM. It has its own database volume, its own secrets folder, its own .env.test
+# and a mail catcher instead of Gmail, so nothing here can touch production data or email real people.
+#   docker compose --env-file .env.test -f docker/compose.test.yml up -d --build
+# See docs/test-setup.md.
+name: events-qr-test
+
+x-secrets-user: &secrets-user "1000:1000"
+
+x-app-env: &app-env
+  DB_HOST: mariadb
+  DB_PORT: "3306"
+  SIGNING_KEY_PATH: /secrets/signing-key.json
+  COOKIE_SECURE: "true"
+  HOME: /tmp
+  # Marks every page and every ticket email of this copy; scripts/test-reset.ts refuses to run without it.
+  INSTANCE_LABEL: ${INSTANCE_LABEL:-TEST}
+  # Ticket emails go to Mailpit (web inbox on MAILPIT_PORT), never to real addresses.
+  MAIL_TRANSPORT: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-events_qr_test}
+      MARIADB_USER: ${DB_USER:-events_qr_test}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.test}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env.test}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Catches every email the worker sends. Web inbox on loopback only: open it through an SSH tunnel
+  # or an Nginx Proxy Manager host with an access list (docs/test-setup.md).
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "2000"
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"
+
+  migrate:
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    command: ["bun", "scripts/migrate.ts"]
+    env_file: ../.env.test
+    environment: *app-env
+    depends_on:
+      mariadb: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    build: { context: .., dockerfile: docker/Dockerfile, target: app }
+    restart: unless-stopped
+    env_file: ../.env.test
+    environment:
+      <<: *app-env
+      APP_MODE: server
+    volumes:
+      - ${SECRETS_DIR:-../.secrets-test}:/secrets:ro
+    ports:
+      # 3002 so it never collides with production (3001) or Nginx Proxy Manager (3000).
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3002}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: { context: .., dockerfile: docker/Dockerfile, target: worker }
+    restart: unless-stopped
+    user: *secrets-user
+    env_file: ../.env.test
+    environment:
+      <<: *app-env
+      APP_MODE: worker
+    volumes:
+      - ${SECRETS_DIR:-../.secrets-test}:/secrets
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
+
+  # docker compose --env-file .env.test -f docker/compose.test.yml run --rm tools bun scripts/test-reset.ts --yes --out /out/test-sheet.html
+  tools:
+    profiles: ["tools"]
+    build: { context: .., dockerfile: docker/Dockerfile, target: tools }
+    user: *secrets-user
+    env_file: ../.env.test
+    environment: *app-env
+    volumes:
+      - ${SECRETS_DIR:-../.secrets-test}:/secrets
+      # Where test-reset writes the printable ticket sheet.
+      - ${TEST_OUT_DIR:-../test-output}:/out
+    depends_on:
+      mariadb: { condition: service_healthy }
+
+volumes:
+  mariadb-data:

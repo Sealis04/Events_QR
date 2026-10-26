@@ -13,6 +13,8 @@ For the IT person doing the first install. Follow it top to bottom. Every step e
 - The **hub** is a small box at the venue. During the event it decides "has this ticket been used", with or without internet, at `https://hub.example.org`. It can verify and claim tickets but can never make one.
 - **Phones** run the scanner page (`/scan`), ask the hub first, then the VM, and decide alone from their own copy of the ticket list when neither answers.
 
+Once production works, you can add a separate **test copy** beside it on the same VM, for trying new versions, training staff and rehearsals: see [`docs/test-setup.md`](test-setup.md).
+
 Throughout, replace `tickets.example.org`, `hub.example.org` and the hub's LAN address `192.168.50.10` with your own. Commands marked "on the VM" run in the repository folder (`events-qr`) on the VM; commands marked "on the hub" run in the repository folder on the hub.
 
 ---
@@ -479,7 +481,7 @@ Then run the full rehearsal in [`docs/field-test.md`](field-test.md) and print t
 
 ## 6. Upgrading to a new version
 
-Do it between events, never on the day, and with each phone showing **0 queued**.
+Do it between events, never on the day, and with each phone showing **0 queued**. If you have the test copy, upgrade it first and try the new version there ([`docs/test-setup.md`](test-setup.md) section 3).
 
 1. **Back up first** (step 1.8): run `/usr/local/bin/events-qr-backup`.
 2. **Read what changes.** On the VM: `git fetch && git log --oneline HEAD..origin/main` and, for the phones, whether the on-phone store changes:

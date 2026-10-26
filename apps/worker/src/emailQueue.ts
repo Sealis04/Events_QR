@@ -16,6 +16,10 @@ const LEASE_SECONDS = 300;
 const BATCH = 50;
 const DAY = 86_400;
 
+/** A test copy (INSTANCE_LABEL set) marks its emails so they can't pass for real tickets. */
+export const subjectFor = (label: string | undefined, subject: string): string =>
+  label ? `[${label}] ${subject}` : subject;
+
 export const backoffSeconds = (attempts: number): number =>
   Math.min(30 * 2 ** (attempts - 1), 3600);
 
@@ -164,7 +168,7 @@ async function composeTicketEmail(
   return {
     from: deps.from,
     to,
-    subject: `Your ticket for ${event.name}`,
+    subject: subjectFor(ctx.config.INSTANCE_LABEL, `Your ticket for ${event.name}`),
     text,
     html,
     inline: [
