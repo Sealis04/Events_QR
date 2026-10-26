@@ -21,11 +21,21 @@ M12 of `plans/offline-qr-ticketing/plan.md`: an in-app "Hub setup" checklist wit
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+
+- **Environment:** ran `scripts/ccr-session-init.sh` as-is (MariaDB up). No SQL Server needed (not used by this repo). Playwright 1.64 wanted browser build 1248; symlinked the installed 1243 builds in `/opt/pw-browsers` (local only).
+- **Builder merge:** none needed (no `m12-hub-setup--builder-1`; builder-1 worked on the feature branch).
+- **Checks:** `bun run lint` pass, `bunx tsc --noEmit` pass, `bun run test` pass (core 96, web 381, worker 31).
+- **E2E:** `bun run test:e2e` full run: 22 passed, 4 screenshot specs skipped (SHOTS only), 1 failed + 1 not run: `hub-setup.spec.ts` "Part 2 at the venue" failed on `page.goto` of `http://127.0.0.1:3200/events/1?tab=hub-setup` with `net::ERR_ABORTED` (navigation aborted, not an assertion failure). Re-running `hub-setup.spec.ts` alone: 3/3 passed (Part 1 steps with deliberate failures, Part 2 on the hub's own page, hub results reaching the VM record, 8 of 8). Judged a navigation flake in the long serial run; see Follow-ups.
+- **Code review:** new routes are gated (`staff: admin` on the VM; hub dashboard middleware allows only the two hub-setup routes; sync routes use `access: "hub"`). No blocking issues. No GitHub issues filed.
+- **Summary:** M12 does what the plan asks: 8 live-checked steps in two parts, per-hub stored results, hub-side page with results pushed to the VM, and the sticky bar fix. Unit coverage for each check's pass/fail cases is thorough.
+
 
 ## planner
 
 (empty)
 
 ## Follow-ups
+
+- reviewer: `hub-setup.spec.ts` "Part 2 at the venue" hit `net::ERR_ABORTED` on `hubPage.goto` once in a full e2e run (passed on rerun). If it recurs, wait for the post-login redirect before `goto`.
 
