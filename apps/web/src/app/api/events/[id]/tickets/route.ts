@@ -1,20 +1,13 @@
-import { z } from "zod";
 import { api } from "@events-qr/core";
 import { intParam, json, route } from "../../../../../server/http";
 import { byMode } from "../../../../../server/mode";
 import { issueTickets, listTickets } from "../../../../../server/tickets";
+import { ticketListQuery } from "../../../../../server/ticketQuery";
 
 export const dynamic = "force-dynamic";
 
-const listQuery = z.object({
-  q: z.string().max(100).optional(),
-  status: z.enum(["valid", "used_up", "cancelled"]).optional(),
-  limit: z.coerce.number().int().min(1).max(500).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
 const vmList = route(
-  { access: { staff: "staff" }, query: listQuery },
+  { access: { staff: "staff" }, query: ticketListQuery },
   async ({ ctx, params, query }) => json(await listTickets(ctx, intParam(params, "id"), query)),
 );
 

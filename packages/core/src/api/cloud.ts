@@ -299,6 +299,22 @@ export const eventStatsResponse = z.object({
   by_ticket_type: z.record(z.string().regex(/^\d+$/), z.number().int()),
   conflicts: z.number().int(),
   scans_per_minute: z.array(z.object({ minute: unixSeconds, count: z.number().int() })),
+  /** Tickets used at least once that are outside again (not cancelled). */
+  left: z.number().int().optional(),
+  /** Entries in the last 60 seconds. */
+  last_minute: z.number().int().optional(),
+  /** The busiest single minute of the event so far. */
+  busiest: z.object({ minute: unixSeconds, count: z.number().int() }).nullable().optional(),
+  /** Conflicts nobody has marked as reviewed yet. */
+  open_conflicts: z.number().int().optional(),
+  /** Hub only: whether the VM answered at the last sync. */
+  hub: z
+    .object({
+      online: z.boolean(),
+      last_sync_at: unixSeconds.nullable(),
+      last_error: z.string().nullable(),
+    })
+    .optional(),
 });
 
 export { keyBundle };

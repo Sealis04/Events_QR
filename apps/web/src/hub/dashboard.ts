@@ -6,7 +6,7 @@
  * Issuance, event setup, cancellation and conflict review stay VM-only.
  */
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { api, bytesToHex, shortTicketId, sqliteSchema } from "@events-qr/core";
 import {
@@ -18,11 +18,12 @@ import {
 } from "../server/auth";
 import { HttpError, json, notFound } from "../server/errors";
 import { offlineGateOnly } from "../server/settings";
+import { searchTerms, ticketListQuery } from "../server/ticketQuery";
 import { claimTicket } from "./claim";
 import type { HubContext } from "./context";
 import { hubRoute } from "./http";
 import { createHubSession } from "./session";
-import { getBundle, getEventId, getLink } from "./state";
+import { getBundle, getEventId, getLink, getState } from "./state";
 
 const { events, ticketTypes, tickets, scans, devices, staff } = sqliteSchema;
 
@@ -98,21 +99,38 @@ const eventSummary = (ctx: HubContext) => {
 
 export const eventList = hubRoute({ access: { staff: "supervisor" } }, ({ ctx }) => {
   const e = eventSummary(ctx);
-  const config = (e?.config ?? {}) as { venue?: string };
-  return json(
-    e
-      ? [
-          {
-            id: e.id,
-            name: e.name,
-            venue: config.venue ?? null,
-            starts_at: e.startsAt,
-            ends_at: e.endsAt,
-            gates: e.gates,
-          },
-        ]
-      : [],
-  );
+  if (!e) return json([]);
+  const config = (e.config ?? {}) as { venue?: string; timezone?: string };
+  const types = ctx.db.select().from(ticketTypes).where(eq(ticketTypes.eventId, e.id)).all();
+  const [inside] = ctx.db
+    .select({ n: sql<number>`COUNT(*)` })
+    .from(tickets)
+    .where(and(eq(tickets.eventId, e.id), eq(tickets.inside, true)))
+    .all();
+  const [phones] = ctx.db
+    .select({ n: sql<number>`COUNT(*)` })
+    .from(devices)
+    .where(and(eq(devices.eventId, e.id), eq(devices.revoked, false), eq(devices.kind, "scanner")))
+    .all();
+  return json([
+    {
+      id: e.id,
+      name: e.name,
+      venue: config.venue ?? null,
+      timezone: config.timezone ?? null,
+      starts_at: e.startsAt,
+      ends_at: e.endsAt,
+      gates: e.gates,
+      ticket_type_count: types.length,
+      issued: types.reduce((n, t) => n + t.issued, 0),
+      capacity:
+        types.length > 0 && types.every((t) => t.capacity !== null)
+          ? types.reduce((n, t) => n + (t.capacity ?? 0), 0)
+          : null,
+      inside: Number(inside?.n ?? 0),
+      device_count: Number(phones?.n ?? 0),
+    },
+  ]);
 });
 
 export const eventView = hubRoute({ access: { staff: "supervisor" } }, ({ req, ctx }) => {
@@ -173,6 +191,44 @@ export const stats = hubRoute({ access: { staff: "supervisor" } }, ({ req, ctx }
       .innerJoin(tickets, eq(scans.ticketId, tickets.id))
       .where(and(eq(tickets.eventId, event.id), eq(scans.conflict, true)))
       .get()?.n ?? 0;
+  const openConflicts =
+    ctx.db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(scans)
+      .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+      .where(and(eq(tickets.eventId, event.id), eq(scans.conflict, true), isNull(scans.reviewedAt)))
+      .get()?.n ?? 0;
+  const left =
+    ctx.db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(tickets)
+      .where(
+        and(
+          eq(tickets.eventId, event.id),
+          eq(tickets.inside, false),
+          gt(tickets.admitsUsed, 0),
+          sql`${tickets.status} <> 'cancelled'`,
+        ),
+      )
+      .get()?.n ?? 0;
+  const lastMinute =
+    ctx.db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(scans)
+      .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+      .where(and(entries, gte(scans.scannedAt, ctx.now() - 60)))
+      .get()?.n ?? 0;
+  const busiest = ctx.db
+    .select({ minute: sql<number>`(${scans.scannedAt} / 60) * 60`, n: sql<number>`COUNT(*)` })
+    .from(scans)
+    .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+    .where(entries)
+    .groupBy(sql`${scans.scannedAt} / 60`)
+    .orderBy(sql`COUNT(*) DESC`, sql`${scans.scannedAt} / 60`)
+    .limit(1)
+    .get();
+  const lastSync = getState(ctx, "last_cloud_sync_at");
+  const lastError = getState(ctx, "last_cloud_error");
   const since = ctx.now() - 3600;
   const perMinute = ctx.db
     .select({
@@ -192,6 +248,16 @@ export const stats = hubRoute({ access: { staff: "supervisor" } }, ({ req, ctx }
     by_ticket_type: Object.fromEntries(byType.map((r) => [String(r.type), Number(r.n)])),
     conflicts: Number(conflicts),
     scans_per_minute: perMinute.map((r) => ({ minute: Number(r.minute), count: Number(r.n) })),
+    left: Number(left),
+    last_minute: Number(lastMinute),
+    busiest: busiest ? { minute: Number(busiest.minute), count: Number(busiest.n) } : null,
+    open_conflicts: Number(openConflicts),
+    hub: {
+      // The VM answered at the last sync unless an error was recorded after it.
+      online: !lastError,
+      last_sync_at: lastSync ? Number(lastSync) : null,
+      last_error: lastError ?? null,
+    },
   };
   return json(body);
 });
@@ -336,44 +402,61 @@ export const conflicts = hubRoute(
   },
 );
 
-const listQuery = z.object({
-  q: z.string().max(100).optional(),
-  status: z.enum(["valid", "used_up", "cancelled"]).optional(),
-  limit: z.coerce.number().int().min(1).max(500).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
 /** Attendee search: name or the last hex characters of the ticket id (emails are not mirrored to the hub). */
 export const ticketList = hubRoute(
-  { access: { staff: "supervisor" }, query: listQuery },
+  { access: { staff: "supervisor" }, query: ticketListQuery },
   ({ req, ctx, query }) => {
     const event = requireEvent(ctx, idOf(req.url));
-    const q = query.q?.trim();
-    const hex = (q ?? "").toUpperCase().replace(/[^0-9A-F]/g, "");
-    const escaped = (q ?? "").replace(/[%_\\]/g, "\\$&");
-    const search = q
-      ? hex.length === q.length && hex.length >= 4
-        ? or(
-            sql`${tickets.holderName} LIKE ${"%" + escaped + "%"} ESCAPE '\\'`,
-            sql`hex(${tickets.id}) LIKE ${"%" + hex}`,
-          )
-        : sql`${tickets.holderName} LIKE ${"%" + escaped + "%"} ESCAPE '\\'`
+    const terms = searchTerms(query.q);
+    const nameLike = terms ? sql`${tickets.holderName} LIKE ${terms.like} ESCAPE '\\'` : undefined;
+    const search = terms
+      ? terms.hex
+        ? or(nameLike, sql`hex(${tickets.id}) LIKE ${"%" + terms.hex}`)
+        : nameLike
       : undefined;
+    const notCancelled = sql`${tickets.status} <> 'cancelled'`;
+    const state =
+      query.state === "cancelled"
+        ? eq(tickets.status, "cancelled")
+        : query.state === "inside"
+          ? and(notCancelled, eq(tickets.inside, true))
+          : query.state === "left"
+            ? and(notCancelled, eq(tickets.inside, false), gt(tickets.admitsUsed, 0))
+            : query.state === "not_in"
+              ? and(notCancelled, eq(tickets.admitsUsed, 0))
+              : undefined;
+    const where = and(
+      eq(tickets.eventId, event.id),
+      search,
+      query.status ? eq(tickets.status, query.status) : undefined,
+      query.type !== undefined ? eq(tickets.ticketType, query.type) : undefined,
+      state,
+    );
+    const d = query.dir === "desc" ? sql`DESC` : sql`ASC`;
+    const key =
+      query.sort === "holder"
+        ? sql`${tickets.holderName}`
+        : query.sort === "type"
+          ? sql`${tickets.ticketType}`
+          : query.sort === "state"
+            ? sql`CASE WHEN ${tickets.status} = 'cancelled' THEN 3 WHEN ${tickets.inside} = 1 THEN 1 WHEN ${tickets.admitsUsed} > 0 THEN 2 ELSE 0 END`
+            : sql`${tickets.issuedAt}`;
     const rows = ctx.db
       .select()
       .from(tickets)
-      .where(
-        and(
-          eq(tickets.eventId, event.id),
-          search,
-          query.status ? eq(tickets.status, query.status) : undefined,
-        ),
-      )
-      .orderBy(tickets.issuedAt, tickets.id)
+      .where(where)
+      .orderBy(sql`${key} ${d}`, asc(tickets.issuedAt), asc(tickets.id))
       .limit(query.limit)
       .offset(query.offset)
       .all();
+    const total =
+      ctx.db
+        .select({ n: sql<number>`COUNT(*)` })
+        .from(tickets)
+        .where(where)
+        .get()?.n ?? 0;
     return json({
+      total: Number(total),
       tickets: rows.map((r) => ({
         ticket_id: bytesToHex(r.id),
         short_id: shortTicketId({ ticketId: r.id }),

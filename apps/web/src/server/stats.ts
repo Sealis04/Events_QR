@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { api, bytesToHex, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
@@ -45,6 +45,39 @@ export async function eventStats(
     .innerJoin(tickets, eq(scans.ticketId, tickets.id))
     .where(and(eq(tickets.eventId, eventId), eq(scans.conflict, true)));
 
+  const [{ open = 0 } = {}] = await ctx.db
+    .select({ open: sql<number>`COUNT(*)` })
+    .from(scans)
+    .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+    .where(and(eq(tickets.eventId, eventId), eq(scans.conflict, true), isNull(scans.reviewedAt)));
+
+  const [{ left = 0 } = {}] = await ctx.db
+    .select({ left: sql<number>`COUNT(*)` })
+    .from(tickets)
+    .where(
+      and(
+        eq(tickets.eventId, eventId),
+        eq(tickets.inside, false),
+        gt(tickets.admitsUsed, 0),
+        sql`${tickets.status} <> 'cancelled'`,
+      ),
+    );
+
+  const [{ lastMinute = 0 } = {}] = await ctx.db
+    .select({ lastMinute: sql<number>`COUNT(*)` })
+    .from(scans)
+    .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+    .where(and(entries, gte(scans.scannedAt, ctx.now() - 60)));
+
+  const [busiest] = await ctx.db
+    .select({ minute: sql<number>`FLOOR(${scans.scannedAt} / 60) * 60`, n: sql<number>`COUNT(*)` })
+    .from(scans)
+    .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+    .where(entries)
+    .groupBy(sql`FLOOR(${scans.scannedAt} / 60)`)
+    .orderBy(sql`COUNT(*) DESC`, sql`FLOOR(${scans.scannedAt} / 60)`)
+    .limit(1);
+
   const since = ctx.now() - 3600;
   const perMinute = await ctx.db
     .select({ minute: sql<number>`FLOOR(${scans.scannedAt} / 60) * 60`, n: sql<number>`COUNT(*)` })
@@ -61,6 +94,10 @@ export async function eventStats(
     by_ticket_type: Object.fromEntries(byType.map((r) => [String(r.type), Number(r.n)])),
     conflicts: Number(conflicts),
     scans_per_minute: perMinute.map((r) => ({ minute: Number(r.minute), count: Number(r.n) })),
+    left: Number(left),
+    last_minute: Number(lastMinute),
+    busiest: busiest ? { minute: Number(busiest.minute), count: Number(busiest.n) } : null,
+    open_conflicts: Number(open),
   };
 }
 

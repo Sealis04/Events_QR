@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { api, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
@@ -77,14 +77,45 @@ export async function revokeDevice(
   const device = await loadDevice(ctx, id);
   await ctx.db.update(devices).set({ revoked: true }).where(eq(devices.id, id));
   if (!rotate) return { revoked: true, rotated_staff: [] };
-  const related = [...(await assignments(ctx, device.eventId)).keys()];
+  const related = await affectedStaff(ctx, device.eventId);
   if (related.length === 0) return { revoked: true, rotated_staff: [] };
-  await ctx.db.update(staff).set({ pinReset: "rotate" }).where(inArray(staff.id, related));
-  const rows = await ctx.db
+  await ctx.db
+    .update(staff)
+    .set({ pinReset: "rotate" })
+    .where(
+      inArray(
+        staff.id,
+        related.map((s) => s.id),
+      ),
+    );
+  return { revoked: true, rotated_staff: related };
+}
+
+/** Everyone a lost phone may hold a PIN hash of: all staff tied to the event. */
+async function affectedStaff(ctx: AppContext, eventId: number) {
+  const related = [...(await assignments(ctx, eventId)).keys()];
+  if (related.length === 0) return [];
+  return ctx.db
     .select({ id: staff.id, name: staff.name })
     .from(staff)
-    .where(and(inArray(staff.id, related)));
-  return { revoked: true, rotated_staff: rows };
+    .where(inArray(staff.id, related))
+    .orderBy(staff.name);
+}
+
+/**
+ * `GET /api/devices/{id}/revoke`: what a revoke would do, so the dialog can say it before the
+ * click: scans still waiting on the phone and, for the lost-or-stolen box, who would have to choose
+ * a new PIN. Changes nothing.
+ */
+export async function previewRevoke(ctx: AppContext, id: string) {
+  const device = await loadDevice(ctx, id);
+  return {
+    device_id: device.id,
+    label: device.label,
+    revoked: device.revoked,
+    outbox_size: device.outboxSize,
+    rotate_staff: await affectedStaff(ctx, device.eventId),
+  };
 }
 
 /** `POST /api/devices/heartbeat`. */
