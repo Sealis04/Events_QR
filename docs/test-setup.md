@@ -2,7 +2,12 @@
 
 A second, separate copy of the system on the same VM as production, at `test.<domain>`. Use it to try a new version before production gets it, to train staff, to rehearse with the 50 test tickets, or just to click around. Nothing in it can reach production data or email a real person.
 
-It assumes production is already installed with [`docs/setup-guide.md`](setup-guide.md). The commands below use `test.example.org`, `hub-test.example.org` and `tickets.example.org` (production): replace them with your own.
+It can run in two places:
+
+- **On the production VM**, beside production (sections 1–4). This assumes production is already installed with [`docs/setup-guide.md`](setup-guide.md).
+- **On your own Windows PC**, reached through a Cloudflare Tunnel, with nothing on the VM at all (section 5).
+
+Either way it is the same stack (`docker/compose.test.yml`). The commands below use `test.example.org`, `hub-test.example.org` and `tickets.example.org` (production): replace them with your own.
 
 ## How it differs from production
 
@@ -194,6 +199,108 @@ Then run through the things you care about: a reset, a ticket by email, a scan, 
 
 `down -v` deletes the test database volume. Production is not touched: it is a different Docker project with its own volume.
 
+## 5. Run it on your own Windows PC with a Cloudflare Tunnel
+
+The same test copy, on your PC instead of the VM. A Cloudflare Tunnel gives it `https://test.<domain>`: no port forwarding, no Nginx Proxy Manager, no certificate to manage, and nothing installed on the production VM. Phones reach it over any internet connection.
+
+```text
+phone / browser ──https──▶ Cloudflare ──tunnel──▶ cloudflared (container) ──▶ app:3000 (test app)
+your browser on the PC ──────────────────────────────────────────────────────▶ localhost:8025 (Mailpit)
+```
+
+What you give up: the PC must be on and awake for anyone to reach the test copy, and you cannot test a **venue hub** this way (a hub needs a local certificate and DNS name, section 1.8). Phone-only offline mode (airplane mode, scan, reconnect) works fine.
+
+If the test copy already runs on the VM, pick one: remove it there first (section 4) and delete its `test` DNS record and NPM proxy host, or give the PC copy another name such as `test2.<domain>`.
+
+### 5.1 Install WSL2 and Docker Desktop
+
+1. Open **PowerShell as administrator** and run `wsl --install`. Restart when asked. After the restart an **Ubuntu** window opens: choose a user name and password.
+2. Install **Docker Desktop** for Windows from docker.com. In Docker Desktop **Settings → General**, tick **Use the WSL 2 based engine** and **Start Docker Desktop when you sign in to your computer**. In **Settings → Resources → WSL integration**, switch on **Ubuntu**. Apply and restart Docker Desktop.
+3. In the **Ubuntu** terminal (Start menu → Ubuntu):
+
+   ```bash
+   sudo apt update && sudo apt install -y git openssl
+   ```
+
+**Every command below runs in the Ubuntu terminal**, not in PowerShell or cmd.
+
+**Check:** in Ubuntu, `docker version` shows both a `Client` and a `Server` section, and `docker run --rm hello-world` prints `Hello from Docker!`.
+**If it fails:** `Cannot connect to the Docker daemon` means Docker Desktop is not running or WSL integration for Ubuntu is off (step 2). `wsl --install` errors about virtualization: switch on virtualization (VT-x / AMD-V, sometimes "SVM") in the PC's BIOS/UEFI settings.
+
+### 5.2 Get the code and set it up
+
+Clone **inside Ubuntu's own home folder**, not under `/mnt/c/...`: the Windows drive is much slower from Docker and does not keep Linux file owners, which the key folder needs.
+
+```bash
+cd ~
+git clone https://github.com/sealis04/events_qr.git events-qr-test
+cd events-qr-test
+```
+
+Then do **steps 1.2 to 1.5 exactly as written** (fill `.env.test`, make the signing key, start, reset), in this Ubuntu terminal. In step 1.2 set `PUBLIC_URL=https://test.example.org` (your test name) and `PRODUCTION_URL` to your production address. `sudo` asks for the Ubuntu password you chose in 5.1.
+
+**Check:** step 1.5's check passes, and `curl -s http://127.0.0.1:3002/api/health` shows `"instance_label":"TEST"`. You can also open `http://localhost:3002` in your Windows browser: the login page with the red bar (only this PC can reach this address).
+**If it fails:** as in steps 1.2–1.5. A very slow first build is normal on a laptop (5–15 minutes).
+
+### 5.3 Create the tunnel in Cloudflare
+
+In the Cloudflare dashboard, open **Zero Trust** (left menu), then **Networks → Tunnels → Create a tunnel**:
+
+1. Connector type **Cloudflared**, name it `events-qr-test`, **Save tunnel**.
+2. On the **Install and run a connector** page choose **Docker**. It shows a command ending in `--token eyJ...`: copy only that long token (everything after `--token `). Do **not** run the command; the test copy runs `cloudflared` itself. Click **Next**.
+3. **Public hostname** (called **Published application routes** in newer dashboards; on an existing tunnel: **Configure → Public hostname → Add**): subdomain `test`, domain your domain, path empty. **Service**: type `HTTP`, URL `app:3000`. **Save tunnel**.
+
+Cloudflare creates the `test` DNS record and its certificate by itself.
+
+**Check:** **Networks → Tunnels** lists `events-qr-test` (status *Inactive* until the next step), and **DNS → Records** for your domain has a `CNAME` `test` pointing to `<tunnel id>.cfargotunnel.com`.
+**If it fails:** "record already exists" means `test` is already used (for example by the VM copy, or an `A` record you made earlier): delete that record under **DNS → Records** and add the public hostname again.
+
+The URL is `app:3000`, not `localhost:3002`: `cloudflared` runs as a container next to the app and reaches it by its service name.
+
+### 5.4 Start the tunnel
+
+Put the token in `.env.test` (it is a secret: this file only, never in git or chat):
+
+```bash
+nano .env.test   # set CLOUDFLARE_TUNNEL_TOKEN=eyJ... (remove the # in front of the line)
+docker compose --env-file .env.test -f docker/compose.test.yml --profile tunnel up -d
+docker compose --env-file .env.test -f docker/compose.test.yml --profile tunnel logs tunnel | tail -5
+```
+
+**Check:** the log shows `Registered tunnel connection` (usually four times); in Cloudflare the tunnel's status is **Healthy**; on a phone **using mobile data** (not your Wi-Fi), `https://test.example.org` opens the login page with the red **TEST COPY** bar, and you can log in as **Test Admin**.
+**If it fails:** see the tunnel rows in the troubleshooting table below.
+
+From now on, start and stop the PC copy with `--profile tunnel` in the command, so the tunnel comes and goes with the app:
+
+| To... | Run (in `~/events-qr-test`, Ubuntu) |
+|---|---|
+| Start | `docker compose --env-file .env.test -f docker/compose.test.yml --profile tunnel up -d` |
+| Stop | `docker compose --env-file .env.test -f docker/compose.test.yml --profile tunnel stop` |
+| Reset to the demo state | step 1.5's command (the tunnel keeps running) |
+
+### 5.5 Mailpit and the ticket sheet on the PC
+
+- **Test inbox:** open `http://localhost:8025` in your Windows browser. No SSH tunnel is needed on the PC. Do not add Mailpit to the Cloudflare tunnel: anyone could read the test tickets.
+- **Printable ticket sheet:** after a reset, run `explorer.exe test-output` in `~/events-qr-test` and open `test-sheet.html` from the window that appears.
+
+**Check:** generate a ticket with an email address on `https://test.example.org`; it shows up at `http://localhost:8025` within about 10 seconds, subject starting `[TEST]`.
+**If it fails:** as step 1.7.
+
+### 5.6 Keep it reachable
+
+- **Sleep:** Windows **Settings → System → Power** (or **Power & battery**): set "When plugged in, put my device to sleep after" to **Never** while people are testing. A sleeping PC means "This site can't be reached" / Cloudflare error 1033 on the phones.
+- **After a restart:** Docker Desktop starts when you sign in (step 5.1) and brings the containers back on its own (they are `restart: unless-stopped`). You only need to sign in to Windows.
+- **Updating:** section 3 works the same here (`git pull`, then the start command with `--build`).
+
+### 5.7 Optional: only your people can open it (Cloudflare Access)
+
+**Zero Trust → Access → Applications → Add an application → Self-hosted**: application domain `test.example.org`; add a policy **Allow** with **Emails** (your staff's addresses) or **Emails ending in** your domain. Visitors then get a one-time code by email before the test copy opens; on a phone they do this once and then use the scanner as usual.
+
+**Check:** a private browser window on `https://test.example.org` shows Cloudflare's sign-in page first; after the code, the test copy with the red bar.
+**If it fails:** if a phone's scanner suddenly says it cannot reach the server, its Access sign-in expired: open `https://test.example.org` in that phone's browser, sign in again, then go back to the scanner. Set **Session Duration** on the application to 24 hours or more to make this rare.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
@@ -206,3 +313,9 @@ Then run through the things you care about: a reset, a ticket by email, a scan, 
 | Phone set up for the test copy shows "Not an event ticket" on real tickets | Expected: it holds the test copy's keys. Tap **Set up again** and set it up from production. |
 | Test hub shows test tickets after switching it back | You skipped `down -v`. Run the three commands in "Using the standby hub for tests". |
 | VM slow during a live event | Stop the test copy (section 4). |
+| PC copy: `"cloudflared tunnel run" requires the ID or name of the tunnel` in `logs tunnel` | `CLOUDFLARE_TUNNEL_TOKEN` is empty or still has a `#` in front in `.env.test` (step 5.4). Fix it and run the start command again. |
+| PC copy: `Provided Tunnel token is not valid` | The token was copied incompletely. Copy it again from Zero Trust → Networks → Tunnels → `events-qr-test` → Configure (step 5.3). |
+| PC copy: Cloudflare error 502 / "Unable to reach the origin service" | The app container is not running (`docker compose ... ps`), or the public hostname's service is not `http://app:3000` (`localhost:3002` does not work from inside the tunnel container). |
+| PC copy: Cloudflare error 1033 | The tunnel is down: the PC is asleep or off, Docker Desktop is not running, or the tunnel container stopped. Wake the PC, start Docker Desktop, run the start command (step 5.4). |
+| PC copy: login says "cross-origin request refused" | In the tunnel's public hostname, open **Additional application settings → HTTP Settings** and set **HTTP Host Header** to `test.example.org`. |
+| PC copy: very slow, or `EACCES` on `.secrets-test` | The clone is under `/mnt/c/...`. Clone again inside Ubuntu's home folder (step 5.2). |

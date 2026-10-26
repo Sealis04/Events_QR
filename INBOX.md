@@ -14,6 +14,7 @@ Coordination now follows the Agent Team Protocol in `CLAUDE.md`: each milestone 
 | M6 | Dashboard | `m6-dashboard` | merged 2026-10-22 (#10) |
 | M7 | Dress-rehearsal docs | `m7-rehearsal` | merged 2026-10-23 (#13) |
 | M8 | Step-by-step setup guide | `m8-setup-guide` | merged 2026-10-23 (#14) |
-| M9 | Test copy on the VM | `m9-test-copy` | built by the planner 2026-10-26 |
+| M9 | Test copy on the VM | `m9-test-copy` | merged 2026-10-26 (#15) |
+| M10 | Test copy on a Windows PC (Cloudflare Tunnel) | `m10-test-tunnel` | built by the planner 2026-10-26 |
 
 When the reviewer opens the PR for a milestone, the planner sets up the next branch and fires builder-1.

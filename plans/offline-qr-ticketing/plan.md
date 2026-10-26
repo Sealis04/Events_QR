@@ -137,6 +137,10 @@ A separate copy of the system beside production, at `test.<domain>`, for trying 
 - `scripts/test-reset.ts`: empties the test database, re-migrates, creates Test Admin / Test Supervisor / Test Staff and seeds the 50-ticket rehearsal with its sheet. Refuses unless `--yes`, `INSTANCE_LABEL` set, `DB_NAME` contains "test" and `PUBLIC_URL` is not `PRODUCTION_URL`.
 - `docs/test-setup.md`: one-time setup, everyday use, upgrading the test copy first, switching the standby hub between test and production.
 
+### M10 — Test copy on a Windows PC through a Cloudflare Tunnel (added 2026-10-26, built by the planner)
+- Optional `tunnel` service (`--profile tunnel`) in `docker/compose.test.yml`: `cloudflare/cloudflared:2026.10.0`, token from `CLOUDFLARE_TUNNEL_TOKEN` in `.env.test`, public hostname pointed at `http://app:3000`.
+- `docs/test-setup.md` section 5: WSL2 + Docker Desktop, clone inside Ubuntu, tunnel creation in Zero Trust, Mailpit at `localhost:8025` on the PC, keeping the PC awake, optional Cloudflare Access, tunnel troubleshooting. No venue-hub testing this way.
+
 ## Out of scope for v1
 Payments and online checkout, resale, rotating QR codes, wallet passes, seat maps.
 
