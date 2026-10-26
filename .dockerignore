@@ -5,5 +5,7 @@
 .env.*
 !.env.demo
 .secrets
+.secrets-test
+test-output
 plans
 *.log
