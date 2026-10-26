@@ -443,7 +443,7 @@ export function evaluateDataMatch(e: {
     return outcome(
       "pass",
       null,
-      `The hub and the VM agree: ${total(e.hub)} tickets, ${e.hub.staff} staff.`,
+      `The hub and the VM agree: ${total(e.hub)} ticket${total(e.hub) === 1 ? "" : "s"}, ${e.hub.staff} staff.`,
       details,
     );
   if (e.lastPullAt === null)

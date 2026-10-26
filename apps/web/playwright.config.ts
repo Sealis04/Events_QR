@@ -49,6 +49,10 @@ export default defineConfig({
         SESSION_SECRET: "e2e".repeat(16),
         EVENT_KEY_MASTER: "ab".repeat(32),
         SYNC_HORIZON_SECONDS: "1",
+        // Hub setup page, step 2: fixed answers instead of a public DNS lookup (a private address,
+        // a Cloudflare one, and no record at all).
+        HUB_CHECK_DNS_ANSWERS:
+          "hub.e2e.test=192.168.50.10,hub.cf.test=104.21.5.9;172.67.1.1,hub.none.test=",
       },
     },
     {
@@ -63,6 +67,8 @@ export default defineConfig({
         APP_MODE: "hub",
         COOKIE_SECURE: "false",
         HUB_DB_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub.sqlite"),
+        // A throwaway certificate for the hub's health page to report an expiry date from.
+        HUB_CERT_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub-cert.pem"),
         SYNC_HORIZON_SECONDS: "1",
       },
     },

@@ -55,7 +55,7 @@ export const realProbes = (ctx: AppContext): HubProbes => {
   };
 };
 
-export const toRecord = (row: CheckRow): CheckRecord => ({
+export const toRecord = (row: Omit<CheckRow, "seq">): CheckRecord => ({
   id: row.id,
   step: row.step as HubCheckStep,
   result: row.result as CheckRecord["result"],
@@ -74,7 +74,7 @@ export async function checkRecords(ctx: AppContext, eventId: number, limit = 40)
     .select()
     .from(hubChecks)
     .where(eq(hubChecks.eventId, eventId))
-    .orderBy(desc(hubChecks.checkedAt), desc(hubChecks.id))
+    .orderBy(desc(hubChecks.checkedAt), desc(hubChecks.seq))
     .limit(400);
   const latest = new Map<string, CheckRecord>();
   for (const row of rows) if (!latest.has(row.step)) latest.set(row.step, toRecord(row));
@@ -131,7 +131,7 @@ async function store(
   result: CheckOutcome,
   deviceId: string | null,
 ): Promise<CheckRecord> {
-  const row: CheckRow = {
+  const row: Omit<CheckRow, "seq"> = {
     id: randomUUID(),
     eventId,
     deviceId,

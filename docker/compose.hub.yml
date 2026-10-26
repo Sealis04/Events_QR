@@ -32,6 +32,8 @@ services:
       <<: *hub-env
       # Next reads the hub's own copy of its settings (intervals, session-free: no secrets needed).
       SYNC_HORIZON_SECONDS: ${SYNC_HORIZON_SECONDS:-2}
+      # Optional: a readable copy of the proxy's certificate, so the Hub setup page can show its expiry.
+      HUB_CERT_PATH: ${HUB_CERT_PATH:-}
     volumes:
       - hub-data:/data
     ports:

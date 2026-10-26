@@ -229,7 +229,7 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   await expect(page.getByTestId("overrides")).toContainText("e2e-admin");
 
   // --- Setup saves every change at once.
-  await page.getByRole("link", { name: "Setup" }).click();
+  await page.getByRole("link", { name: "Setup", exact: true }).click();
   await page.getByLabel("Venue").fill("Test Hall 2");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText(/^Saved\./)).toBeVisible();

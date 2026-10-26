@@ -11,6 +11,7 @@ import { Admit } from "./_tabs/Admit";
 import { Conflicts } from "./_tabs/Conflicts";
 import { Devices } from "./_tabs/Devices";
 import { Generator } from "./_tabs/Generator";
+import { HubSetup } from "./_tabs/HubSetup";
 import { Live } from "./_tabs/Live";
 import { Setup } from "./_tabs/Setup";
 import { Tickets } from "./_tabs/Tickets";
@@ -30,6 +31,7 @@ const TABS: TabDef[] = [
   { key: "devices", label: "Devices", need: "supervisor" },
   { key: "conflicts", label: "Conflicts", need: "supervisor" },
   { key: "admit", label: "Attendees & overrides", need: "supervisor" },
+  { key: "hub-setup", label: "Hub setup", need: "admin" },
   { key: "setup", label: "Setup", need: "admin", vmOnly: true },
 ];
 
@@ -135,6 +137,7 @@ function Workspace({ me, id }: { me: Me; id: string }) {
     else if (current.key === "devices") body = <Devices event={event} me={me} />;
     else if (current.key === "conflicts") body = <Conflicts eventId={event.id} me={me} />;
     else if (current.key === "admit") body = <Admit event={event} />;
+    else if (current.key === "hub-setup") body = <HubSetup event={event} me={me} />;
     else if (current.key === "setup") body = <Setup event={event} onChanged={() => void load()} />;
   }
 

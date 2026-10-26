@@ -1,6 +1,6 @@
 # builder-1 — m12-hub-setup
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -45,7 +45,29 @@ The plan's M12 "Done when" holds: a fresh simulated hub (the e2e hub setup from 
 
 ## Summary for reviewer
 
-(fill in when done)
+**Files changed:**
+- Core: `packages/core/src/db/{shared,mysql,sqlite}.ts` (table `hub_checks`, sqlite `hub_check_outbox`, `devices.last_pull_at`), migrations `drizzle/mysql/0007_m12_hub_checks.sql` and `drizzle/sqlite/0006_m12_hub_checks.sql` (+ snapshots, journals), new `src/hubSetup/{index,address}.ts` (pure evaluators, fix texts, Cloudflare/RFC1918 classifier), `src/api/hubSetup.ts`, `src/api/index.ts`, `src/index.ts`, tests `test/hub-setup.test.ts`, `test/db.test.ts`.
+- VM: `server/{hubSetup,hubProbe,hubCert,config,sync}.ts`; routes `api/events/[id]/hub-setup/route.ts`, `.../hub-setup/checks/route.ts`, `api/sync/hub-checks/route.ts`, `api/sync/counts/route.ts`; `middleware.ts` (hub serves the two event routes).
+- Hub: `hub/hubSetup.ts` (new), `hub/{routes,state,vmclient,vmsync}.ts` (health `cert_expires_at`, uplink outage log, `pushChecks`).
+- UI: `app/(dash)/events/[id]/_tabs/HubSetup.tsx`, `app/_lib/hubSetup.ts`, `page.tsx` (tab "Hub setup", admin), `dashboard.css` (page styles + sticky bar fix).
+- Tests: `apps/web/test/hub-setup.test.ts`, `test/hub-helpers.ts`; e2e `e2e/hub-setup.spec.ts`, `no-scrollbars.spec.ts`, `dashboard.spec.ts` (exact "Setup" link), `prepare-hub.ts`, `playwright.config.ts`.
+- Docs/compose: `docs/setup-guide.md` (s.4 note), `docs/deploy-hub.md` (note, `HUB_CERT_PATH`), `docker/compose.hub.yml` (`HUB_CERT_PATH` passthrough). Screenshots: `plans/m12-hub-setup/screenshots/`.
+
+**What was done:**
+- A/B: "Hub setup" tab (admin) on the VM and on the hub dashboard; 8 numbered steps in two parts, copyable commands, Check button, pass/warn/fail with fix text + setup-guide link, progress summary, record of checks. Results are append-only rows (newest per step is current; `seq` breaks same-second ties) with who/when/where. Steps 1, 3, 5 are measured by the browser; 2, 3, 4 by the VM; 6, 7, 8 on the hub. Hub results are kept in the hub's SQLite and uploaded by the hub's push loop (`POST /api/sync/hub-checks`, idempotent on id), so the VM page shows all 8.
+- C: sticky bar is dark `#111827`, card width, 14px radius, as in the mockup.
+
+**What to check:**
+- Real vs fake in e2e (`hub-setup.spec.ts`): real VM, hub, hub worker, real `hub-enroll` run from the command the page shows, real setup code, real phone enrolment/heartbeat/claim at the hub, real uplink outage (switchable proxy) and VM receipt. Fakes: public DNS (`HUB_CHECK_DNS_ANSWERS` hook on the VM; names `hub.e2e.test` private, `hub.cf.test` Cloudflare, `hub.none.test` none) and `https://hub.e2e.test` (Playwright routes it to the real hub on :3200, or to the VM / nothing for the failure cases). VM TLS handshake is not dialled for hook names (falls back to the browser's proof, as for a hub on another LAN); the hub reports expiry from a real throwaway certificate via `HUB_CERT_PATH`. Every step except 4's second failure mode and the stale/mismatch/warn cases is made to fail on purpose in e2e; those are covered in unit tests.
+- Step 6 passes when counts are equal, or the hub's last pull is within pull interval + 10 s and the hub is not ahead. Step 8 starts an outage at the last working VM contact; only a scan received inside the outage and acked after it ended counts. A push with nothing to send does not touch the network, so only pulls (and pushes that sent something) feed the outage log. Detection takes up to one pull interval (30 s default): the page tells people to wait a minute.
+- Step 7/8 and 6 are hub-only; on the VM page they link to the hub's page. Steps 2 and 4 are VM-only; skipped on the hub (and a hub that cannot reach the VM skips step 6; skipped runs are shown, not stored).
+- Without `HUB_CERT_PATH` the certificate step ends in a warning ("expiry unknown") plus the `openssl` command; the hub compose passes the variable but I did not add a volume (NPM's cert files are usually not readable by uid 1000).
+- One result row per run, including failures (record of checks). Keyed per event, with the hub device id when known (a replaced hub keeps the old rows).
+- The real TLS probe only dials addresses classed private. The sandbox's network answers on private IPs, so unit tests inject the probes.
+- Env note: Playwright 1.64 wants browser build 1248; I symlinked the installed 1243 builds in `/opt/pw-browsers` locally (not in the repo).
+- Verified: `bun run lint`, `bunx tsc --noEmit`, `bun run test` (core 96, web 381, worker 31) pass; `bun run test:e2e` 24 passed + 4 screenshot specs skipped (SHOTS only) after fixing one ambiguous selector in dashboard.spec.
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 

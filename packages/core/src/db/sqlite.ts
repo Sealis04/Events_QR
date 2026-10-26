@@ -264,7 +264,8 @@ export const hubDeviceOutbox = sqliteTable("hub_device_outbox", {
 export const hubChecks = sqliteTable(
   "hub_checks",
   {
-    id: text("id").primaryKey(),
+    seq: integer("seq").primaryKey({ autoIncrement: true }),
+    id: text("id").notNull(),
     eventId: integer("event_id")
       .notNull()
       .references(() => events.id),
@@ -282,6 +283,7 @@ export const hubChecks = sqliteTable(
     source: text("source").notNull(),
   },
   (t) => [
+    uniqueIndex("ux_hub_checks_id").on(t.id),
     index("ix_hub_checks_event_step").on(t.eventId, t.step, t.checkedAt),
     check("ck_hub_checks_step", sql`${t.step} IN (${sql.raw(sqlList(HUB_CHECK_STEPS))})`),
     check("ck_hub_checks_result", sql`${t.result} IN (${sql.raw(sqlList(HUB_CHECK_RESULTS))})`),

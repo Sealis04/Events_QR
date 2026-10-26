@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a3d35042-79c4-4bfe-aa63-ff17036ede6d",
+  "id": "6589cfb7-670a-4078-a31a-99c7dd77f22a",
   "prevId": "113bdc6b-ce7b-4d86-b6f1-b59e782bdcca",
   "tables": {
     "devices": {
@@ -546,10 +546,17 @@
     "hub_checks": {
       "name": "hub_checks",
       "columns": {
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -632,6 +639,13 @@
         }
       },
       "indexes": {
+        "ux_hub_checks_id": {
+          "name": "ux_hub_checks_id",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        },
         "ix_hub_checks_event_step": {
           "name": "ix_hub_checks_event_step",
           "columns": [

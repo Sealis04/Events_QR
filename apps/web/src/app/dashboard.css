@@ -931,3 +931,123 @@ body:has(.dash) {
 .dash .event-head p {
   margin: 4px 0 0;
 }
+
+/* M12: hub setup page */
+.dash .part {
+  margin: 24px 0 12px;
+  font-size: 18px;
+}
+.dash .progress {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 12px;
+}
+.dash .progress span {
+  flex: 1 1 0;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.dash .progress span.pass {
+  background: #16a34a;
+}
+.dash .progress span.warn {
+  background: #d97706;
+}
+.dash .progress span.fail {
+  background: var(--bad);
+}
+.dash .step {
+  display: grid;
+  gap: 10px;
+}
+.dash .step > * {
+  margin: 0;
+}
+.dash .step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.dash .step-head h3 {
+  margin: 0;
+  flex: 1 1 200px;
+  font-size: 16px;
+}
+.dash .step .num {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--chip-ink);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.dash .cmd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f3f4f6;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.dash .cmd code {
+  flex: 1 1 220px;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.dash .step-result {
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+}
+.dash .step-result p {
+  margin: 0;
+}
+.dash .step-result.ok {
+  background: var(--ok-bg);
+  border-color: #a7e3b8;
+}
+.dash .step-result.warn {
+  background: var(--warn-bg);
+  border-color: #f5d98a;
+}
+.dash .step-result.bad {
+  background: var(--bad-bg);
+  border-color: #f3b9b3;
+}
+.dash .step-result .fix {
+  color: var(--ink);
+}
+.dash .steps-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.dash .record-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.dash .record-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}

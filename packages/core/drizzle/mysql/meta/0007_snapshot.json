@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "6e32d03b-581f-4dcb-b7b0-fd11beafdc69",
+  "id": "96ee8394-b54e-438d-99e8-42e1c82bbad3",
   "prevId": "d5289a1e-7460-4307-8fc4-4455d230535d",
   "tables": {
     "devices": {
@@ -550,6 +550,13 @@
     "hub_checks": {
       "name": "hub_checks",
       "columns": {
+        "seq": {
+          "name": "seq",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
         "id": {
           "name": "id",
           "type": "char(36)",
@@ -636,6 +643,13 @@
         }
       },
       "indexes": {
+        "ux_hub_checks_id": {
+          "name": "ux_hub_checks_id",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        },
         "ix_hub_checks_event_step": {
           "name": "ix_hub_checks_event_step",
           "columns": [
@@ -662,10 +676,10 @@
         }
       },
       "compositePrimaryKeys": {
-        "hub_checks_id": {
-          "name": "hub_checks_id",
+        "hub_checks_seq": {
+          "name": "hub_checks_seq",
           "columns": [
-            "id"
+            "seq"
           ]
         }
       },

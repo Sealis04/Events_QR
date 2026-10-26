@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { api, mysqlSchema, sqliteSchema, type DnsLookup } from "@events-qr/core";
@@ -128,6 +129,30 @@ describe.skipIf(!dbAvailable)("hub setup on the VM", () => {
     );
     expect(view.json.history.length).toBeGreaterThanOrEqual(2);
     expect((await run({ step: "hub_running" })).status).toBe(400);
+  });
+
+  it("two results stored in the same second: the later one is the current state", async () => {
+    const fetchBody = (reached: boolean) => ({
+      step: "hub_running",
+      fetch: {
+        url: "https://hub.same-second.test/api/health",
+        reached,
+        status: 200,
+        body: { ok: true, mode: "hub" },
+      },
+    });
+    await run(fetchBody(false));
+    await run(fetchBody(true));
+    const view = await call(vmView, { staff: w.admin, params: params() });
+    expect(view.json.checks.find((c: { step: string }) => c.step === "hub_running").result).toBe(
+      "pass",
+    );
+    await run(fetchBody(true));
+    await run(fetchBody(false));
+    const again = await call(vmView, { staff: w.admin, params: params() });
+    expect(again.json.checks.find((c: { step: string }) => c.step === "hub_running").result).toBe(
+      "fail",
+    );
   });
 
   it("step 2 passes for a private answer and explains the other answers", async () => {
@@ -414,9 +439,10 @@ describe.skipIf(!dbAvailable)("hub setup on the hub", () => {
     await w.cancel(id);
     setState(w.hub, "last_pull_at", String(env.clock.now));
     // Someone on the hub who the VM does not list: the hub must never hold more than the VM.
-    w.hub.sqlite
-      .prepare("INSERT INTO staff (id, name, pin_hash, role) VALUES (?, 'ghost', 'x', 'staff')")
-      .run("6f1c6b0e-0000-4000-8000-0000000000aa");
+    w.hub.db
+      .insert(hubSide.staff)
+      .values({ id: randomUUID(), name: "ghost", pinHash: "x", role: "staff" })
+      .run();
     const mismatch = await post({ step: "data_match" });
     expect(mismatch.json.check).toMatchObject({ result: "fail", code: "data_mismatch" });
 

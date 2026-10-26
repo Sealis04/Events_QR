@@ -35,7 +35,7 @@ const { hubChecks, hubCheckOutbox, devices, tickets, staff, scans, hubScanOutbox
 type CheckRecord = z.infer<typeof api.hubCheckRecord>;
 type CheckRow = typeof hubChecks.$inferSelect;
 
-const toRecord = (row: CheckRow): CheckRecord => ({
+const toRecord = (row: Omit<CheckRow, "seq">): CheckRecord => ({
   id: row.id,
   step: row.step as HubCheckStep,
   result: row.result as CheckRecord["result"],
@@ -53,7 +53,7 @@ function records(ctx: HubContext, eventId: number) {
     .select()
     .from(hubChecks)
     .where(eq(hubChecks.eventId, eventId))
-    .orderBy(desc(hubChecks.checkedAt), desc(hubChecks.id))
+    .orderBy(desc(hubChecks.checkedAt), desc(hubChecks.seq))
     .limit(400)
     .all();
   const latest = new Map<string, CheckRecord>();
@@ -242,7 +242,7 @@ export const hubRunCheckRoute = hubRoute(
     // A skipped step (VM unreachable) is shown, not recorded: it says nothing about the hub.
     if (outcome.result === "skipped") return unstored(body.step, outcome);
 
-    const row: CheckRow = {
+    const row: Omit<CheckRow, "seq"> = {
       id: randomUUID(),
       eventId,
       deviceId: getLink(ctx)?.deviceId ?? null,

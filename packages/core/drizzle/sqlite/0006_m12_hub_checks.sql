@@ -4,7 +4,8 @@ CREATE TABLE `hub_check_outbox` (
 );
 --> statement-breakpoint
 CREATE TABLE `hub_checks` (
-	`id` text PRIMARY KEY NOT NULL,
+	`seq` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`id` text NOT NULL,
 	`event_id` integer NOT NULL,
 	`device_id` text,
 	`step` text NOT NULL,
@@ -22,5 +23,6 @@ CREATE TABLE `hub_checks` (
 	CONSTRAINT "ck_hub_checks_source" CHECK("hub_checks"."source" IN ('vm', 'hub'))
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `ux_hub_checks_id` ON `hub_checks` (`id`);--> statement-breakpoint
 CREATE INDEX `ix_hub_checks_event_step` ON `hub_checks` (`event_id`,`step`,`checked_at`);--> statement-breakpoint
 ALTER TABLE `devices` ADD `last_pull_at` integer;

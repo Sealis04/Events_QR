@@ -1,4 +1,5 @@
 CREATE TABLE `hub_checks` (
+	`seq` int AUTO_INCREMENT NOT NULL,
 	`id` char(36) NOT NULL,
 	`event_id` int NOT NULL,
 	`device_id` char(36),
@@ -11,7 +12,8 @@ CREATE TABLE `hub_checks` (
 	`checked_by` char(36),
 	`checked_by_name` varchar(255),
 	`source` varchar(4) NOT NULL,
-	CONSTRAINT `hub_checks_id` PRIMARY KEY(`id`),
+	CONSTRAINT `hub_checks_seq` PRIMARY KEY(`seq`),
+	CONSTRAINT `ux_hub_checks_id` UNIQUE(`id`),
 	CONSTRAINT `ck_hub_checks_step` CHECK(`hub_checks`.`step` IN ('hub_running', 'dns_record', 'certificate', 'link_hub', 'local_dns', 'data_match', 'phone_via_hub', 'offline_scan')),
 	CONSTRAINT `ck_hub_checks_result` CHECK(`hub_checks`.`result` IN ('pass', 'warn', 'fail', 'skipped')),
 	CONSTRAINT `ck_hub_checks_source` CHECK(`hub_checks`.`source` IN ('vm', 'hub'))

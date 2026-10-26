@@ -286,7 +286,9 @@ export const idempotencyKeys = mysqlTable(
 export const hubChecks = mysqlTable(
   "hub_checks",
   {
-    id: uuidCol("id").primaryKey(),
+    /** Arrival order: breaks ties between two results stored in the same second. */
+    seq: int("seq").autoincrement().primaryKey(),
+    id: uuidCol("id").notNull(),
     eventId: int("event_id")
       .notNull()
       .references(() => events.id),
@@ -304,6 +306,7 @@ export const hubChecks = mysqlTable(
     source: varchar("source", { length: 4 }).notNull(),
   },
   (t) => [
+    uniqueIndex("ux_hub_checks_id").on(t.id),
     index("ix_hub_checks_event_step").on(t.eventId, t.step, t.checkedAt),
     check("ck_hub_checks_step", sql`${t.step} IN (${sql.raw(sqlList(HUB_CHECK_STEPS))})`),
     check("ck_hub_checks_result", sql`${t.result} IN (${sql.raw(sqlList(HUB_CHECK_RESULTS))})`),
