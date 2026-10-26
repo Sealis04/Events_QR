@@ -22,7 +22,20 @@ M11 of `plans/offline-qr-ticketing/plan.md`: UI refresh to the approved mockups 
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+
+**Environment:** MariaDB was not installed (`apt-get update` + `apt-get install mariadb-server`, then `scripts/ccr-session-init.sh`). Playwright 1.64 wanted chromium-1248 (absent); symlinked the pre-installed chromium-1243 `chrome` to `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (the path `playwright.config.ts` falls back to) and `/opt/google/chrome/chrome`. No SQL Server/Prisma (not used). No builder sub-branch, so no merge step.
+
+**E2E results (all on the final head `bb3e287`):**
+- `bun run lint`, `bunx tsc --noEmit`: clean.
+- `bun run test`: web 361/361, worker 31/31 pass.
+- `bun run test:e2e`: 19 passed, 4 skipped (screenshot generator, opt-in). Includes dashboard flow, hub, offline, scanner flows, no-scrollbars at 390x844 and 360x740 (dashboard pages and scanner states), scanner-session (login survives reload/browser restart/offline; ends at the 05:00 / event-end cut-off).
+- `docker compose -f docker/compose.hub.yml config` with and without `--profile dns`: valid; dns ports bind to `HUB_DNS_BIND` (default 0.0.0.0).
+- Spot-checked builder screenshots (red result, devices tab) against the mockups: layout and wording match.
+
+**Issues filed:** none.
+
+**Summary:** Checks pass. Revoke preview (GET) and the CSV export are gated to supervisor and above; the export reuses the list filters (LIKE input escaped). Not hand-verified: the TP-Link wording in setup guide 4.6 beyond reading the diff.
 
 ## planner
 
