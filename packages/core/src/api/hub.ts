@@ -98,4 +98,6 @@ export const healthResponse = z.object({
   last_cloud_sync_at: unixSeconds.nullable(),
   /** Hub only: scans waiting to be uploaded to the VM. */
   pending_scans: z.number().int().min(0).optional(),
+  /** Set on a non-production copy (e.g. "TEST"); pages show it as a banner. */
+  instance_label: z.string().optional(),
 });

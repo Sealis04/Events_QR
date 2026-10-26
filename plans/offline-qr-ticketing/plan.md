@@ -129,6 +129,14 @@ One guide, `docs/setup-guide.md`, for an IT person doing the first install from 
 - Upgrading to a new version and rotating keys.
 - **Done when:** the reviewer follows the guide in a clean sandbox as far as it can (everything except real Cloudflare, Let's Encrypt, Gmail and router steps) without needing any knowledge outside the guide, and every command in it runs.
 
+### M9 — Test copy on the VM (added 2026-10-26, built by the planner on the user's request)
+A separate copy of the system beside production, at `test.<domain>`, for trying new versions, training and rehearsals.
+- `docker/compose.test.yml`: Docker project `events-qr-test`, own MariaDB volume (`events_qr_test`), own `.env.test` and `.secrets-test`, app on 3002, Mailpit (`axllent/mailpit:v1.31.1`) as the mail catcher on loopback 8025.
+- `INSTANCE_LABEL` setting: red "TEST COPY" banner on every dashboard page and on the scanner (via `/api/health`, remembered for offline), `[TEST]` in email subjects.
+- `MAIL_TRANSPORT=smtp` (with `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`): the worker sends over plain SMTP to Mailpit instead of the Gmail API.
+- `scripts/test-reset.ts`: empties the test database, re-migrates, creates Test Admin / Test Supervisor / Test Staff and seeds the 50-ticket rehearsal with its sheet. Refuses unless `--yes`, `INSTANCE_LABEL` set, `DB_NAME` contains "test" and `PUBLIC_URL` is not `PRODUCTION_URL`.
+- `docs/test-setup.md`: one-time setup, everyday use, upgrading the test copy first, switching the standby hub between test and production.
+
 ## Out of scope for v1
 Payments and online checkout, resale, rotating QR codes, wallet passes, seat maps.
 

@@ -50,6 +50,20 @@ const schema = z.object({
   /** Per-request timeout towards the VM. */
   HUB_VM_TIMEOUT_SECONDS: z.coerce.number().positive().default(10),
 
+  /**
+   * Marks a non-production copy (e.g. `TEST`): shown as a banner on every dashboard page and on the
+   * scanner, and put in front of ticket email subjects. Leave unset in production.
+   */
+  INSTANCE_LABEL: z.string().trim().min(1).max(24).optional(),
+
+  /** How the worker sends ticket emails: the Gmail API, or plain SMTP to a mail catcher (test copy). */
+  MAIL_TRANSPORT: z.enum(["gmail", "smtp"]).default("gmail"),
+  /** `MAIL_TRANSPORT=smtp`: an SMTP server without TLS or auth, such as Mailpit in docker/compose.test.yml. */
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  /** `MAIL_TRANSPORT=smtp`: the From address. */
+  MAIL_FROM: z.string().email().optional(),
+
   GMAIL_SA_KEY_PATH: z.string().min(1).optional(),
   GMAIL_SENDER: z.string().email().optional(),
   EMAIL_DAILY_LIMIT: z.coerce.number().int().positive().default(1800),

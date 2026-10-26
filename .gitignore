@@ -4,8 +4,11 @@ dist
 *.tsbuildinfo
 .env*
 !.env.demo
+!.env.test.example
 next-env.d.ts
 .secrets
+.secrets-test
+test-output
 
 # Playwright
 /apps/web/e2e/.tmp
