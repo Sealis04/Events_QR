@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tickets on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+input,button{font:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; background: #f4f5f7; color: #111827; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column">
+<div style="padding: 16px 16px 0; display: flex; flex-direction: column; gap: 4px; background: #ffffff">
+<div style="display: flex; justify-content: space-between; align-items: center"><a href="#" style="font-size: 14px; text-decoration: none">← Events</a><span style="padding: 3px 9px; border-radius: 999px; background: #e8ecf3; font-size: 12px; font-weight: 700; color: #374151">HUB</span></div>
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Intramuros Night Market</h1>
+<nav style="display: flex; gap: 2px; overflow-x: hidden; margin: 6px -16px 0; padding: 0 10px; border-bottom: 1px solid #dfe3e9">
+<a href="#" style="padding: 12px 10px; text-decoration: none; color: #4b5563; white-space: nowrap">Live</a>
+<a href="#" style="padding: 12px 10px; text-decoration: none; color: #111827; font-weight: 650; border-bottom: 3px solid #2457d6; white-space: nowrap">Tickets</a>
+<a href="#" style="padding: 12px 10px; text-decoration: none; color: #4b5563; white-space: nowrap">Devices</a>
+<a href="#" style="padding: 12px 10px; text-decoration: none; color: #4b5563; white-space: nowrap">Conflicts 2</a>
+<a href="#" style="padding: 12px 10px; text-decoration: none; color: #4b5563; white-space: nowrap">Attendees</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<label for="pq" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Search tickets</label>
+<input id="pq" placeholder="Search name, email or code" style="height: 46px; padding: 0 14px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff; min-width: 0">
+<div style="font-size: 13px; color: #5b6472">1,000 tickets · sorted by name</div>
+
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 12px 12px 12px 14px; display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650">Andrea Cruz</span><span style="font-size: 13px; color: #5b6472">General · 1 of 1 entries</span></div>
+<span style="padding: 2px 9px; border-radius: 999px; background: #dcfce7; color: #14532d; font-weight: 600; font-size: 12px">Inside</span>
+<button aria-label="Actions for Andrea Cruz" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 20px">⋯</button>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 12px 12px 12px 14px; display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650">Ben Reyes</span><span style="font-size: 13px; color: #5b6472">VIP · 0 of 1 entries</span></div>
+<span style="padding: 2px 9px; border-radius: 999px; background: #e0e9ff; color: #1e3a8a; font-weight: 600; font-size: 12px">Not yet in</span>
+<button aria-label="Actions for Ben Reyes" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 20px">⋯</button>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 12px 12px 12px 14px; display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650">Carla Dizon</span><span style="font-size: 13px; color: #5b6472">General · 0 of 1 entries</span></div>
+<span style="padding: 2px 9px; border-radius: 999px; background: #e0e9ff; color: #1e3a8a; font-weight: 600; font-size: 12px">Not yet in</span>
+<button aria-label="Actions for Carla Dizon" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 20px">⋯</button>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 12px 12px 12px 14px; display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650">Diego Lim</span><span style="font-size: 13px; color: #5b6472">Day pass · 1 entry</span></div>
+<span style="padding: 2px 9px; border-radius: 999px; background: #f3f4f6; color: #374151; font-weight: 600; font-size: 12px">Left</span>
+<button aria-label="Actions for Diego Lim" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 20px">⋯</button>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 12px 12px 12px 14px; display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650; color: #6b7280; text-decoration: line-through">Elena Torres</span><span style="font-size: 13px; color: #5b6472">General</span></div>
+<span style="padding: 2px 9px; border-radius: 999px; background: #fee2e2; color: #7f1d1d; font-weight: 600; font-size: 12px">Cancelled</span>
+<button aria-label="Actions for Elena Torres" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; font-size: 20px">⋯</button>
+</div>
+<button style="height: 46px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff; font-weight: 600">Show more</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

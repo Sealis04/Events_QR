@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New event</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f4f5f7}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+input,select,button{font:inherit}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; min-height: 100%; font-size: 15px; line-height: 1.45">
+<div style="max-width: 1040px; margin: 0 auto; padding: 28px 24px 120px; display: flex; flex-direction: column; gap: 24px">
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<a href="#" style="font-size: 14px; text-decoration: none">← Events</a>
+<h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em">New event</h1>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #4b5563">
+<span style="padding: 3px 10px; border-radius: 999px; background: #e8ecf3; font-weight: 600; font-size: 12px; color: #374151">VM</span>
+<span>Alex Admin · admin</span>
+</div>
+</div>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 28px; height: 28px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">1</span>
+<h2 style="margin: 0; font-size: 19px; font-weight: 650">Event details</h2>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Event name<input value="Intramuros Night Market" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Venue<input value="Plaza de Roma" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Time zone<select style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827; background: #ffffff"><option>Asia/Manila (UTC+8)</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Doors open<input value="Fri, 6 Nov 2026 · 18:00" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Ends<input value="Sun, 8 Nov 2026 · 23:00" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 28px; height: 28px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">2</span>
+<h2 style="margin: 0; font-size: 19px; font-weight: 650">Gates</h2>
+</div>
+<span style="font-size: 13px; color: #5b6472">Drag to reorder · 3 of 16 · order locks once tickets exist</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="font-weight: 600">Main entrance</span>
+<button aria-label="Remove Main entrance" style="width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; color: #5b6472; cursor: pointer">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="font-weight: 600">North gate</span>
+<button aria-label="Remove North gate" style="width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; color: #5b6472; cursor: pointer">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="font-weight: 600">VIP lane</span>
+<button aria-label="Remove VIP lane" style="width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; color: #5b6472; cursor: pointer">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; flex: 1 1 260px; min-width: 220px">
+<label for="newgate" style="position: absolute; width: 1px; height: 1px; overflow: hidden">New gate name</label>
+<input id="newgate" placeholder="Type a gate name, press Enter" style="flex: 1; height: 44px; padding: 0 12px; border: 1px dashed #b7c0cc; border-radius: 10px; color: #111827; min-width: 0">
+<button style="height: 44px; padding: 0 16px; border: 1px solid #2457d6; background: #ffffff; color: #2457d6; border-radius: 10px; font-weight: 600; cursor: pointer">Add gate</button>
+</div>
+</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 28px; height: 28px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">3</span>
+<h2 style="margin: 0; font-size: 19px; font-weight: 650">Ticket types</h2>
+</div>
+<span style="font-size: 13px; color: #5b6472">1,000 places in total</span>
+</div>
+
+<div style="border: 1px solid #e3e6eb; border-radius: 12px; padding: 16px 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-weight: 650; font-size: 16px">General admission</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px">
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">Single entry</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">All gates</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">800 places</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">In from 17:45</span>
+</div>
+</div>
+<button style="height: 40px; padding: 0 16px; border: 1px solid #cfd5de; background: #ffffff; border-radius: 10px; font-weight: 600; cursor: pointer; color: #111827">Edit</button>
+</div>
+
+<div style="border: 2px solid #2457d6; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<div style="font-weight: 650; font-size: 16px">VIP</div>
+<div style="display: flex; gap: 8px">
+<button style="height: 40px; padding: 0 14px; border: 0; background: transparent; border-radius: 10px; font-weight: 600; cursor: pointer; color: #b42318">Remove</button>
+<button style="height: 40px; padding: 0 16px; border: 0; background: #2457d6; color: #ffffff; border-radius: 10px; font-weight: 600; cursor: pointer">Done</button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Name<input value="VIP" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Places<input value="200" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"><span style="font-weight: 400; color: #5b6472">Leave blank for no limit</span></label>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 600; color: #374151">How many times can they get in?</div>
+<div style="display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid #cfd5de; border-radius: 10px; overflow: hidden; align-self: flex-start">
+<button style="height: 42px; padding: 0 16px; border: 0; background: #2457d6; color: #ffffff; font-weight: 600; cursor: pointer">Once</button>
+<button style="height: 42px; padding: 0 16px; border: 0; border-left: 1px solid #cfd5de; background: #ffffff; color: #111827; cursor: pointer">Up to a number</button>
+<button style="height: 42px; padding: 0 16px; border: 0; border-left: 1px solid #cfd5de; background: #ffffff; color: #111827; cursor: pointer">Any number (re-entry)</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 600; color: #374151">Which gates?</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button style="height: 40px; padding: 0 14px; border: 1px solid #cfd5de; background: #ffffff; color: #111827; border-radius: 999px; cursor: pointer">All gates</button>
+<button style="height: 40px; padding: 0 14px; border: 1px solid #2457d6; background: #eef2fb; color: #1e3a8a; border-radius: 999px; font-weight: 600; cursor: pointer">✓ Main entrance</button>
+<button style="height: 40px; padding: 0 14px; border: 1px solid #cfd5de; background: #ffffff; color: #111827; border-radius: 999px; cursor: pointer">North gate</button>
+<button style="height: 40px; padding: 0 14px; border: 1px solid #2457d6; background: #eef2fb; color: #1e3a8a; border-radius: 999px; font-weight: 600; cursor: pointer">✓ VIP lane</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 600; color: #374151">When can they come in?</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<select aria-label="Day" style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff; color: #111827"><option>Fri 6 Nov</option></select>
+<input aria-label="From" value="18:00" style="width: 92px; height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; color: #111827">
+<span style="color: #5b6472">to</span>
+<input aria-label="Until" value="23:00" style="width: 92px; height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; color: #111827">
+<button aria-label="Remove time slot" style="width: 40px; height: 40px; border: 0; background: transparent; border-radius: 8px; color: #5b6472; cursor: pointer">✕</button>
+</div>
+<button style="align-self: flex-start; height: 40px; padding: 0 4px; border: 0; background: transparent; color: #2457d6; font-weight: 600; cursor: pointer">+ Add another time</button>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #374151"><input type="checkbox" checked style="width: 18px; height: 18px">Let them in 15 minutes early</label>
+</div>
+
+<div style="background: #f4f7fd; border-radius: 10px; padding: 12px 14px; font-size: 14px; color: #1f2a44">
+<strong>A VIP ticket</strong> gets the holder in once, through Main entrance or VIP lane, on Fri 6 Nov from 17:45 to 23:00.
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span style="font-size: 14px; color: #5b6472">Add a ticket type:</span>
+<button style="height: 40px; padding: 0 14px; border: 1px dashed #9aa5b5; background: #ffffff; border-radius: 10px; cursor: pointer; color: #111827">General admission</button>
+<button style="height: 40px; padding: 0 14px; border: 1px dashed #9aa5b5; background: #ffffff; border-radius: 10px; cursor: pointer; color: #111827">VIP</button>
+<button style="height: 40px; padding: 0 14px; border: 1px dashed #9aa5b5; background: #ffffff; border-radius: 10px; cursor: pointer; color: #111827">Day pass</button>
+<button style="height: 40px; padding: 0 14px; border: 1px dashed #9aa5b5; background: #ffffff; border-radius: 10px; cursor: pointer; color: #111827">Blank</button>
+</div>
+</section>
+
+<div style="position: sticky; bottom: 16px; background: #111827; color: #ffffff; border-radius: 14px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<span style="font-size: 14px; color: #d1d5db">3 gates · 2 ticket types · 1,000 places</span>
+<div style="display: flex; gap: 10px">
+<button style="height: 44px; padding: 0 16px; border: 1px solid #4b5563; background: transparent; color: #ffffff; border-radius: 10px; cursor: pointer">Cancel</button>
+<button style="height: 44px; padding: 0 20px; border: 0; background: #3b6cf0; color: #ffffff; border-radius: 10px; font-weight: 600; cursor: pointer">Create event</button>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1640}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

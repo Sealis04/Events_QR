@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Devices and revoke</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f4f5f7}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+button,input{font:inherit}
+th{font-weight:600}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; font-size: 15px; line-height: 1.45; position: relative">
+<div style="max-width: 1120px; margin: 0 auto; padding: 24px 24px 48px; display: flex; flex-direction: column; gap: 18px">
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Intramuros Night Market</h1>
+<button style="height: 44px; padding: 0 16px; border: 0; background: #2457d6; color: #ffffff; border-radius: 10px; font-weight: 600">+ Set up a phone</button>
+</div>
+
+<nav style="display: flex; gap: 4px; border-bottom: 1px solid #dfe3e9; overflow-x: auto">
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Tickets</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Live</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #111827; font-weight: 650; border-bottom: 3px solid #2457d6">Devices</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Conflicts</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Attendees</a>
+</nav>
+
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 14px">
+<thead><tr style="text-align: left; color: #4b5563; background: #f9fafb">
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Phone</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Gate</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Status</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Last scan</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Battery</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Waiting to upload</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Actions</span></th>
+</tr></thead>
+<tbody>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; font-weight: 600">Phone 1</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">Main entrance · Entry</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #dcfce7; color: #14532d; font-weight: 600; font-size: 12px">Online</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">19:04</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">78%</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">0</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Phone 1" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; font-weight: 600">Phone 2</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">North gate · Entry and exit</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span title="No scans or check-ins for 5 minutes" style="padding: 2px 9px; border-radius: 999px; background: #fef3c7; color: #78350f; font-weight: 600; font-size: 12px">Quiet · no contact for 5 min</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">18:58</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">22%</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">4</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Phone 2" style="width: 36px; height: 36px; border: 1px solid #2457d6; border-radius: 8px; background: #eef2fb">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px; font-weight: 600">Phone 3</td><td style="padding: 12px 16px">VIP lane · Entry</td><td style="padding: 12px 16px"><span style="padding: 2px 9px; border-radius: 999px; background: #dcfce7; color: #14532d; font-weight: 600; font-size: 12px">Online</span></td><td style="padding: 12px 16px">19:03</td><td style="padding: 12px 16px">91%</td><td style="padding: 12px 16px">0</td><td style="padding: 12px 16px"><button aria-label="Actions for Phone 3" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+</tbody>
+</table>
+</div>
+<div style="height: 260px"></div>
+</div>
+
+<div style="position: absolute; inset: 0; background: rgba(17,24,39,0.45); display: flex; align-items: flex-start; justify-content: center; padding: 120px 16px 16px">
+<div role="dialog" aria-labelledby="rv" style="width: 100%; max-width: 480px; background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 60px rgba(17,24,39,0.3)">
+<h2 id="rv" style="margin: 0; font-size: 20px; font-weight: 700">Revoke Phone 2?</h2>
+<p style="margin: 0; color: #374151">It stops scanning at once and erases itself the next time it is online. Its 4 waiting scans upload first if it comes back.</p>
+<label style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #e3e6eb; border-radius: 12px; cursor: pointer">
+<input type="checkbox" style="width: 20px; height: 20px; margin-top: 2px">
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 650">This phone was lost or stolen</span><span style="font-size: 14px; color: #4b5563">Everyone who can log in on this event (7 people, including you) will have to choose a new PIN. Only tick this if the phone is out of your hands.</span></span>
+</label>
+<div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap">
+<button style="height: 44px; padding: 0 16px; border: 1px solid #cfd5de; background: #ffffff; border-radius: 10px; font-weight: 600">Keep it</button>
+<button style="height: 44px; padding: 0 18px; border: 0; background: #b42318; color: #ffffff; border-radius: 10px; font-weight: 600">Revoke Phone 2</button>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
