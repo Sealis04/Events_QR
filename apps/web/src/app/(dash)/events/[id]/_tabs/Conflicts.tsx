@@ -95,11 +95,11 @@ export function Conflicts({ eventId, me }: { eventId: number; me: Me }) {
         </Notice>
       )}
       {error && <Notice tone="bad">{error}</Notice>}
-      <div className="row" style={{ marginBottom: 10 }}>
-        <strong>
+      <div className="row" style={{ marginBottom: 14, justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>
           {total} conflict{total === 1 ? "" : "s"}
-        </strong>
-        <label className="row">
+        </h2>
+        <label className="check">
           <input
             type="checkbox"
             checked={showReviewed}
@@ -108,14 +108,20 @@ export function Conflicts({ eventId, me }: { eventId: number; me: Me }) {
           Show reviewed
         </label>
       </div>
-      {shown.length === 0 && <div className="card muted">Nothing to review.</div>}
+      {shown.length === 0 && (
+        <div className="card empty">
+          <strong>Nothing to review</strong>
+          Two scans of one ticket, for example from phones that were offline, show up here with both
+          sides next to each other.
+        </div>
+      )}
       {shown.map((c) => (
         <div className="card" key={c.scan_id} data-testid="conflict">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <strong>{c.holder_name ?? c.ticket_id.slice(-6).toUpperCase()}</strong>
             <span className="row">
-              <span className="pill">{c.ticket_status.replace("_", " ")}</span>
-              {c.reviewed_at ? <span className="pill ok">reviewed</span> : null}
+              <span className="tag">{c.ticket_status.replace("_", " ")}</span>
+              {c.reviewed_at ? <span className="tag ok">reviewed</span> : null}
             </span>
           </div>
           <div className="versus" style={{ margin: "8px 0" }}>
@@ -140,7 +146,7 @@ export function Conflicts({ eventId, me }: { eventId: number; me: Me }) {
             />
           </div>
           {!hub && (
-            <button className="secondary" onClick={() => review(c, !c.reviewed_at)}>
+            <button className="secondary small" onClick={() => review(c, !c.reviewed_at)}>
               {c.reviewed_at ? "Mark as not reviewed" : "Mark reviewed"}
             </button>
           )}

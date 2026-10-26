@@ -168,7 +168,7 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   await expect(row).toContainText("Gate A");
   await expect(row).not.toHaveClass(/hot/);
   // The phone reports its outbox in its next background pass.
-  await expect(row.locator("td").nth(4)).toHaveText("0", { timeout: 30_000 });
+  await expect(row.locator("td").nth(5)).toHaveText("0", { timeout: 30_000 });
 
   // --- A forced double admission: two phones upload offline admits of one ticket.
   const t2 = await (await admin.get(`/api/events/${eventId}/tickets?q=Csv Cora`)).json();
