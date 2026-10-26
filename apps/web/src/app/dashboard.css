@@ -592,17 +592,33 @@ body:has(.dash) {
 /* Sticky action bar */
 .dash .sticky-bar {
   position: sticky;
-  bottom: 0;
+  bottom: 16px;
   z-index: 20;
-  margin: 0 -24px;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid var(--line);
+  margin: 0;
+  padding: 14px 18px;
+  background: #111827;
+  color: #fff;
+  border-radius: 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+.dash .sticky-bar .small {
+  color: #d1d5db;
+}
+.dash .sticky-bar button.secondary,
+.dash .sticky-bar a.btn.secondary {
+  background: transparent;
+  color: #fff;
+  border-color: #4b5563;
+}
+.dash .sticky-bar a.btn.secondary:hover {
+  color: #fff;
+}
+.dash .sticky-bar button:not(.secondary):not(.danger) {
+  background: #3b6cf0;
 }
 
 /* Misc */
@@ -723,8 +739,8 @@ body:has(.dash) {
     grid-template-columns: 1fr;
   }
   .dash .sticky-bar {
-    margin: 0 -16px;
-    padding: 10px 16px;
+    bottom: 12px;
+    padding: 10px 14px;
   }
   .dash .card {
     padding: 14px;

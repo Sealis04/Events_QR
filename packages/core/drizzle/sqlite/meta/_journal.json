@@ -43,6 +43,13 @@
       "when": 1792658080078,
       "tag": "0005_holder_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793005145813,
+      "tag": "0006_m12_hub_checks",
+      "breakpoints": true
     }
   ]
 }

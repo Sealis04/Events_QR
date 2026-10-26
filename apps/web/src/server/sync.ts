@@ -58,6 +58,9 @@ export async function syncTickets(
     .where(and(...conditions))
     .orderBy(asc(tickets.updatedAt), asc(tickets.id))
     .limit(query.limit + 1);
+  // The hub setup page's "linked and pulling" check reads this.
+  if (device.kind === "hub")
+    await ctx.db.update(devices).set({ lastPullAt: ctx.now() }).where(eq(devices.id, device.id));
   const page = rows.slice(0, query.limit);
   const last = page[page.length - 1];
   return {

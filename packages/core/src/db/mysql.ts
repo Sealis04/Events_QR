@@ -22,6 +22,9 @@ import {
   DIRECTIONS,
   EMAIL_STATUSES,
   ENTRY_MODES,
+  HUB_CHECK_RESULTS,
+  HUB_CHECK_SOURCES,
+  HUB_CHECK_STEPS,
   NONCE_BYTES,
   SCAN_RESULTS,
   STAFF_ROLES,
@@ -169,6 +172,8 @@ export const devices = mysqlTable(
     batteryPct: smallint("battery_pct"),
     outboxSize: int("outbox_size"),
     reportedAt: unixCol("reported_at"),
+    /** Hubs only: when the hub last pulled tickets from `GET /api/sync/tickets`. */
+    lastPullAt: unixCol("last_pull_at"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
@@ -271,4 +276,37 @@ export const idempotencyKeys = mysqlTable(
     createdAt: unixCol("created_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.key] })],
+);
+
+/**
+ * Hub setup checklist results (M12). Append-only: the newest row per `(event_id, step)` is the
+ * current state, older rows are the record that the hub was tested. Rows made on the hub arrive
+ * through `POST /api/sync/hub-checks` with the id the hub chose, so a replay changes nothing.
+ */
+export const hubChecks = mysqlTable(
+  "hub_checks",
+  {
+    id: uuidCol("id").primaryKey(),
+    eventId: int("event_id")
+      .notNull()
+      .references(() => events.id),
+    /** The hub device row the check concerned, when one existed yet. */
+    deviceId: uuidCol("device_id"),
+    step: varchar("step", { length: 24 }).notNull(),
+    result: varchar("result", { length: 8 }).notNull(),
+    /** Machine-readable reason for a failure or warning (maps to the fix text). */
+    code: varchar("code", { length: 40 }),
+    summary: text("summary").notNull(),
+    details: json("details").$type<Record<string, string | number | boolean | null>>(),
+    checkedAt: unixCol("checked_at").notNull(),
+    checkedBy: uuidCol("checked_by"),
+    checkedByName: varchar("checked_by_name", { length: 255 }),
+    source: varchar("source", { length: 4 }).notNull(),
+  },
+  (t) => [
+    index("ix_hub_checks_event_step").on(t.eventId, t.step, t.checkedAt),
+    check("ck_hub_checks_step", sql`${t.step} IN (${sql.raw(sqlList(HUB_CHECK_STEPS))})`),
+    check("ck_hub_checks_result", sql`${t.result} IN (${sql.raw(sqlList(HUB_CHECK_RESULTS))})`),
+    check("ck_hub_checks_source", sql`${t.source} IN (${sql.raw(sqlList(HUB_CHECK_SOURCES))})`),
+  ],
 );

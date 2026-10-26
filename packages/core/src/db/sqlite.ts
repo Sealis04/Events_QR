@@ -15,6 +15,9 @@ import {
   DIRECTIONS,
   EMAIL_STATUSES,
   ENTRY_MODES,
+  HUB_CHECK_RESULTS,
+  HUB_CHECK_SOURCES,
+  HUB_CHECK_STEPS,
   SCAN_RESULTS,
   STAFF_ROLES,
   TICKET_STATUSES,
@@ -147,6 +150,7 @@ export const devices = sqliteTable(
     batteryPct: integer("battery_pct"),
     outboxSize: integer("outbox_size"),
     reportedAt: unixCol("reported_at"),
+    lastPullAt: unixCol("last_pull_at"),
   },
   (t) => [
     check("ck_devices_direction", sql`${t.direction} IN (${sql.raw(sqlList(DEVICE_DIRECTIONS))})`),
@@ -253,5 +257,40 @@ export const hubDeviceOutbox = sqliteTable("hub_device_outbox", {
   deviceId: text("device_id").primaryKey(),
   codeHash: text("code_hash").notNull(),
   usedAt: unixCol("used_at").notNull(),
+  ackedAt: unixCol("acked_at"),
+});
+
+/** Hub setup checklist results (M12); same shape as the MariaDB table, see db/mysql.ts. */
+export const hubChecks = sqliteTable(
+  "hub_checks",
+  {
+    id: text("id").primaryKey(),
+    eventId: integer("event_id")
+      .notNull()
+      .references(() => events.id),
+    deviceId: text("device_id"),
+    step: text("step").notNull(),
+    result: text("result").notNull(),
+    code: text("code"),
+    summary: text("summary").notNull(),
+    details: text("details", { mode: "json" }).$type<
+      Record<string, string | number | boolean | null>
+    >(),
+    checkedAt: unixCol("checked_at").notNull(),
+    checkedBy: text("checked_by"),
+    checkedByName: text("checked_by_name"),
+    source: text("source").notNull(),
+  },
+  (t) => [
+    index("ix_hub_checks_event_step").on(t.eventId, t.step, t.checkedAt),
+    check("ck_hub_checks_step", sql`${t.step} IN (${sql.raw(sqlList(HUB_CHECK_STEPS))})`),
+    check("ck_hub_checks_result", sql`${t.result} IN (${sql.raw(sqlList(HUB_CHECK_RESULTS))})`),
+    check("ck_hub_checks_source", sql`${t.source} IN (${sql.raw(sqlList(HUB_CHECK_SOURCES))})`),
+  ],
+);
+
+/** Hub checks made on the hub that the VM has not acknowledged yet. */
+export const hubCheckOutbox = sqliteTable("hub_check_outbox", {
+  checkId: text("check_id").primaryKey(),
   ackedAt: unixCol("acked_at"),
 });
