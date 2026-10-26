@@ -7,6 +7,8 @@ export interface Me {
   role: Role;
   pin_reset: "weak" | "rotate" | null;
   mode: "server" | "hub";
+  /** The server's own zone (VM only): the default for a new event. */
+  default_timezone?: string;
 }
 
 export interface TicketType {
@@ -40,6 +42,13 @@ export interface EventSummary {
   starts_at: number;
   ends_at: number;
   gates: string[];
+  timezone?: string | null;
+  ticket_type_count: number;
+  issued: number;
+  /** Total places, or null when some ticket type has no limit. */
+  capacity: number | null;
+  inside: number;
+  device_count: number;
 }
 
 export interface TicketRow {

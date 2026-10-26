@@ -69,10 +69,14 @@ function ChangePin({ me, onDone }: { me: Me; onDone: () => void }) {
 export function Shell({
   title,
   back,
+  actions,
   children,
 }: {
-  title: ReactNode;
+  /** Page heading; leave out when the page draws its own `<h1>`. */
+  title?: ReactNode;
   back?: { href: string; label: string };
+  /** Buttons shown in the title bar next to who is logged in. */
+  actions?: (me: Me) => ReactNode;
   children: (me: Me) => ReactNode;
 }) {
   const { me, error, reload } = useSession();
@@ -87,19 +91,20 @@ export function Shell({
       <div className="topbar">
         <div>
           {back && (
-            <a href={back.href} className="muted">
+            <a href={back.href} className="back">
               ← {back.label}
             </a>
           )}
-          <h1>{title}</h1>
+          {title && <h1>{title}</h1>}
         </div>
         <div className="row">
-          <span className={`pill ${me.mode === "hub" ? "warn" : ""}`} data-testid="server-mode">
+          <span className={`tag ${me.mode === "hub" ? "warn" : ""}`} data-testid="server-mode">
             {me.mode === "hub" ? "Hub" : "VM"}
           </span>
-          <span data-testid="who">
+          <span className="whoami" data-testid="who">
             {me.name} ({me.role})
           </span>
+          {actions?.(me)}
           <button className="secondary" onClick={logout}>
             Log out
           </button>

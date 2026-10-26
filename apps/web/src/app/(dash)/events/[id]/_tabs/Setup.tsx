@@ -1,15 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { EventForm } from "../../../../_components/EventForm";
 import { Notice } from "../../../../_components/Shell";
-import {
-  draftToInput,
-  emptyDraft,
-  TypeFields,
-  typeToDraft,
-  type TypeDraft,
-} from "../../../../_components/TypeFields";
-import { api, localFromUnix, unixFromLocal } from "../../../../_lib/client";
+import { api } from "../../../../_lib/client";
 import type { EventView } from "../../../../_lib/types";
 
 interface StaffRow {
@@ -23,13 +17,9 @@ interface StaffRow {
 
 const reason = { issued: "issued tickets", added: "added", removed: "removed", null: "" } as const;
 
-/** Admin only, VM only: event details, ticket types, and who works the event (whose PIN hashes go to phones). */
+/** Admin only, VM only: event details, gates and ticket types (saved together), and who works the event. */
 export function Setup({ event, onChanged }: { event: EventView; onChanged: () => void }) {
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string }>();
-  const [types, setTypes] = useState<TypeDraft[]>(() =>
-    event.ticket_types.map((t) => typeToDraft(t, event.gates.length)),
-  );
-  const [newGate, setNewGate] = useState("");
   const [staff, setStaff] = useState<StaffRow[]>([]);
 
   const loadStaff = useCallback(async () => {
@@ -40,67 +30,9 @@ export function Setup({ event, onChanged }: { event: EventView; onChanged: () =>
     }
   }, [event.id]);
   useEffect(() => void loadStaff(), [loadStaff]);
-  useEffect(
-    () => setTypes(event.ticket_types.map((t) => typeToDraft(t, event.gates.length))),
-    [event],
-  );
 
-  const done = async (text: string) => {
-    setMsg({ tone: "ok", text });
-    onChanged();
-  };
   const fail = (err: unknown) =>
     setMsg({ tone: "bad", text: err instanceof Error ? err.message : "failed" });
-
-  async function saveEvent(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    try {
-      await api(`/api/events/${event.id}`, {
-        method: "PATCH",
-        body: {
-          name: String(f.get("name")).trim(),
-          venue: String(f.get("venue")).trim() || null,
-          ends_at: unixFromLocal(String(f.get("ends"))),
-          offline_gate_only: f.get("gateOnly") === "on",
-        },
-      });
-      await done("Event saved.");
-    } catch (err) {
-      fail(err);
-    }
-  }
-
-  async function addGate() {
-    if (!newGate.trim()) return;
-    try {
-      await api(`/api/events/${event.id}`, {
-        method: "PATCH",
-        body: { gates: [...event.gates, newGate.trim()] },
-      });
-      setNewGate("");
-      await done("Gate added.");
-    } catch (err) {
-      fail(err);
-    }
-  }
-
-  async function saveType(draft: TypeDraft) {
-    const input = draftToInput(draft);
-    if (!input.ok) return setMsg({ tone: "bad", text: input.error });
-    try {
-      if (draft.idx === undefined)
-        await api(`/api/events/${event.id}/ticket-types`, { body: input.value });
-      else
-        await api(`/api/events/${event.id}/ticket-types/${draft.idx}`, {
-          method: "PATCH",
-          body: input.value,
-        });
-      await done(`${draft.name}: saved. It applies to tickets issued from now on.`);
-    } catch (err) {
-      fail(err);
-    }
-  }
 
   async function assign(s: StaffRow, assigned: boolean | null) {
     try {
@@ -138,80 +70,18 @@ export function Setup({ event, onChanged }: { event: EventView; onChanged: () =>
   return (
     <div>
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
-      <form className="card grid" onSubmit={saveEvent} aria-label="Event details">
-        <h3>Event</h3>
-        <div className="cols">
-          <label className="field">
-            Name
-            <input name="name" defaultValue={event.name} required aria-label="Event name" />
-          </label>
-          <label className="field">
-            Venue
-            <input name="venue" defaultValue={event.venue ?? ""} aria-label="Venue" />
-          </label>
-          <label className="field">
-            Ends
-            <input
-              name="ends"
-              type="datetime-local"
-              defaultValue={localFromUnix(event.ends_at)}
-              aria-label="Ends"
-            />
-          </label>
-        </div>
-        <p className="muted">
-          Doors-open time ({new Date(event.starts_at * 1000).toLocaleString()}) cannot change once
-          tickets exist: slot times are relative to it.
-        </p>
-        <label className="row">
-          <input name="gateOnly" type="checkbox" defaultChecked={event.offline_gate_only} /> Offline
-          phones admit only tickets whose signed gates include their gate
-        </label>
-        <div>
-          <button type="submit">Save event</button>
-        </div>
-      </form>
-
-      <div className="card">
-        <h3>Gates</h3>
-        <p>{event.gates.map((g, i) => `${i + 1}. ${g}`).join("   ")}</p>
-        <p className="muted">
-          The order is fixed once tickets exist; new gates are added at the end.
-        </p>
-        <div className="row">
-          <input
-            value={newGate}
-            onChange={(e) => setNewGate(e.target.value)}
-            placeholder="New gate"
-            aria-label="New gate"
-          />
-          <button className="secondary" onClick={addGate} disabled={event.gates.length >= 16}>
-            Add gate
-          </button>
-        </div>
-      </div>
-
-      <h3>Ticket types</h3>
-      {types.map((t, i) => (
-        <div key={t.idx ?? `new-${i}`}>
-          <TypeFields
-            draft={t}
-            gates={event.gates}
-            onChange={(next) => setTypes(types.map((x, j) => (j === i ? next : x)))}
-          />
-          <p>
-            <button onClick={() => saveType(t)}>
-              {t.idx === undefined ? "Add type" : `Save ${t.name || "type"}`}
-            </button>
-          </p>
-        </div>
-      ))}
-      <button
-        className="secondary"
-        onClick={() => setTypes([...types, emptyDraft(event.gates.length)])}
-      >
-        New ticket type
-      </button>
+      {/* Remounts after a save so the form starts from what the server now says. */}
+      <EventForm
+        key={JSON.stringify(event)}
+        event={event}
+        onSaved={() => {
+          setMsg({
+            tone: "ok",
+            text: "Saved. Changes to a ticket type apply to tickets issued from now on.",
+          });
+          onChanged();
+        }}
+      />
 
       <div className="card" style={{ marginTop: 14 }}>
         <h3>Staff on this event</h3>

@@ -3,7 +3,8 @@ import { api } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { HttpError } from "./http";
 import { loadEvent } from "./events";
-import { issueTickets, type Issuer } from "./tickets";
+import { issueTickets, ticketWhere, type Issuer } from "./tickets";
+import type { TicketFilter } from "./ticketQuery";
 import { mysqlSchema } from "@events-qr/core";
 import { asc, eq } from "drizzle-orm";
 import { randomToken } from "./secrets";
@@ -118,7 +119,11 @@ const csvCell = (v: string | number | null): string => {
 };
 
 /** `GET /api/events/{id}/tickets/export`: one row per ticket, in the columns the import reads plus status and use. */
-export async function exportTicketsCsv(ctx: AppContext, eventId: number): Promise<string> {
+export async function exportTicketsCsv(
+  ctx: AppContext,
+  eventId: number,
+  filter: TicketFilter = {},
+): Promise<string> {
   await loadEvent(ctx.db, eventId);
   const types = await ctx.db
     .select()
@@ -128,7 +133,7 @@ export async function exportTicketsCsv(ctx: AppContext, eventId: number): Promis
   const rows = await ctx.db
     .select()
     .from(mysqlSchema.tickets)
-    .where(eq(mysqlSchema.tickets.eventId, eventId))
+    .where(ticketWhere(eventId, filter))
     .orderBy(asc(mysqlSchema.tickets.issuedAt), asc(mysqlSchema.tickets.id));
   const lines = [
     [

@@ -17,8 +17,10 @@ import type { Db } from "./db";
 import { affectedRows, isDuplicate, toBuffer } from "./dbutil";
 import { badRequest, conflict, HttpError, notFound } from "./http";
 import {
+  eventConfig,
   eventDayZero,
   eventKeyOf,
+  eventTimezone,
   loadEvent,
   loadType,
   ruleColumns,
@@ -26,6 +28,7 @@ import {
   type TicketTypeRow,
 } from "./events";
 import { renderQr } from "./qr";
+import { searchTerms, type TicketFilter, type TicketListQuery } from "./ticketQuery";
 import { sha256Hex } from "./secrets";
 
 const { tickets, ticketTypes, emailQueue, idempotencyKeys } = mysqlSchema;
@@ -461,28 +464,58 @@ export async function resendTicket(ctx: AppContext, idHexValue: string, email?: 
   return { queued: true as const, email_queue_id: res.insertId };
 }
 
+/** WHERE for the ticket list and the CSV export: the event, search text, type, status and state. */
+export function ticketWhere(eventId: number, f: TicketFilter) {
+  const terms = searchTerms(f.q);
+  const search = terms
+    ? terms.hex
+      ? sql`AND (${tickets.holderName} LIKE ${terms.like} OR ${tickets.holderEmail} LIKE ${terms.like} OR ${tickets.holderPhone} LIKE ${terms.like} OR HEX(${tickets.id}) LIKE ${"%" + terms.hex})`
+      : sql`AND (${tickets.holderName} LIKE ${terms.like} OR ${tickets.holderEmail} LIKE ${terms.like} OR ${tickets.holderPhone} LIKE ${terms.like})`
+    : sql``;
+  const status = f.status ? sql`AND ${tickets.status} = ${f.status}` : sql``;
+  const type = f.type !== undefined ? sql`AND ${tickets.ticketType} = ${f.type}` : sql``;
+  const state =
+    f.state === "cancelled"
+      ? sql`AND ${tickets.status} = 'cancelled'`
+      : f.state === "inside"
+        ? sql`AND ${tickets.status} <> 'cancelled' AND ${tickets.inside} = 1`
+        : f.state === "left"
+          ? sql`AND ${tickets.status} <> 'cancelled' AND ${tickets.inside} = 0 AND ${tickets.admitsUsed} > 0`
+          : f.state === "not_in"
+            ? sql`AND ${tickets.status} <> 'cancelled' AND ${tickets.admitsUsed} = 0`
+            : sql``;
+  return sql`${tickets.eventId} = ${eventId} ${search} ${status} ${type} ${state}`;
+}
+
+/** ORDER BY for the list: a chosen column first, then issue order, so pages never overlap. */
+function ticketOrder(sort: TicketListQuery["sort"], dir: "asc" | "desc") {
+  const d = dir === "desc" ? sql`DESC` : sql`ASC`;
+  const key =
+    sort === "holder"
+      ? sql`${tickets.holderName}`
+      : sort === "type"
+        ? sql`${tickets.ticketType}`
+        : sort === "state"
+          ? sql`CASE WHEN ${tickets.status} = 'cancelled' THEN 3 WHEN ${tickets.inside} = 1 THEN 1 WHEN ${tickets.admitsUsed} > 0 THEN 2 ELSE 0 END`
+          : sql`${tickets.issuedAt}`;
+  return [sql`${key} ${d}`, sql`${tickets.issuedAt} ASC`, sql`${tickets.id} ASC`];
+}
+
 export async function listTickets(
   ctx: AppContext,
   eventId: number,
-  opts: { q?: string; status?: string; limit: number; offset: number },
+  opts: Omit<TicketListQuery, "sort" | "dir"> & {
+    sort?: TicketListQuery["sort"];
+    dir?: "asc" | "desc";
+  },
 ) {
   await loadEvent(ctx.db, eventId);
-  const q = opts.q?.trim();
-  const hex = (q ?? "").toUpperCase().replace(/[^0-9A-F]/g, "");
-  const like = "%" + (q ?? "").replace(/[%_\\]/g, "\\$&") + "%";
-  // Name or email always; the last characters of the ticket id when the text could be hex.
-  const search = q
-    ? hex.length === q.length && hex.length >= 4
-      ? sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like} OR HEX(${tickets.id}) LIKE ${"%" + hex})`
-      : sql`AND (${tickets.holderName} LIKE ${like} OR ${tickets.holderEmail} LIKE ${like} OR ${tickets.holderPhone} LIKE ${like})`
-    : sql``;
-  const status = opts.status ? sql`AND ${tickets.status} = ${opts.status}` : sql``;
-  const where = sql`${tickets.eventId} = ${eventId} ${search} ${status}`;
+  const where = ticketWhere(eventId, opts);
   const rows = await ctx.db
     .select()
     .from(tickets)
     .where(where)
-    .orderBy(tickets.issuedAt, tickets.id)
+    .orderBy(...ticketOrder(opts.sort ?? "issued", opts.dir ?? "asc"))
     .limit(opts.limit)
     .offset(opts.offset);
   const [{ total = 0 } = {}] = await ctx.db
@@ -517,6 +550,11 @@ export async function ticketDetail(ctx: AppContext, idHexValue: string) {
     ...issued,
     event_id: event.id,
     event_name: event.name,
+    venue: eventConfig(event).venue ?? null,
+    event_starts_at: event.startsAt,
+    event_timezone: eventTimezone(ctx, event),
+    /** Gates this ticket opens (all of them when the mask is 0), in the event's order. */
+    gate_names: event.gates.filter((_, i) => row.gateMask === 0 || ((row.gateMask >> i) & 1) === 1),
     type_name: type.name,
     status: row.status,
     holder_email: row.holderEmail,

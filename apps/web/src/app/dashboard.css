@@ -1,32 +1,26 @@
+/* Dashboard look (M11). Tokens come from plans/m11-ui-refresh/mockups/README.md.
+   Phones (360-430 px): nothing scrolls sideways and nothing shows a scrollbar; elements that must
+   scroll (tab strip, wide tables) scroll by touch with the bar hidden (.noscrollbar). */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f4f5f7;
   --card: #fff;
-  --ink: #1b1f24;
-  --muted: #5b6570;
-  --line: #d9dde3;
-  --accent: #2456d6;
-  --warn: #b45309;
-  --warn-bg: #fff4e0;
+  --ink: #111827;
+  --muted: #5b6472;
+  --line: #e3e6eb;
+  --line-strong: #cfd5de;
+  --accent: #2457d6;
+  --accent-ink: #1a3f9e;
+  --chip: #eef2fb;
+  --chip-ink: #1e3a8a;
+  --warn: #78350f;
+  --warn-bg: #fef3c7;
   --bad: #b42318;
   --bad-bg: #fdecea;
-  --ok: #1a7f37;
-  --ok-bg: #e7f6ec;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14171b;
-    --card: #1d2228;
-    --ink: #e8ebef;
-    --muted: #9aa5b1;
-    --line: #333b45;
-    --accent: #7aa2ff;
-    --warn: #f5b25c;
-    --warn-bg: #3a2c14;
-    --bad: #ff8a80;
-    --bad-bg: #3b1c19;
-    --ok: #6fd08c;
-    --ok-bg: #16301f;
-  }
+  --ok: #14532d;
+  --ok-bg: #dcfce7;
+  --info: #1e3a8a;
+  --info-bg: #e0e9ff;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 .dash,
 .dash * {
@@ -36,74 +30,80 @@ body:has(.dash) {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font:
-    15px/1.45 system-ui,
-    sans-serif;
+  font: 15px/1.45 var(--font);
+}
+.dash a {
+  color: var(--accent);
+}
+.dash a:hover {
+  color: var(--accent-ink);
 }
 .dash .page {
-  max-width: 1100px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 24px 24px 64px;
+  overflow-wrap: anywhere;
 }
 .dash .topbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 12px 16px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
 }
-.dash .topbar h1 {
-  font-size: 1.4rem;
+.dash h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0;
+}
+.dash h2 {
+  font-size: 18px;
+  font-weight: 650;
+  margin: 0 0 10px;
+}
+.dash h3 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0 0 8px;
 }
 .dash .muted {
   color: var(--muted);
 }
-.dash .card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
-  margin-bottom: 14px;
+.dash .small {
+  font-size: 13px;
 }
-.dash .card h2,
-.dash .card h3 {
-  margin-top: 0;
-}
-.dash .tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
-}
-.dash .tabs a,
-.dash .tabs span {
-  padding: 8px 12px;
-  border-radius: 6px 6px 0 0;
+.dash .back {
+  font-size: 14px;
   color: var(--muted);
   text-decoration: none;
 }
-.dash .tabs a[aria-current="page"] {
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-bottom-color: var(--card);
+.dash .whoami {
+  font-size: 14px;
+  color: #4b5563;
+}
+.dash .card {
   background: var(--card);
-  margin-bottom: -1px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
 }
-.dash .tabs .disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.dash .card > :last-child {
+  margin-bottom: 0;
 }
+
+/* Forms */
 .dash form.grid,
 .dash .grid {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 .dash .cols {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 .dash .row {
@@ -112,45 +112,282 @@ body:has(.dash) {
   gap: 8px;
   align-items: center;
 }
+.dash .grow {
+  flex: 1 1 auto;
+}
 .dash label.field {
   display: grid;
   gap: 4px;
-  font-size: 0.9rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+.dash .hint {
+  font-size: 13px;
+  font-weight: 400;
   color: var(--muted);
 }
-.dash input,
+.dash .field-error {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bad);
+}
+.dash input:not([type="checkbox"]):not([type="radio"]),
 .dash select,
-.dash textarea,
-.dash button {
+.dash textarea {
   font: inherit;
   color: var(--ink);
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 44px;
+  min-width: 0;
+  max-width: 100%;
 }
+.dash textarea {
+  height: auto;
+  padding: 10px 12px;
+}
+.dash input[aria-invalid="true"],
+.dash select[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+.dash input:focus-visible,
+.dash select:focus-visible,
+.dash textarea:focus-visible,
+.dash button:focus-visible,
+.dash a:focus-visible,
+.dash [tabindex]:focus-visible {
+  outline: 3px solid #9db6f2;
+  outline-offset: 1px;
+}
+.dash input[type="checkbox"],
+.dash input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+.dash label.check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 15px;
+  min-height: 44px;
+}
+
+/* Buttons: <button> and <a class="btn"> share one look. Default is primary. */
 .dash button,
 .dash a.btn {
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
   background: var(--accent);
   color: #fff;
-  border: 0;
   text-decoration: none;
-  display: inline-block;
+}
+.dash a.btn:hover {
+  color: #fff;
+}
+.dash button:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 .dash button.secondary,
 .dash a.btn.secondary {
   background: var(--card);
   color: var(--ink);
-  border: 1px solid var(--line);
+  border-color: var(--line-strong);
+}
+.dash a.btn.secondary:hover {
+  color: var(--ink);
 }
 .dash button.danger {
   background: var(--bad);
+}
+.dash button.danger.outline {
+  background: var(--card);
+  color: var(--bad);
+  border-color: var(--bad);
+}
+.dash button.ghost {
+  background: transparent;
+  color: var(--accent);
+  padding: 0 10px;
+}
+.dash button.small,
+.dash a.btn.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+.dash button.icon {
+  width: 44px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+.dash button.icon.small {
+  width: 36px;
 }
 .dash button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Chips: filter pills and toggle chips */
+.dash .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dash button.chip,
+.dash .tag-chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 500;
+}
+.dash button.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--chip);
+  color: var(--chip-ink);
+  font-weight: 600;
+}
+.dash .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chip);
+  color: var(--chip-ink);
+  border-color: transparent;
+  font-weight: 600;
+}
+.dash .tag-chip button {
+  min-height: 26px;
+  width: 26px;
+  padding: 0;
+  background: transparent;
+  color: var(--chip-ink);
+  border-radius: 999px;
+}
+
+/* Status tags */
+.dash .tag,
+.dash .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #eceff3;
+  color: #374151;
+  white-space: nowrap;
+}
+.dash .tag.ok,
+.dash .pill.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.dash .tag.info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+.dash .tag.warn,
+.dash .pill.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.dash .tag.bad,
+.dash .pill.bad {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+.dash .tag .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* Tab strip: one line, scrolls by touch with no bar */
+.dash .tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--line-strong);
+  margin-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dash .tabs::-webkit-scrollbar {
+  display: none;
+}
+.dash .tabs a,
+.dash .tabs span {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.dash .tabs a[aria-current="page"] {
+  color: var(--accent);
+  font-weight: 650;
+  border-bottom-color: var(--accent);
+}
+.dash .tabs .disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dash .badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Any element that must scroll on a phone hides its bar */
+.dash .noscrollbar,
+.dash .table-wrap {
+  scrollbar-width: none;
+}
+.dash .noscrollbar::-webkit-scrollbar,
+.dash .table-wrap::-webkit-scrollbar {
+  display: none;
+}
+.dash .table-wrap {
+  overflow-x: auto;
+}
+
+/* Tables */
 .dash table {
   width: 100%;
   border-collapse: collapse;
@@ -158,18 +395,27 @@ body:has(.dash) {
 .dash th,
 .dash td {
   text-align: left;
-  padding: 6px 8px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: middle;
 }
 .dash th {
-  font-size: 0.8rem;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--muted);
+  white-space: nowrap;
 }
-.dash .table-wrap {
-  overflow-x: auto;
+.dash th button.sort {
+  all: unset;
+  cursor: pointer;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+.dash th button.sort:focus-visible {
+  outline: 3px solid #9db6f2;
 }
 .dash tr.hot td {
   background: var(--warn-bg);
@@ -177,47 +423,86 @@ body:has(.dash) {
 .dash tr.bad td {
   background: var(--bad-bg);
 }
-.dash .pill {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid var(--line);
+.dash .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
-.dash .pill.ok {
-  color: var(--ok);
-  background: var(--ok-bg);
-}
-.dash .pill.warn {
-  color: var(--warn);
-  background: var(--warn-bg);
-}
-.dash .pill.bad {
-  color: var(--bad);
-  background: var(--bad-bg);
-}
+
+/* Notices */
 .dash .notice {
-  padding: 10px 12px;
-  border-radius: 6px;
-  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
   border: 1px solid var(--line);
+  background: var(--card);
 }
 .dash .notice.warn {
   background: var(--warn-bg);
   color: var(--warn);
+  border-color: #f5d98a;
 }
 .dash .notice.bad {
   background: var(--bad-bg);
   color: var(--bad);
+  border-color: #f3b9b3;
 }
 .dash .notice.ok {
   background: var(--ok-bg);
   color: var(--ok);
+  border-color: #a7e3b8;
+}
+.dash .empty {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--muted);
+}
+.dash .empty strong {
+  display: block;
+  color: var(--ink);
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+/* Stats */
+.dash .tiles {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin-bottom: 16px;
+}
+.dash .tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.dash .tile .label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.dash .tile.alert {
+  border-color: #f5d98a;
+  background: var(--warn-bg);
 }
 .dash .stat {
-  font-size: 2rem;
-  font-weight: 650;
+  font-size: 32px;
+  font-weight: 700;
   line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.dash .track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e8ecf3;
+  overflow: hidden;
+}
+.dash .track > div {
+  height: 8px;
+  background: var(--accent);
 }
 .dash .bar {
   height: 10px;
@@ -225,6 +510,102 @@ body:has(.dash) {
   border-radius: 5px;
   min-width: 2px;
 }
+
+/* Menus (the ⋯ buttons) */
+.dash .menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+.dash .menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.16);
+  padding: 6px;
+  display: grid;
+}
+.dash .menu button {
+  justify-content: flex-start;
+  min-height: 40px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+}
+.dash .menu button:hover:not(:disabled) {
+  background: #f1f3f7;
+  filter: none;
+}
+.dash .menu button.danger {
+  color: var(--bad);
+  background: transparent;
+}
+.dash .menu .reason {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 12px 6px;
+  margin-top: -6px;
+}
+
+/* Dialogs */
+.dash .dlg-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.dash .dlg {
+  background: var(--card);
+  border-radius: 16px;
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+.dash .dlg::-webkit-scrollbar {
+  display: none;
+}
+.dash .dlg h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.dash .dlg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Sticky action bar */
+.dash .sticky-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin: 0 -24px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Misc */
 .dash .qr-grid {
   display: flex;
   flex-wrap: wrap;
@@ -237,22 +618,23 @@ body:has(.dash) {
 .dash .qr-grid img {
   background: #fff;
   display: block;
+  max-width: 100%;
 }
 .dash .versus {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: 1fr 1fr;
 }
 .dash .versus > div {
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 10px;
 }
 .dash dl.kv {
   margin: 0;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 10px;
+  gap: 2px 12px;
 }
 .dash dl.kv dt {
   color: var(--muted);
@@ -262,27 +644,51 @@ body:has(.dash) {
 }
 .dash code {
   font-family: ui-monospace, monospace;
+  font-size: 0.92em;
 }
-/* The print page: one ticket per block, nothing else. */
-.dash .print-sheet {
+.dash details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  align-items: center;
+}
+.dash .login-card {
+  max-width: 400px;
+  margin: 8vh auto 0;
+}
+.dash .keypad-input {
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-size: 20px;
+}
+
+/* The print page: several tickets per A4 page */
+.dash .print-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10mm;
 }
 .dash .print-ticket {
-  width: 300px;
   text-align: center;
   break-inside: avoid;
-  border: 1px dashed var(--line);
-  padding: 12px;
+  border: 1px dashed #9aa3af;
+  border-radius: 8px;
+  padding: 8mm 6mm;
+  display: grid;
+  gap: 2mm;
+  justify-items: center;
 }
 .dash .print-ticket img {
-  width: 260px;
-  height: 260px;
+  width: 52mm;
+  height: 52mm;
   background: #fff;
 }
 .dash .print-ticket .name {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+.dash .print-ticket .event {
   font-weight: 650;
 }
 @media print {
@@ -300,9 +706,212 @@ body:has(.dash) {
   .dash .print-ticket {
     border: 1px solid #999;
   }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
 }
+
 @media (max-width: 640px) {
+  .dash .page {
+    padding: 16px 16px 64px;
+  }
+  .dash h1 {
+    font-size: 24px;
+  }
   .dash .versus {
     grid-template-columns: 1fr;
   }
+  .dash .sticky-bar {
+    margin: 0 -16px;
+    padding: 10px 16px;
+  }
+  .dash .card {
+    padding: 14px;
+  }
+  .dash .hide-phone {
+    display: none !important;
+  }
+  .dash .dlg-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .dash .dlg {
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-height: 92dvh;
+  }
+}
+@media (min-width: 641px) {
+  .dash .show-phone {
+    display: none !important;
+  }
+}
+
+/* D1: events list cards, helpers */
+.dash .between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.dash .event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.dash a.event-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.dash a.event-card:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.dash .event-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash .event-title .name {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+/* D1: ticket type cards and editor, gate tags, numbered cards */
+.dash .type-card {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.dash .type-card:hover {
+  border-color: var(--line-strong);
+}
+.dash .type-card:focus-visible {
+  outline: 3px solid #9db6f2;
+}
+.dash .type-card .name {
+  font-weight: 650;
+  font-size: 16px;
+}
+.dash .edit-link {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+}
+.dash .type-editor {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: var(--card);
+}
+.dash .preview {
+  background: var(--chip);
+  color: var(--chip-ink);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+.dash .step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.dash .step h2 {
+  margin: 0;
+}
+.dash .step .n {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.dash .gate-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.dash .gate-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--card);
+  font-weight: 500;
+  cursor: grab;
+}
+.dash .gate-tag.dragging {
+  opacity: 0.4;
+}
+.dash .gate-tag.locked {
+  cursor: default;
+  background: #f1f3f7;
+}
+.dash .gate-tag button {
+  min-height: 30px;
+  width: 30px;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+}
+.dash .gate-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* D2: ticket cards on phones */
+.dash .ticket-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+.dash .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* D1: event page header */
+.dash .event-head {
+  margin-bottom: 14px;
+}
+.dash .event-head p {
+  margin: 4px 0 0;
 }

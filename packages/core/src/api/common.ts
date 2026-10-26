@@ -66,7 +66,13 @@ export type ScanRecord = z.infer<typeof scanRecord>;
 /** `(received_at, id)` cursor over scans, encoded `<received_at>:<scan uuid>`. */
 export const scanCursor = z.string().regex(/^\d+:[0-9a-f-]{36}$/);
 
-export const firstScan = z.object({ gate: gateName, at: unixSeconds, device: uuid.nullable() });
+export const firstScan = z.object({
+  gate: gateName,
+  at: unixSeconds,
+  device: uuid.nullable(),
+  /** The phone's label, so "already used" can say which phone without showing an id. */
+  device_label: z.string().optional(),
+});
 
 /** What a scanner needs to know about a ticket type besides what is signed into the QR. */
 export const scannerTicketType = z.object({
@@ -78,6 +84,8 @@ export const scannerTicketType = z.object({
 
 export const keyBundle = z.object({
   event_id: z.number().int(),
+  /** Shown in the gate phone's header. */
+  event_name: z.string().optional(),
   /** Base64 of the 32-byte AES-256 event key. */
   event_key: z.string().min(1),
   /** Ed25519 public keys by key_id; value is base64. */

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Events</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f4f5f7}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+button{font:inherit}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; font-size: 15px; line-height: 1.45">
+<div style="max-width: 1040px; margin: 0 auto; padding: 28px 24px 48px; display: flex; flex-direction: column; gap: 22px">
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px">
+<h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em">Events</h1>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<span style="font-size: 14px; color: #4b5563">Alex Admin · admin</span>
+<a href="#" style="display: inline-flex; align-items: center; height: 44px; padding: 0 18px; background: #2457d6; color: #ffffff; border-radius: 10px; font-weight: 600; text-decoration: none">+ New event</a>
+</div>
+</div>
+
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button style="height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid #2457d6; background: #eef2fb; color: #1e3a8a; font-weight: 600">Upcoming and live</button>
+<button style="height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid #cfd5de; background: #ffffff; color: #111827">Ended</button>
+<button style="height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid #cfd5de; background: #ffffff; color: #111827">All</button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px">
+
+<a href="#" style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: #111827">
+<div style="display: flex; justify-content: space-between; align-items: center"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #dcfce7; color: #14532d; font-size: 12px; font-weight: 700"><span style="width: 7px; height: 7px; border-radius: 999px; background: #16a34a"></span>LIVE</span><span style="font-size: 13px; color: #5b6472">ends Sun 23:00</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 650">Intramuros Night Market</span><span style="font-size: 14px; color: #5b6472">Plaza de Roma · Fri 6 – Sun 8 Nov</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 8px; border-radius: 999px; background: #e8ecf3; overflow: hidden"><div style="width: 41%; height: 8px; background: #2457d6"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #374151"><span><strong>412</strong> inside of 1,000</span><span>3 gates · 9 phones</span></div>
+</div>
+</a>
+
+<a href="#" style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: #111827">
+<div style="display: flex; justify-content: space-between; align-items: center"><span style="padding: 3px 10px; border-radius: 999px; background: #e0e9ff; color: #1e3a8a; font-size: 12px; font-weight: 700">IN 7 DAYS</span><span style="font-size: 13px; color: #5b6472">doors Sat 18:00</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 650">Fort Santiago Concert</span><span style="font-size: 14px; color: #5b6472">Baluarte de San Diego · Sat 14 Nov</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 8px; border-radius: 999px; background: #e8ecf3; overflow: hidden"><div style="width: 72%; height: 8px; background: #7c93c9"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #374151"><span><strong>3,600</strong> of 5,000 tickets issued</span><span>2 gates</span></div>
+</div>
+</a>
+
+<a href="#" style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: #111827">
+<div style="display: flex; justify-content: space-between; align-items: center"><span style="padding: 3px 10px; border-radius: 999px; background: #fef3c7; color: #78350f; font-size: 12px; font-weight: 700">SETUP NOT FINISHED</span><span style="font-size: 13px; color: #5b6472">no tickets yet</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 650">Heritage Walk</span><span style="font-size: 14px; color: #5b6472">Casa Manila · Sat 21 Nov</span></div>
+<div style="font-size: 13px; color: #374151">Next: add ticket types</div>
+</a>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

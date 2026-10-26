@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live stats</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f4f5f7}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+button{font:inherit}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; font-size: 15px; line-height: 1.45">
+<div style="max-width: 1120px; margin: 0 auto; padding: 24px 24px 48px; display: flex; flex-direction: column; gap: 18px">
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Intramuros Night Market</h1>
+<div style="font-size: 14px; color: #5b6472">Live · updated 3 s ago</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: #fff7e6; border: 1px solid #f5d38a; color: #6b4500; font-size: 14px">Hub has no internet since 19:02 · scans still work, VM catches up later</div>
+</div>
+
+<nav style="display: flex; gap: 4px; border-bottom: 1px solid #dfe3e9; overflow-x: auto">
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Tickets</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #111827; font-weight: 650; border-bottom: 3px solid #2457d6">Live</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Devices</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Conflicts</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563">Attendees</a>
+</nav>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px">
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; color: #4b5563; font-weight: 600">Inside now</span>
+<span style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em">412 <span style="font-size: 16px; color: #5b6472; font-weight: 500">of 1,000</span></span>
+<div style="height: 8px; border-radius: 999px; background: #e8ecf3; overflow: hidden"><div style="width: 41%; height: 8px; background: #2457d6"></div></div>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #4b5563; font-weight: 600">Entered today</span>
+<span style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em">450</span>
+<span style="font-size: 14px; color: #5b6472">38 have left</span>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #4b5563; font-weight: 600">Scans per minute</span>
+<span style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em">23</span>
+<span style="font-size: 14px; color: #5b6472">busiest so far: 41 at 18:10</span>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #4b5563; font-weight: 600">Needs a look</span>
+<span style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em; color: #b42318">2</span>
+<a href="#" style="font-size: 14px">Conflicts to review →</a>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px">
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 650">By gate</h2>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>Main entrance</span><span><strong>301</strong> in</span></div><div style="height: 8px; border-radius: 999px; background: #e8ecf3"><div style="width: 67%; height: 8px; border-radius: 999px; background: #2457d6"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>North gate</span><span><strong>112</strong> in</span></div><div style="height: 8px; border-radius: 999px; background: #e8ecf3"><div style="width: 25%; height: 8px; border-radius: 999px; background: #2457d6"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>VIP lane</span><span><strong>37</strong> in</span></div><div style="height: 8px; border-radius: 999px; background: #e8ecf3"><div style="width: 8%; height: 8px; border-radius: 999px; background: #2457d6"></div></div></div>
+</div>
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 650">By ticket type</h2>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>General admission</span><span><strong>380</strong> of 800 · 48%</span></div><div style="height: 8px; border-radius: 999px; background: #e8ecf3"><div style="width: 48%; height: 8px; border-radius: 999px; background: #c2410c"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>VIP</span><span><strong>70</strong> of 200 · 35%</span></div><div style="height: 8px; border-radius: 999px; background: #e8ecf3"><div style="width: 35%; height: 8px; border-radius: 999px; background: #c2410c"></div></div></div>
+</div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="margin: 0; font-size: 16px; font-weight: 650">Entries per minute, last hour</h2><span style="font-size: 13px; color: #5b6472">18:00 → 19:00</span></div>
+<div style="height: 120px; display: flex; align-items: flex-end; gap: 4px">
+<div style="flex: 1; height: 20%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 35%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 62%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 100%; background: #2457d6; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 84%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 70%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 66%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 58%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 61%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 50%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 47%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div><div style="flex: 1; height: 56%; background: #c7d4f5; border-radius: 3px 3px 0 0"></div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

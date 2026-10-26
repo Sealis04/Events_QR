@@ -130,7 +130,7 @@ then open `http://localhost:8025` while the SSH session is open.
 
 (If you would rather have it at an address, add an NPM proxy host `mail-test.example.org` → `127.0.0.1:8025` **with an Access List** (Access Lists → Add, with a username and password) and a Cloudflare record. Never publish it without the access list: the inbox shows every test ticket.)
 
-**Check:** generate a ticket for any email address in the test dashboard (event → **QR generator**, fill an email, **Generate**). Within about 10 seconds it appears in Mailpit, with the subject starting `[TEST]` and the QR in the message.
+**Check:** generate a ticket for any email address in the test dashboard (event → **Issue tickets**, fill an email, **Generate**). Within about 10 seconds it appears in Mailpit, with the subject starting `[TEST]` and the QR in the message.
 **If it fails:** nothing in Mailpit: `docker compose --env-file .env.test -f docker/compose.test.yml logs worker`. `MAIL_TRANSPORT=smtp needs SMTP_HOST and MAIL_FROM` means `MAIL_FROM` is empty in `.env.test`.
 
 ### 1.8 A test hub (optional)

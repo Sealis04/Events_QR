@@ -8,7 +8,7 @@ import { decryptEventKey, encryptEventKey, b64 } from "./secrets";
 import { offlineGateOnly } from "./settings";
 import { isValidTimezone, localDayZero } from "./time";
 
-const { events, ticketTypes, tickets } = mysqlSchema;
+const { events, ticketTypes, tickets, devices } = mysqlSchema;
 
 export type EventRow = typeof events.$inferSelect;
 export type TicketTypeRow = typeof ticketTypes.$inferSelect;
@@ -169,16 +169,47 @@ export async function getEventView(ctx: AppContext, eventId: number) {
   return eventView(ctx, event, types);
 }
 
+/** The events list with what its cards show: types, issued vs capacity, who is inside, how many phones. */
 export async function listEvents(ctx: AppContext) {
   const rows = await ctx.db.select().from(events).orderBy(desc(events.startsAt)).limit(500);
-  return rows.map((e) => ({
-    id: e.id,
-    name: e.name,
-    venue: eventConfig(e).venue ?? null,
-    starts_at: e.startsAt,
-    ends_at: e.endsAt,
-    gates: e.gates,
-  }));
+  const typeRows = await ctx.db
+    .select({
+      eventId: ticketTypes.eventId,
+      types: sql<number>`COUNT(*)`,
+      issued: sql<number>`COALESCE(SUM(${ticketTypes.issued}), 0)`,
+      capacity: sql<number>`COALESCE(SUM(${ticketTypes.capacity}), 0)`,
+      unlimited: sql<number>`COALESCE(SUM(${ticketTypes.capacity} IS NULL), 0)`,
+    })
+    .from(ticketTypes)
+    .groupBy(ticketTypes.eventId);
+  const insideRows = await ctx.db
+    .select({ eventId: tickets.eventId, n: sql<number>`COUNT(*)` })
+    .from(tickets)
+    .where(eq(tickets.inside, true))
+    .groupBy(tickets.eventId);
+  const deviceRows = await ctx.db
+    .select({ eventId: devices.eventId, n: sql<number>`COUNT(*)` })
+    .from(devices)
+    .where(and(eq(devices.revoked, false), eq(devices.kind, "scanner")))
+    .groupBy(devices.eventId);
+  return rows.map((e) => {
+    const t = typeRows.find((r) => r.eventId === e.id);
+    return {
+      id: e.id,
+      name: e.name,
+      venue: eventConfig(e).venue ?? null,
+      timezone: eventTimezone(ctx, e),
+      starts_at: e.startsAt,
+      ends_at: e.endsAt,
+      gates: e.gates,
+      ticket_type_count: Number(t?.types ?? 0),
+      issued: Number(t?.issued ?? 0),
+      // null when any type has no limit: there is no total to show a bar against.
+      capacity: t && Number(t.unlimited) === 0 && Number(t.types) > 0 ? Number(t.capacity) : null,
+      inside: Number(insideRows.find((r) => r.eventId === e.id)?.n ?? 0),
+      device_count: Number(deviceRows.find((r) => r.eventId === e.id)?.n ?? 0),
+    };
+  });
 }
 
 async function hasTickets(db: Db | Tx, eventId: number): Promise<boolean> {
@@ -336,6 +367,7 @@ export function keyBundle(
 ): z.infer<typeof api.keyBundle> {
   return {
     event_id: event.id,
+    event_name: event.name,
     event_key: b64(eventKeyOf(ctx, event)),
     public_keys: Object.fromEntries(
       [...ctx.signer.publicKeys()].map(([id, key]) => [String(id), b64(key)]),

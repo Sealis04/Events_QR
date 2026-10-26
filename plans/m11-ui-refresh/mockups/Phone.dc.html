@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New event on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+input,select,button{font:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 1500px; box-sizing: border-box; overflow: hidden; font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; font-size: 15px; line-height: 1.45; position: relative">
+<div style="padding: 20px 16px 110px; display: flex; flex-direction: column; gap: 16px">
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="#" style="font-size: 14px; text-decoration: none">← Events</a>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em">New event</h1>
+</div>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 26px; height: 26px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">1</span>
+<h2 style="margin: 0; font-size: 17px; font-weight: 650">Event details</h2>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Event name<input value="Intramuros Night Market" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Venue<input value="Plaza de Roma" style="height: 44px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827"></label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Doors open<input value="6 Nov · 18:00" style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827; min-width: 0"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151">Ends<input value="8 Nov · 23:00" style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; font-weight: 400; color: #111827; min-width: 0"></label>
+</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 26px; height: 26px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">2</span>
+<h2 style="margin: 0; font-size: 17px; font-weight: 650">Gates</h2>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 6px 0 12px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="flex: 1; font-weight: 600">Main entrance</span>
+<button aria-label="Remove Main entrance" style="width: 40px; height: 40px; border: 0; background: transparent; color: #5b6472">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 6px 0 12px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="flex: 1; font-weight: 600">North gate</span>
+<button aria-label="Remove North gate" style="width: 40px; height: 40px; border: 0; background: transparent; color: #5b6472">✕</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 6px 0 12px; border: 1px solid #cfd5de; border-radius: 10px; background: #fafbfc">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#8a93a3"><circle cx="4" cy="3" r="1.3"></circle><circle cx="10" cy="3" r="1.3"></circle><circle cx="4" cy="7" r="1.3"></circle><circle cx="10" cy="7" r="1.3"></circle><circle cx="4" cy="11" r="1.3"></circle><circle cx="10" cy="11" r="1.3"></circle></svg>
+<span style="flex: 1; font-weight: 600">VIP lane</span>
+<button aria-label="Remove VIP lane" style="width: 40px; height: 40px; border: 0; background: transparent; color: #5b6472">✕</button>
+</div>
+<div style="display: flex; gap: 8px">
+<label for="pgate" style="position: absolute; width: 1px; height: 1px; overflow: hidden">New gate name</label>
+<input id="pgate" placeholder="Add a gate" style="flex: 1; min-width: 0; height: 48px; padding: 0 12px; border: 1px dashed #b7c0cc; border-radius: 10px">
+<button style="height: 48px; padding: 0 16px; border: 1px solid #2457d6; background: #ffffff; color: #2457d6; border-radius: 10px; font-weight: 600">Add</button>
+</div>
+</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 26px; height: 26px; border-radius: 999px; background: #2457d6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">3</span>
+<h2 style="margin: 0; font-size: 17px; font-weight: 650">Ticket types</h2>
+</div>
+
+<button style="text-align: left; border: 1px solid #e3e6eb; border-radius: 12px; padding: 14px; background: #ffffff; display: flex; flex-direction: column; gap: 8px; color: #111827">
+<span style="display: flex; justify-content: space-between; width: 100%"><span style="font-weight: 650; font-size: 16px">General admission</span><span style="color: #2457d6; font-weight: 600; font-size: 14px">Edit</span></span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px">
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">Once</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">All gates</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">800 places</span>
+</span>
+</button>
+
+<button style="text-align: left; border: 1px solid #e3e6eb; border-radius: 12px; padding: 14px; background: #ffffff; display: flex; flex-direction: column; gap: 8px; color: #111827">
+<span style="display: flex; justify-content: space-between; width: 100%"><span style="font-weight: 650; font-size: 16px">VIP</span><span style="color: #2457d6; font-weight: 600; font-size: 14px">Edit</span></span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px">
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">Once</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">Main entrance, VIP lane</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">200 places</span>
+<span style="padding: 3px 10px; border-radius: 999px; background: #eef2fb; color: #1e3a8a">Fri 17:45–23:00</span>
+</span>
+</button>
+
+<button style="height: 48px; border: 1px dashed #9aa5b5; background: #ffffff; border-radius: 10px; color: #111827; font-weight: 600">+ Add ticket type</button>
+</section>
+</div>
+
+<div style="position: absolute; left: 12px; right: 12px; bottom: 16px; background: #111827; color: #ffffff; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<span style="font-size: 13px; color: #d1d5db">3 gates · 2 types · 1,000</span>
+<button style="height: 44px; padding: 0 18px; border: 0; background: #3b6cf0; color: #ffffff; border-radius: 10px; font-weight: 600">Create event</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

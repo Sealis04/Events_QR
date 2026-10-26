@@ -299,7 +299,7 @@ Put your own mailbox in `GMAIL_SENDER`. (The compose file mounts the key at `/se
 
 ### 3.4 Send a test email
 
-In the dashboard: create the event of step 5.1 first if there is none (a ticket needs an event), open it → **QR generator**, make one ticket with **your own address** in the Email box and press **Generate**. You should see "Email queued to …".
+In the dashboard: create the event of step 5.1 first if there is none (a ticket needs an event), open it → **Issue tickets**, make one ticket with **your own address** in the Email box and press **Generate**. You should see "Email queued to …".
 
 **Check:** within a minute your mailbox has the ticket email, and
 
@@ -401,17 +401,35 @@ echo | openssl s_client -connect hub.example.org:443 -servername hub.example.org
 
 ### 4.6 Make `hub.<domain>` resolve with no internet
 
-Public DNS is not reachable when the uplink is down, and some routers refuse to hand out private addresses from public DNS ("DNS rebinding protection"). The venue network must answer the name itself. Pick one:
+Public DNS is not reachable when the uplink is down, and some routers refuse to hand out private addresses from public DNS ("DNS rebinding protection"). The venue network must answer the name itself. This works with any router, because it only needs two router settings: a fixed address for the hub and the DNS server that DHCP hands out. (If your router can store its own name overrides, see "Alternative" at the end of this step.)
 
-- **On the router** (OpenWrt: Network → DHCP and DNS → Hostnames, or an `address=/hub.example.org/192.168.50.10` line in dnsmasq; pfSense/OPNsense: Host Overrides; UniFi: Local DNS Records): `hub.example.org` → `192.168.50.10`.
-- **Or dnsmasq on the hub**, if the router cannot. On the hub:
-  ```bash
-  HUB_DOMAIN=hub.example.org HUB_LAN_IP=192.168.50.10 docker compose -f docker/compose.hub.yml --profile dns up -d dns
-  ```
-  and set the router's DHCP to hand out `192.168.50.10` as the **only** DNS server. Everything but the hub's name is forwarded to `1.1.1.1` while the internet is up.
+**a. Give the hub a fixed address.** In the router, reserve one address for the hub's network card (a DHCP reservation, by MAC address). TP-Link Archer: **Advanced → Network → DHCP Server → Address Reservation → Add**, pick the hub from the list (or type its MAC), enter `192.168.50.10`, save. Other routers call it "static lease" or "address reservation". Use the same address as the `A` record in step 4.4. Reconnect the hub (or reboot it) so it takes the address; `ip -4 addr` on the hub shows it.
 
-**Check:** with a phone on the venue Wi-Fi **and the uplink cable unplugged**, open `https://hub.example.org/api/health`. It shows the JSON with `"mode":"hub"` and a padlock. From a laptop: `nslookup hub.example.org <router address>` returns `192.168.50.10`.
-**If it fails:** the phone may use "Private DNS"/secure DNS or a VPN that bypasses the router (turn it off for this Wi-Fi); a router that keeps handing out a public DNS server needs its DHCP DNS setting changed; access points with "client isolation" on stop phones reaching the hub (turn it off).
+**b. Start the hub's DNS service.** On Ubuntu, port 53 is normally taken by `systemd-resolved`, so free it first (step d), then on the hub:
+
+```bash
+HUB_DOMAIN=hub.example.org HUB_LAN_IP=192.168.50.10 HUB_DNS_BIND=192.168.50.10 \
+  docker compose --env-file .env -f docker/compose.hub.yml --profile dns up -d dns
+```
+
+It answers `hub.example.org` with `192.168.50.10` and forwards every other name to `1.1.1.1` while the internet is up. Put the three values in `.env` instead if you prefer; they are listed in `.env.demo`. `HUB_DNS_BIND` makes dnsmasq listen on the LAN address only, which also avoids a clash with `systemd-resolved` on `127.0.0.53`.
+
+**c. Tell the router to hand out the hub as the DNS server.** TP-Link Archer: **Advanced → Network → DHCP Server → Primary DNS** = `192.168.50.10`, and **leave Secondary DNS empty**. A phone that is given a second (public) DNS server may use it, and when it answers `hub.example.org` with the wrong address or not at all (rebinding protection, no internet), scanning breaks in a way that is hard to trace. Other routers: the same setting is called "DHCP DNS server" or "DNS server handed to clients"; use only the hub's address. Do not set the router's own WAN DNS to the hub.
+
+**d. Ubuntu: free port 53 first.** If `docker compose` reports `address already in use` for port 53, `systemd-resolved`'s stub listener has it. Either rely on `HUB_DNS_BIND=192.168.50.10` (dnsmasq then takes only the LAN address and the stub keeps `127.0.0.53`), or switch the stub off:
+
+```bash
+sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf   # add the line if the file has none
+sudo systemctl restart systemd-resolved
+sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf   # a real resolver list, not 127.0.0.53
+```
+
+**e. When the hub is off.** Phones on the venue Wi-Fi then have no DNS server at all: names do not resolve. Scanning falls back to the VM only if the internet works **and** the phone has another DNS path (mobile data); otherwise phones are offline-only until the hub is back. Keep the hub on a UPS and test by switching it off once before the event.
+
+**Check:** from a laptop on the venue Wi-Fi, `nslookup hub.example.org` shows `Server: 192.168.50.10` and the answer `192.168.50.10`. Then, with a phone on the venue Wi-Fi **and the uplink cable unplugged**, open `https://hub.example.org/api/health`: the JSON with `"mode":"hub"` and a padlock.
+**If it fails:** the phone may use "Private DNS"/secure DNS or a VPN that bypasses the router (turn it off for this Wi-Fi); phones that were already connected keep the old DNS server until the lease renews (switch Wi-Fi off and on); access points with "client isolation" on stop phones reaching the hub (turn it off); see the troubleshooting table for port 53.
+
+**Alternative: router override.** If the router can answer a name itself, you can skip b–d (OpenWrt: Network → DHCP and DNS → Hostnames, or an `address=/hub.example.org/192.168.50.10` line in dnsmasq; pfSense/OPNsense: Host Overrides; UniFi: Local DNS Records; Omada: DNS Proxy / local DNS records): `hub.example.org` → `192.168.50.10`. Still do step a, and keep the hub on a UPS.
 
 ### 4.7 Standby hub
 
@@ -442,7 +460,7 @@ Open the event → **Setup** → **Staff on this event**. Everyone who will scan
 
 ### 5.3 Make a test ticket
 
-Event → **QR generator** → pick a **Ticket type**, type a **Holder name** (for example "Test Person"), put your own address in **Email**, press **Generate**.
+Event → **Issue tickets** → pick a **Ticket type**, type a **Holder name** (for example "Test Person"), put your own address in **Email**, press **Generate**.
 
 **Check:** "Ticket ready" shows a QR code, and "Email queued to …" (the email arrives within a few minutes).
 **If it fails:** no "Email queued" means the Email box was empty or the worker is down (step 3.3); the QR still works.
@@ -517,7 +535,7 @@ Do it between events, never on the day, and with each phone showing **0 queued**
 | `SESSION_SECRET`         | Edit `.env`, then `docker compose --env-file .env -f docker/compose.vm.yml up -d --force-recreate app worker`. Everyone is logged out once.                                                                                                                                                                                                                                     |
 | Database passwords       | `.env` only sets them when MariaDB first creates its volume. To change: `docker compose ... exec mariadb sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "ALTER USER \"events_qr\"@\"%\" IDENTIFIED BY \"<new>\"; ALTER USER root@\"%\" IDENTIFIED BY \"<new root>\"; ALTER USER root@localhost IDENTIFIED BY \"<new root>\"; FLUSH PRIVILEGES"'`, then edit `.env` to match and recreate the app and worker. |
 | A hub's credential       | Wipe the hub (`docker compose -f docker/compose.hub.yml down -v`), revoke its old credential on the VM (`docs/deploy-hub.md` section 8), make a new setup code (step 4.2) and enrol again (step 4.3).                                                                                                                                                                          |
-| A lost phone             | Event → **Devices** → **Revoke and rotate**. Everyone tied to the event chooses a new PIN at their next login.                                                                                                                                                                                                                                                                  |
+| A lost phone             | Event → **Devices** → the phone's **⋯** menu → **Revoke…**, and tick **This phone was lost or stolen**. The box lists who must then choose a new PIN; without the tick, no PIN changes.                                                                                                                                                                                                                                                                  |
 
 **Check (signing key):** `.secrets/signing-key.json` now lists a new `key_id`, a ticket made for a **new** event verifies at a phone (step 5.6), and a ticket re-sent for an older event still scans.
 **If it fails:** `docker compose ... logs app` for `signing key` errors; restore `.secrets/signing-key.json` from your vault and recreate the app.
@@ -529,7 +547,9 @@ Do it between events, never on the day, and with each phone showing **0 queued**
 | Symptom                                                                | Likely cause                                                                                                                                                                                  | Fix                                                                                                                                                                                                                                                       |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phones show a certificate warning for the hub                          | The certificate expired (the hub had no internet for 60+ days), or `hub.example.org` resolved to the wrong address, or the phone's clock is wrong.                                            | Put the hub on a normal network, renew in NPM (SSL Certificates → renew), check `openssl s_client ... -enddate` (step 4.5), fix the DNS override (step 4.6), set the phone's time automatically.                                                          |
-| `hub.example.org` does not resolve with the uplink unplugged           | No local override: the name only exists in public DNS, which is unreachable; or the phone uses Private DNS/a VPN.                                                                             | Add the router override or run the `dns` profile (step 4.6); turn off Private DNS on the phones. Test with `nslookup hub.example.org <router>` with the cable out.                                                                                       |
+| `hub.example.org` does not resolve with the uplink unplugged           | No local override: the name only exists in public DNS, which is unreachable; or the phone uses Private DNS/a VPN.                                                                             | Run the `dns` profile and point the router's DHCP DNS at the hub, or add a router override (step 4.6); turn off Private DNS on the phones. Test with `nslookup hub.example.org <router>` with the cable out.                                                                                       |
+| `docker compose` says port 53 is already in use (`dns` service)         | `systemd-resolved` on Ubuntu listens on `127.0.0.53:53`, or another DNS server runs on the hub.                                                                                               | Set `HUB_DNS_BIND` to the hub's LAN address, or set `DNSStubListener=no` in `/etc/systemd/resolved.conf` and restart `systemd-resolved` (step 4.6 d). `sudo ss -lunp 'sport = :53'` shows who holds the port.                                              |
+| Phones still use the router as their DNS server (name does not resolve) | The router's DHCP still hands out its own address or a second DNS server, or the phone has not renewed its lease.                                                                            | Set Primary DNS to the hub and leave Secondary empty (step 4.6 c); on the phone turn Wi-Fi off and on (or forget and rejoin the network) to renew the lease; check Wi-Fi details on the phone show the hub's address as DNS.                                |
 | The `hub` record has the Cloudflare orange cloud on                    | The record is proxied, so it resolves to Cloudflare addresses, not `192.168.50.10`: phones off the local override reach nothing, and Cloudflare cannot proxy a private address.               | Turn the cloud grey (DNS only) in Cloudflare. `dig +short hub.example.org @1.1.1.1` must print `192.168.50.10`.                                                                                                                                          |
 | Gmail `403`, `unauthorized_client`, "delegation denied" in the worker  | Domain-wide delegation is missing, has the wrong client ID or scope, or `GMAIL_SENDER` is not a mailbox in the Workspace.                                                                     | Redo step 3.2 with the service account's Unique ID and exactly `https://www.googleapis.com/auth/gmail.send`; wait a few minutes (delegation can take time to apply); check `GMAIL_SENDER`; `docker compose ... logs worker`.                              |
 | Emails stop after about 1,800 ("throttled")                            | `EMAIL_DAILY_LIMIT` (rolling 24 hours, under Gmail's 2,000 per day).                                                                                                                          | Wait; queued mail goes out as the window moves. For bulk sends, issue tickets days ahead. Check the queue with the query in step 3.4. Do not raise the limit above your Workspace's own.                                                                  |

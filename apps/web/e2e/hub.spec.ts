@@ -157,7 +157,7 @@ test("the hub serves the scanner and the read-only dashboard only, and holds no 
   expect(bytes).not.toContain("e2e-passphrase");
 });
 
-test("a phone enrolled at the hub shows the Hub pill and admits through it; with the hub quiet the next scan goes to the VM (Cloud-only) and the hub is used again once it answers", async ({
+test("a phone enrolled at the hub shows the Hub pill and admits through it; with the hub quiet the next scan goes to the VM (VM only) and the hub is used again once it answers", async ({
   page,
 }) => {
   const first = await newTicket("Hub Hannah");
@@ -181,21 +181,21 @@ test("a phone enrolled at the hub shows the Hub pill and admits through it; with
   const before = await admitted();
   await feed(page, first);
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
-  await expect(page.getByTestId("result-title")).toHaveText("Hub Hannah");
+  await expect(page.getByTestId("result-holder")).toHaveText("Hub Hannah");
   await expect(page.getByTestId("pill")).toHaveAttribute("data-link", "hub");
   await expect.poll(admitted, { timeout: 15_000 }).toBe(before + 1);
   await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
 
-  // The hub goes quiet. The phone waits 800 ms, asks the VM, and says Cloud-only.
+  // The hub goes quiet. The phone waits 800 ms, asks the VM, and says VM only.
   hubProxy.mode = "hang";
   await settle(1300); // the VM must have heard of this phone (the hub pushed it) before it is needed
   const started = Date.now();
   await feed(page, second);
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
-  await expect(page.getByTestId("result-title")).toHaveText("Cloud Carl");
+  await expect(page.getByTestId("result-holder")).toHaveText("Cloud Carl");
   expect(Date.now() - started).toBeLessThan(5000);
   await expect(page.getByTestId("pill")).toHaveAttribute("data-link", "cloud");
-  await expect(page.getByTestId("pill")).toContainText("Cloud-only");
+  await expect(page.getByTestId("pill")).toContainText("VM only");
   await expect.poll(admitted, { timeout: 10_000 }).toBe(before + 2); // decided by the VM itself
   await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
 
@@ -234,7 +234,7 @@ test("with the hub's uplink cut the hub keeps admitting, and when it is back the
   await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
   await page.waitForTimeout(3200);
   await feed(page, ticket);
-  await expect(page.getByTestId("result-title")).toHaveText("Already used"); // the hub is the authority
+  await expect(page.getByTestId("result-title")).toHaveText("ALREADY USED"); // the hub is the authority
   await page.getByTestId("result").click();
   await page.waitForTimeout(3200);
   expect(await admitted()).toBe(before); // the VM has heard nothing

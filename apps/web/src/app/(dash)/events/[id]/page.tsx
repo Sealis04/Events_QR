@@ -4,7 +4,8 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Notice, Shell } from "../../../_components/Shell";
 import { PullNow } from "../../../_components/PullNow";
-import { api, ApiError, formatTime } from "../../../_lib/client";
+import { api, ApiError, eventDate } from "../../../_lib/client";
+import { eventStatus } from "../../../_lib/status";
 import { RANK, type EventView, type Me, type Role } from "../../../_lib/types";
 import { Admit } from "./_tabs/Admit";
 import { Conflicts } from "./_tabs/Conflicts";
@@ -23,7 +24,7 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { key: "generator", label: "QR generator", need: "staff", vmOnly: true },
+  { key: "generator", label: "Issue tickets", need: "staff", vmOnly: true },
   { key: "tickets", label: "Tickets", need: "staff" },
   { key: "live", label: "Live stats", need: "staff" },
   { key: "devices", label: "Devices", need: "supervisor" },
@@ -32,12 +33,40 @@ const TABS: TabDef[] = [
   { key: "setup", label: "Setup", need: "admin", vmOnly: true },
 ];
 
+function Header({ event }: { event: EventView }) {
+  const status = eventStatus(
+    {
+      starts_at: event.starts_at,
+      ends_at: event.ends_at,
+      ticket_type_count: event.ticket_types.length,
+    },
+    Math.floor(Date.now() / 1000),
+  );
+  return (
+    <header className="event-head">
+      <div className="row">
+        <h1>{event.name}</h1>
+        <span className={`tag ${status.tone}`}>
+          {status.key === "live" && <span className="dot" />}
+          {status.label}
+        </span>
+      </div>
+      <p className="muted" data-testid="event-meta">
+        <strong className="sr-only">{event.name} · </strong>
+        {event.venue ?? "no venue"} · {eventDate(event.starts_at, event.timezone, true)} –{" "}
+        {eventDate(event.ends_at, event.timezone, true)} · gates: {event.gates.join(", ")}
+      </p>
+    </header>
+  );
+}
+
 function Workspace({ me, id }: { me: Me; id: string }) {
   const hub = me.mode === "hub";
   const [event, setEvent] = useState<EventView>();
   const [error, setError] = useState("");
   const [tab, setTab] = useState<string>(hub ? "live" : "generator");
   const [issuedCount, setIssuedCount] = useState(0);
+  const [conflictCount, setConflictCount] = useState(0);
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
@@ -54,6 +83,28 @@ function Workspace({ me, id }: { me: Me; id: string }) {
     }
   }, [id]);
   useEffect(() => void load(), [load]);
+
+  // Open double admissions, for the badge on the Conflicts tab.
+  useEffect(() => {
+    if (RANK[me.role] < RANK.supervisor) return;
+    let stop = false;
+    const poll = async () => {
+      try {
+        const res = await api<{ conflicts: { reviewed_at?: number | null }[] }>(
+          `/api/events/${id}/conflicts?limit=200`,
+        );
+        if (!stop) setConflictCount(res.conflicts.filter((c) => !c.reviewed_at).length);
+      } catch {
+        /* the tab itself shows errors */
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, 30_000);
+    return () => {
+      stop = true;
+      clearInterval(timer);
+    };
+  }, [id, me.role]);
 
   const visible = TABS.filter((t) => RANK[me.role] >= RANK[t.need]);
   const current = visible.find((t) => t.key === tab) ?? visible[0]!;
@@ -90,13 +141,7 @@ function Workspace({ me, id }: { me: Me; id: string }) {
   return (
     <>
       {error && <Notice tone="bad">{error}</Notice>}
-      {event && (
-        <p className="muted" data-testid="event-meta">
-          <strong>{event.name}</strong> · {event.venue ?? "no venue"} ·{" "}
-          {formatTime(event.starts_at)} – {formatTime(event.ends_at)} · gates:{" "}
-          {event.gates.join(", ")}
-        </p>
-      )}
+      {event && <Header event={event} />}
       {hub && (
         <Notice tone="warn">
           You are on the venue hub. Stats, devices, conflicts and attendee search work without
@@ -127,6 +172,11 @@ function Workspace({ me, id }: { me: Me; id: string }) {
               }}
             >
               {t.label}
+              {t.key === "conflicts" && conflictCount > 0 && (
+                <span className="badge" aria-label={`${conflictCount} open`}>
+                  {conflictCount}
+                </span>
+              )}
             </a>
           ),
         )}
@@ -139,8 +189,6 @@ function Workspace({ me, id }: { me: Me; id: string }) {
 export default function EventPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Shell title="Event" back={{ href: "/", label: "Events" }}>
-      {(me) => <Workspace me={me} id={id} />}
-    </Shell>
+    <Shell back={{ href: "/", label: "Events" }}>{(me) => <Workspace me={me} id={id} />}</Shell>
   );
 }

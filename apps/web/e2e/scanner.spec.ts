@@ -64,12 +64,13 @@ test("enrol with a setup QR, scan a ticket green, rescan red 'already used'", as
   const ticket = await newTicket(0, "Ada Lovelace");
   await enrolAndLogin(page, await setupQr());
   await expect(page.getByTestId("ready")).toHaveText("Gate A · Entry");
-  await expect(page.getByTestId("pill")).toContainText("Cloud-only");
+  await expect(page.getByTestId("pill")).toContainText("VM only");
 
   await feed(page, ticket);
   const result = page.getByTestId("result");
   await expect(result).toHaveAttribute("data-tone", "green");
-  await expect(page.getByTestId("result-title")).toHaveText("Ada Lovelace");
+  await expect(page.getByTestId("result-title")).toHaveText("ADMITTED");
+  await expect(page.getByTestId("result-holder")).toHaveText("Ada Lovelace");
   await expect(result).toBeHidden({ timeout: 5000 }); // auto-dismiss after 1.5 s
 
   // The same code within 3 s is debounced: no false "already used".
@@ -80,13 +81,15 @@ test("enrol with a setup QR, scan a ticket green, rescan red 'already used'", as
   await page.waitForTimeout(3000);
   await feed(page, ticket);
   await expect(result).toHaveAttribute("data-tone", "red");
-  await expect(page.getByTestId("result-title")).toHaveText("Already used");
+  await expect(page.getByTestId("result-title")).toHaveText("ALREADY USED");
   await expect(result).toContainText("Gate A");
-  await result.click(); // red screens wait for a tap
+  await expect(result).toContainText("Do not let them in");
+  await expect(result).not.toContainText(/[0-9a-f]{8}-[0-9a-f]{4}-/); // never a raw device id
+  await page.getByRole("button", { name: "Next scan" }).click(); // red screens wait for the button
   await expect(result).toBeHidden();
 
   await feed(page, "https://example.org/not-a-ticket");
-  await expect(page.getByTestId("result-title")).toHaveText("Not an event ticket");
+  await expect(page.getByTestId("result-title")).toHaveText("NOT A TICKET");
 });
 
 test("a ticket unknown to the phone shows amber; a supervisor override admits it", async ({
@@ -128,7 +131,7 @@ test("the scanner loads with the network off after the first visit", async ({ pa
 
   await context.setOffline(false);
   // Let the queued scan reach the server before the next test counts admits.
-  await expect(page.getByTestId("pill")).toContainText("0 queued", { timeout: 20_000 });
+  await expect(page.getByTestId("waiting")).toContainText("0 waiting", { timeout: 20_000 });
 });
 
 test("a device set to 'both' shows the Entry / Exit toggle and records exits", async ({ page }) => {
@@ -143,16 +146,26 @@ test("a device set to 'both' shows the Entry / Exit toggle and records exits", a
   await page.getByRole("button", { name: "Entry", exact: true }).waitFor();
 
   await feed(page, ticket);
-  await expect(page.getByTestId("result-title")).toHaveText("Vera VIP");
+  await expect(page.getByTestId("result-title")).toHaveText("ADMITTED");
+  await expect(page.getByTestId("result-holder")).toHaveText("Vera VIP");
   await expect(page.getByTestId("result")).toContainText("Entry 1 of 3");
   await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
 
   await page.getByRole("button", { name: "Exit", exact: true }).click();
   await page.waitForTimeout(3200);
   await feed(page, ticket);
-  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "blue");
+  await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
+  await expect(page.getByTestId("result")).toContainText("Exit");
   await expect(page.getByTestId("result")).toContainText("Entries left: 2");
 });
+
+/** ⋯ menu, "Set up this phone again", then the red box's "Erase and set up". */
+async function openSetUpAgain(page: Page) {
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Set up this phone again" }).click();
+  await expect(page.getByTestId("erase-box")).toContainText("erases the event, tickets and logins");
+  await page.getByRole("button", { name: "Erase and set up" }).click();
+}
 
 /** Every record in every object store of the scanner's IndexedDB. */
 const idbRecordCounts = (page: Page) =>
@@ -195,9 +208,9 @@ test("'Set up again' with scans still queued asks a supervisor, then leaves no t
   await feed(page, ticket);
   await expect(page.getByTestId("result")).toHaveAttribute("data-tone", "green");
   await expect(page.getByTestId("result")).toBeHidden({ timeout: 5000 });
-  await expect(page.getByTestId("pill")).toContainText("1 queued");
+  await expect(page.getByTestId("waiting")).toContainText("1 waiting");
 
-  await page.getByRole("button", { name: "Set up again" }).click();
+  await openSetUpAgain(page);
   const confirm = page.getByTestId("wipe-confirm");
   await expect(confirm).toContainText("1 scan not uploaded");
   expect((await idbRecordCounts(page)).outbox).toBe(1); // nothing wiped yet
@@ -224,7 +237,7 @@ test("'Set up again' with scans still queued asks a supervisor, then leaves no t
 
 test("'Set up again' with nothing queued wipes at once", async ({ page }) => {
   await enrolAndLogin(page, await setupQr());
-  await page.getByRole("button", { name: "Set up again" }).click();
+  await openSetUpAgain(page);
   await expect(page.locator("main[data-phase=setup]")).toBeVisible();
   const counts = await idbRecordCounts(page);
   expect(Object.values(counts).every((n) => n === 0)).toBe(true);

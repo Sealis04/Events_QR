@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Event tickets</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#f4f5f7}
+a{color:#2457d6}a:hover{color:#1a3f9e}
+input,select,button{font:inherit}
+th{font-weight:600}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #111827; background: #f4f5f7; font-size: 15px; line-height: 1.45">
+<div style="max-width: 1120px; margin: 0 auto; padding: 24px 24px 48px; display: flex; flex-direction: column; gap: 18px">
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<a href="#" style="font-size: 14px; text-decoration: none">← Events</a>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Intramuros Night Market</h1>
+<span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #dcfce7; color: #14532d; font-size: 12px; font-weight: 700"><span style="width: 7px; height: 7px; border-radius: 999px; background: #16a34a"></span>LIVE</span>
+</div>
+<div style="font-size: 14px; color: #5b6472">Plaza de Roma · Fri 6 Nov 18:00 – Sun 8 Nov 23:00 · Main entrance, North gate, VIP lane</div>
+</div>
+
+<nav style="display: flex; gap: 4px; border-bottom: 1px solid #dfe3e9; overflow-x: auto">
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Issue tickets</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #111827; font-weight: 650; border-bottom: 3px solid #2457d6; white-space: nowrap">Tickets</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Live</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Devices</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Conflicts <span style="padding: 1px 7px; border-radius: 999px; background: #fee2e2; color: #7f1d1d; font-size: 12px; font-weight: 700">2</span></a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Attendees</a>
+<a href="#" style="padding: 12px 14px; text-decoration: none; color: #4b5563; white-space: nowrap">Setup</a>
+</nav>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+<label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Search tickets</label>
+<input id="q" placeholder="Search name, email, phone or ticket code" style="flex: 1 1 320px; min-width: 0; height: 44px; padding: 0 14px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff">
+<select aria-label="Type" style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff"><option>All types</option></select>
+<select aria-label="Status" style="height: 44px; padding: 0 10px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff"><option>Any status</option></select>
+<button style="height: 44px; padding: 0 14px; border: 1px solid #cfd5de; border-radius: 10px; background: #ffffff">Export CSV</button>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e3e6eb; border-radius: 14px; overflow: visible; position: relative">
+<div style="overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="text-align: left; color: #4b5563; background: #f9fafb">
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Holder ↑</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Type</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Status</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Entries</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb">Issued</th>
+<th style="padding: 12px 16px; border-bottom: 1px solid #e3e6eb; width: 56px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Actions</span></th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><div style="font-weight: 600">Andrea Cruz</div><div style="color: #5b6472; font-size: 13px">andrea@example.org</div></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">General</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #dcfce7; color: #14532d; font-weight: 600; font-size: 12px">Inside</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">1 of 1</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; color: #4b5563">2 Nov</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Andrea Cruz" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><div style="font-weight: 600">Ben Reyes</div><div style="color: #5b6472; font-size: 13px">+63 917 000 0000</div></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">VIP</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #e0e9ff; color: #1e3a8a; font-weight: 600; font-size: 12px">Not yet in</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">0 of 1</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; color: #4b5563">2 Nov</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; position: relative"><button aria-label="Actions for Ben Reyes" style="width: 36px; height: 36px; border: 1px solid #2457d6; border-radius: 8px; background: #eef2fb">⋯</button>
+<div style="position: absolute; right: 16px; top: 52px; z-index: 2; width: 220px; background: #ffffff; border: 1px solid #dfe3e9; border-radius: 12px; box-shadow: 0 12px 32px rgba(17,24,39,0.16); padding: 6px; display: flex; flex-direction: column">
+<button style="height: 40px; border: 0; background: transparent; text-align: left; padding: 0 12px; border-radius: 8px">View ticket and QR</button>
+<button style="height: 40px; border: 0; background: transparent; text-align: left; padding: 0 12px; border-radius: 8px">Resend email</button>
+<button style="height: 40px; border: 0; background: transparent; text-align: left; padding: 0 12px; border-radius: 8px">Transfer to someone else…</button>
+<div style="height: 1px; background: #eef0f3; margin: 4px 0"></div>
+<button style="height: 40px; border: 0; background: transparent; text-align: left; padding: 0 12px; border-radius: 8px; color: #b42318">Cancel ticket…</button>
+</div></td></tr>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><div style="font-weight: 600">Carla Dizon</div><div style="color: #5b6472; font-size: 13px">carla@example.org</div></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">General</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #e0e9ff; color: #1e3a8a; font-weight: 600; font-size: 12px">Not yet in</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">0 of 1</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; color: #4b5563">3 Nov</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Carla Dizon" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><div style="font-weight: 600">Diego Lim</div><div style="color: #5b6472; font-size: 13px">diego@example.org</div></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">Day pass</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #f3f4f6; color: #374151; font-weight: 600; font-size: 12px">Left</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">1 of any</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; color: #4b5563">3 Nov</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Diego Lim" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><div style="font-weight: 600; color: #6b7280; text-decoration: line-through">Elena Torres</div><div style="color: #5b6472; font-size: 13px">elena@example.org</div></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">General</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><span style="padding: 2px 9px; border-radius: 999px; background: #fee2e2; color: #7f1d1d; font-weight: 600; font-size: 12px">Cancelled</span></td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3">–</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3; color: #4b5563">4 Nov</td><td style="padding: 12px 16px; border-bottom: 1px solid #eef0f3"><button aria-label="Actions for Elena Torres" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+<tr><td style="padding: 12px 16px"><div style="font-weight: 600">Felix Ramos</div><div style="color: #5b6472; font-size: 13px">felix@example.org</div></td><td style="padding: 12px 16px">VIP</td><td style="padding: 12px 16px"><span style="padding: 2px 9px; border-radius: 999px; background: #dcfce7; color: #14532d; font-weight: 600; font-size: 12px">Inside</span></td><td style="padding: 12px 16px">1 of 1</td><td style="padding: 12px 16px; color: #4b5563">4 Nov</td><td style="padding: 12px 16px"><button aria-label="Actions for Felix Ramos" style="width: 36px; height: 36px; border: 1px solid #e3e6eb; border-radius: 8px; background: #ffffff">⋯</button></td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid #e3e6eb; font-size: 14px; color: #4b5563">
+<span>1–50 of 1,000 tickets</span>
+<div style="display: flex; gap: 8px"><button style="height: 36px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 8px; background: #ffffff; color: #9aa3b1">Previous</button><button style="height: 36px; padding: 0 12px; border: 1px solid #cfd5de; border-radius: 8px; background: #ffffff">Next</button></div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -141,6 +141,29 @@ A separate copy of the system beside production, at `test.<domain>`, for trying 
 - Optional `tunnel` service (`--profile tunnel`) in `docker/compose.test.yml`: `cloudflare/cloudflared:2026.10.0`, token from `CLOUDFLARE_TUNNEL_TOKEN` in `.env.test`, public hostname pointed at `http://app:3000`.
 - `docs/test-setup.md` section 5: WSL2 + Docker Desktop, clone inside Ubuntu, tunnel creation in Zero Trust, Mailpit at `localhost:8025` on the PC, keeping the PC awake, optional Cloudflare Access, tunnel troubleshooting. No venue-hub testing this way.
 
+### M11 — UI refresh, phone login that lasts, safer revoke, router-independent hub DNS (added 2026-10-26)
+User feedback after trying the test copy: logging in again on the phone is a pain, "Revoke and rotate" is too easy to hit, the UI looks rough and breaks on phones. Target screens: `plans/m11-ui-refresh/mockups/` (exported from https://claude.ai/artifact/5FmnJtFjb4RqeNZ28DDfq1, approved 2026-10-26).
+- **Phone login lasts** until the staff member signs out, the event day ends, the phone is revoked or wiped, or the event ends. It survives closing the app, locking the screen and rebooting. No idle timeout and no biometrics for now (revisit once it is known whether phones are personal or shared).
+- **Revoke:** one Revoke action; the confirm dialog has a "This phone was lost or stolen" checkbox that adds the PIN rotation and names who must change their PIN.
+- **Gate phone:** event name and gate in the header; big Entry/Exit toggle; one full-width "Find a ticket by name"; everything else in a ⋯ menu (switch staff member, camera help, sign out, set up again behind a confirm); full-screen ADMITTED / refused results with a headline, holder, type, entry count, what to do, and a big "Next scan"; device label instead of id; camera-blocked retry with iOS/Android steps; today's in/out counts.
+- **Dashboard:** new look across all pages per the mockups. New event and Setup: numbered cards, gates as draggable tags, ticket types as summary cards with plain-language editing (entry count, gate chips, day + clock times, early entry checkbox, preview sentence, presets), sticky create/save bar, time-zone dropdown. Events list as cards with status and progress. Event name as page title, one-line tab strip. Tickets: search + filters, sort, pagination (50/page), ⋯ row menu, transfer form, CSV export. Live stats tiles with capacity %, stale-data and hub-offline banner. Devices: plain wording, "Quiet" explained. Plus the smaller polish items in the builder inbox.
+- **Phones: no scrollbars at all.** Nothing scrolls sideways at 360–430 px; the scanner screens fit one screen with no scrolling; any scroll container on phones hides its scrollbar.
+- **Hub DNS for any router:** setup guide section 4.6 rewritten around the hub's `dns` service (router only needs DHCP reservation + DNS server), with a TP-Link Archer example, the Ubuntu port-53 (`systemd-resolved`) conflict, and what happens when the hub is off.
+- **Done when:** the mockup screens are matched (layout, wording, behaviour), Playwright at 390×844 and 360×740 finds no horizontal overflow and no visible scrollbar on any page, the phone login survives a reload and a browser restart, and lint, typecheck, unit and e2e tests pass.
+
+### M12 — In-app hub setup checklist with live checks (added 2026-10-26, draft, starts after M11)
+A "Set up a hub" page in the dashboard (admin), in the M11 look, that walks through hub setup step by step. Each step has a **Check** button that tests it for real and shows green/red with the fix.
+- Steps follow `docs/setup-guide.md` section 4 (hardware and OS, Docker and the hub stack, `hub.<domain>` DNS record, certificate, local DNS on the router or the hub's `dns` service, enrol the hub, first ticket pull, set up a phone through the hub, unplug the internet and scan).
+- Live checks, run from the browser on the venue Wi-Fi where needed: hub reachable at `https://hub.<domain>` with a valid certificate (health JSON in hub mode), certificate days left, the hub linked to this VM and its last pull, tickets and staff present on the hub, a phone enrolled through the hub. Server-side checks (VM: hub last seen and sync cursors; hub: its own state) come from APIs; anything a browser cannot test (e.g. which IP a name resolves to) is explained with the command to run.
+- Commands shown with copy buttons; progress remembered per event.
+- **Done when:** to be set in the M12 interview.
+
+## Decisions after the test copy (2026-10-26)
+- Staff login on phones lasts until sign-out or the end of the event day ("unli" for now); biometrics only together with an idle timeout, later.
+- "Revoke and rotate" worked as designed; the UI changes so rotation is an explicit checkbox in the revoke dialog.
+- The venue router is unknown (TP-Link of some kind): the hub DNS setup must work with any router.
+- Mobile UI has no scrollbars anywhere.
+
 ## Out of scope for v1
 Payments and online checkout, resale, rotating QR codes, wallet passes, seat maps.
 
