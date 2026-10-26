@@ -747,3 +747,171 @@ body:has(.dash) {
     display: none !important;
   }
 }
+
+/* D1: events list cards, helpers */
+.dash .between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.dash .event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.dash a.event-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.dash a.event-card:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.dash .event-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash .event-title .name {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+/* D1: ticket type cards and editor, gate tags, numbered cards */
+.dash .type-card {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.dash .type-card:hover {
+  border-color: var(--line-strong);
+}
+.dash .type-card:focus-visible {
+  outline: 3px solid #9db6f2;
+}
+.dash .type-card .name {
+  font-weight: 650;
+  font-size: 16px;
+}
+.dash .edit-link {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+}
+.dash .type-editor {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: var(--card);
+}
+.dash .preview {
+  background: var(--chip);
+  color: var(--chip-ink);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+.dash .step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.dash .step h2 {
+  margin: 0;
+}
+.dash .step .n {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.dash .gate-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.dash .gate-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--card);
+  font-weight: 500;
+  cursor: grab;
+}
+.dash .gate-tag.dragging {
+  opacity: 0.4;
+}
+.dash .gate-tag.locked {
+  cursor: default;
+  background: #f1f3f7;
+}
+.dash .gate-tag button {
+  min-height: 30px;
+  width: 30px;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+}
+.dash .gate-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* D2: ticket cards on phones */
+.dash .ticket-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+.dash .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* D1: event page header */
+.dash .event-head {
+  margin-bottom: 14px;
+}
+.dash .event-head p {
+  margin: 4px 0 0;
+}

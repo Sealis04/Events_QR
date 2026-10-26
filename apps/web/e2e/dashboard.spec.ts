@@ -18,10 +18,8 @@ const BASE = "http://127.0.0.1:3100";
 
 const feed = (page: Page, raw: string) => page.evaluate((code) => window.__scannerFeed!(code), raw);
 
-const localInput = (d: Date) => {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+/** `datetime-local` text for a moment, as the wall clock in UTC (the form's zone is set to UTC below). */
+const localInput = (d: Date) => d.toISOString().slice(0, 16);
 
 async function login(page: Page, name: string) {
   await page.goto("/login");
@@ -60,14 +58,17 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   await page.getByRole("link", { name: "New event" }).click();
   await page.getByLabel("Event name").fill("Dash Fest");
   await page.getByLabel("Venue").fill("Test Hall");
+  await page.getByLabel("Time zone").selectOption("UTC");
   await page.getByLabel("Doors open").fill(localInput(new Date(Date.now() - 3600_000)));
   await page.getByLabel("Ends").fill(localInput(new Date(Date.now() + 8 * 3600_000)));
-  await page.getByLabel("Ticket type name").first().fill("GA");
-  await page.getByRole("button", { name: "Add ticket type" }).click();
-  await page.getByLabel("Ticket type name").nth(1).fill("VIP");
-  await page.getByLabel("Capacity").nth(1).fill("2");
-  await page.getByLabel("Entry rule").nth(1).selectOption("limited");
+  // The form starts with one type, "GA" (a summary card). The VIP preset opens its editor.
+  await expect(page.getByTestId("type-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "VIP", exact: true }).click();
+  await page.getByLabel("Places").fill("2");
+  await page.getByRole("button", { name: "Up to a number" }).click();
   await page.getByLabel("Maximum entries").fill("3");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByTestId("type-card")).toHaveCount(2);
   await page.getByRole("button", { name: "Create event" }).click();
   await expect(page).toHaveURL(/\/events\/\d+$/);
   const eventId = Number(page.url().split("/").pop());
@@ -105,11 +106,13 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   const printShort = (await page.getByTestId("short-id").innerText()).trim();
   const [popup] = await Promise.all([
     page.context().waitForEvent("page"),
-    page.getByRole("link", { name: "Print / PDF" }).click(),
+    page.getByRole("button", { name: "Print / PDF" }).click(),
   ]);
   await expect(popup.getByTestId("print-sheet")).toContainText("Print Pat");
   await expect(popup.getByTestId("print-sheet")).toContainText("Dash Fest");
   await expect(popup.getByTestId("print-sheet")).toContainText("GA");
+  await expect(popup.getByTestId("print-sheet")).toContainText("Test Hall");
+  await expect(popup.getByTestId("print-gates")).toContainText("Gate A, Gate B");
   await expect(popup.getByTestId("print-short-id")).toHaveText(printShort);
   await expect(popup.locator("img")).toBeVisible();
   await popup.close();
@@ -224,6 +227,13 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   await expect(page.getByText(/Admitted \(logged as an override\)/)).toBeVisible();
   await expect(page.getByTestId("overrides")).toContainText("Print Pat");
   await expect(page.getByTestId("overrides")).toContainText("e2e-admin");
+
+  // --- Setup saves every change at once.
+  await page.getByRole("link", { name: "Setup" }).click();
+  await page.getByLabel("Venue").fill("Test Hall 2");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText(/^Saved\./)).toBeVisible();
+  await expect(page.getByTestId("event-meta")).toContainText("Test Hall 2");
 
   await phoneContext.close();
 });

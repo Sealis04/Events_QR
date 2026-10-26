@@ -2,18 +2,22 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api } from "../../../../_lib/client";
+import { api, eventDate } from "../../../../_lib/client";
 
 interface Detail {
   ticket_id: string;
   holder_name: string | null;
   event_name: string;
+  venue: string | null;
+  event_starts_at: number;
+  event_timezone: string;
+  gate_names: string[];
   type_name: string;
   short_id: string;
   qr_png: string;
 }
 
-/** A print-styled page: each ticket's QR with its caption (name, event, type, last 6 hex). Use the browser's Print or "Save as PDF". */
+/** A print-styled page: each ticket's QR with its caption (name, event, date, venue, type, gates, last 6 hex), several to an A4 sheet. Use the browser's Print or "Save as PDF". */
 export default function PrintPage() {
   const { id } = useParams<{ id: string }>();
   const [tickets, setTickets] = useState<Detail[]>([]);
@@ -44,8 +48,15 @@ export default function PrintPage() {
             <img src={t.qr_png} alt={`QR for ${t.holder_name ?? t.short_id}`} />
             <figcaption>
               <div className="name">{t.holder_name}</div>
-              <div>{t.event_name}</div>
+              <div className="event">{t.event_name}</div>
+              <div className="small">
+                {eventDate(t.event_starts_at, t.event_timezone)}
+                {t.venue ? ` · ${t.venue}` : ""}
+              </div>
               <div>{t.type_name}</div>
+              <div className="small" data-testid="print-gates">
+                Gates: {t.gate_names.join(", ")}
+              </div>
               <code data-testid="print-short-id">{t.short_id}</code>
             </figcaption>
           </figure>

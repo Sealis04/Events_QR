@@ -7,6 +7,7 @@ import {
   api,
   ApiError,
   clockToMinutes,
+  eventDays,
   minutesToClock,
   SLOT_OPEN_END,
 } from "../../../../_lib/client";
@@ -38,6 +39,19 @@ export function Generator({
   const [rule, setRule] = useState("default");
   const [emailTo, setEmailTo] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
+  const days = eventDays(event.starts_at, event.ends_at, event.timezone);
+  /** "Fri 6 Nov 18:00–23:00" from minutes after 00:00 on the first day. */
+  const slotLabel = (s: { start: number; end: number }) => {
+    const day = Math.floor(s.start / 1440);
+    const label = days.find((d) => d.day === day)?.label ?? `Day ${day + 1}`;
+    const end =
+      s.end === SLOT_OPEN_END
+        ? "end of event"
+        : minutesToClock(
+            s.end - day * 1440 >= 1440 ? s.end - (day + 1) * 1440 : s.end - day * 1440,
+          );
+    return `${label} ${minutesToClock(s.start - day * 1440)}–${end}`;
+  };
   const canOverrideRule = RANK[me.role] >= RANK.supervisor;
 
   async function generate(e: FormEvent<HTMLFormElement>) {
@@ -162,7 +176,7 @@ export function Generator({
             aria-label="Quantity"
           />
         </label>
-        <label className="row">
+        <label className="check">
           <input
             type="checkbox"
             checked={restrict}
@@ -194,8 +208,7 @@ export function Generator({
             <option value="none">No slot</option>
             {type?.slots.map((s, i) => (
               <option key={i} value={`type:${i}`}>
-                {minutesToClock(s.start)}–
-                {s.end === SLOT_OPEN_END ? "end of event" : minutesToClock(s.end)}
+                {slotLabel(s)}
               </option>
             ))}
             <option value="custom">Custom…</option>
@@ -213,31 +226,34 @@ export function Generator({
           </div>
         )}
         {canOverrideRule && (
-          <div className="row">
-            <label className="field">
-              Entry rule (supervisor override)
-              <select
-                value={rule}
-                onChange={(e) => setRule(e.target.value)}
-                aria-label="Entry rule override"
-              >
-                <option value="default">Ticket type&apos;s rule</option>
-                <option value="single">Single entry</option>
-                <option value="unlimited">Unlimited re-entry</option>
-                <option value="limited">Up to N entries</option>
-              </select>
-            </label>
-            {rule === "limited" && (
-              <input
-                name="ruleMax"
-                type="number"
-                min={2}
-                max={63}
-                defaultValue={3}
-                aria-label="Override N"
-              />
-            )}
-          </div>
+          <details>
+            <summary>Advanced</summary>
+            <div className="row" style={{ marginTop: 8 }}>
+              <label className="field">
+                Entry rule (supervisor override)
+                <select
+                  value={rule}
+                  onChange={(e) => setRule(e.target.value)}
+                  aria-label="Entry rule override"
+                >
+                  <option value="default">Ticket type&apos;s rule</option>
+                  <option value="single">Single entry</option>
+                  <option value="unlimited">Unlimited re-entry</option>
+                  <option value="limited">Up to N entries</option>
+                </select>
+              </label>
+              {rule === "limited" && (
+                <input
+                  name="ruleMax"
+                  type="number"
+                  min={2}
+                  max={63}
+                  defaultValue={3}
+                  aria-label="Override N"
+                />
+              )}
+            </div>
+          </details>
         )}
         <label className="field">
           Internal note
@@ -276,14 +292,12 @@ export function Generator({
               ))}
             </div>
             <div className="row" style={{ marginTop: 12 }}>
-              <a
-                className="btn"
-                href={`/events/${event.id}/print?ids=${ids}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => window.open(`/events/${event.id}/print?ids=${ids}`, "_blank")}
               >
                 Print / PDF
-              </a>
+              </button>
               <button
                 className="secondary"
                 onClick={() => {

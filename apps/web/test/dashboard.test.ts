@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { api, hexToBytes, mysqlSchema, sqliteSchema } from "@events-qr/core";
 import { GET as vmMe } from "../src/app/api/auth/me/route";
+import { GET as vmEvents } from "../src/app/api/events/route";
 import { GET as vmStats } from "../src/app/api/events/[id]/stats/route";
 import { GET as vmConflicts } from "../src/app/api/events/[id]/conflicts/route";
 import { GET as vmDevices } from "../src/app/api/events/[id]/devices/route";
@@ -46,6 +47,20 @@ describe.skipIf(!dbAvailable)("dashboard APIs", () => {
       .where(eq(vmScansTable.ticketId, Buffer.from(hexToBytes(ticket))));
 
   describe("VM", () => {
+    it("the events list carries what the cards show: types, issued, places, who is inside, phones", async () => {
+      const list = await call(vmEvents, { staff: w.supervisor });
+      expect(list.status).toBe(200);
+      const ev = list.json.find((e: { id: number }) => e.id === w.eventId);
+      expect(ev).toMatchObject({
+        ticket_type_count: 3,
+        issued: expect.any(Number),
+        inside: expect.any(Number),
+        device_count: expect.any(Number),
+        timezone: expect.any(String),
+      });
+      expect(ev.capacity === null || typeof ev.capacity === "number").toBe(true);
+    });
+
     it("stats count admits per gate and type, who is inside, conflicts and scans per minute", async () => {
       const a = await w.enrolAtVm("Gate A", "both");
       const b = await w.enrolAtVm("Gate B", "entry");
@@ -358,7 +373,12 @@ describe.skipIf(!dbAvailable)("dashboard on the hub, VM unreachable", () => {
 
     expect((await req(hub.stats, "/stats")).status).toBe(401); // no session, no data
 
-    expect((await call(hub.eventList, { staff: sup })).json[0]).toMatchObject({ id: w.eventId });
+    expect((await call(hub.eventList, { staff: sup })).json[0]).toMatchObject({
+      id: w.eventId,
+      ticket_type_count: 3,
+      inside: 2,
+      device_count: 2,
+    });
     const view = await req(hub.eventView, "", { cookie: sup.cookie });
     expect(view.json).toMatchObject({ id: w.eventId, name: "Summer Fest" });
     expect(view.json.ticket_types.map((x: { name: string }) => x.name)).toEqual([

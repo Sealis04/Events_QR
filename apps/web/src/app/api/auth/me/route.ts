@@ -3,13 +3,14 @@ import { byMode } from "../../../../server/mode";
 
 export const dynamic = "force-dynamic";
 
-const vmMe = route({ access: { staff: "staff" }, allowPinReset: true }, async ({ staff }) =>
+const vmMe = route({ access: { staff: "staff" }, allowPinReset: true }, async ({ ctx, staff }) =>
   json({
     id: staff.id,
     name: staff.name,
     role: staff.role,
     pin_reset: staff.pinReset,
     mode: "server",
+    default_timezone: ctx.config.EVENT_TIMEZONE,
   }),
 );
 
