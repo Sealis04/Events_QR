@@ -76,7 +76,8 @@ describe("offline entry: every result state", () => {
     expect(first).toMatchObject({ kind: "admitted", name: "Ada", offline: true, entry: null });
     expect(resultView(first)).toMatchObject({
       tone: "green",
-      title: "Ada",
+      headline: "ADMITTED",
+      holder: "Ada",
       banner: "OFFLINE",
       dismissMs: 1500,
     });
@@ -90,7 +91,7 @@ describe("offline entry: every result state", () => {
     expect(again).toMatchObject({ kind: "inside", offline: true });
     expect(resultView(again)).toMatchObject({
       tone: "red",
-      title: "Already inside (offline)",
+      headline: "ALREADY INSIDE",
       banner: "OFFLINE",
       dismissMs: null,
     });
@@ -111,8 +112,8 @@ describe("offline entry: every result state", () => {
     const out = await processScan(r.deps, t.token, "exit");
     expect(out).toMatchObject({ kind: "exited", offline: true, entriesLeft: 1 });
     expect(resultView(out)).toMatchObject({
-      tone: "blue",
-      title: "Exit recorded",
+      tone: "green",
+      headline: "ADMITTED",
       banner: "OFFLINE",
     });
     expect(await processScan(r.deps, t.token, "entry")).toMatchObject({
@@ -123,7 +124,7 @@ describe("offline entry: every result state", () => {
     await processScan(r.deps, t.token, "exit");
     const spent = await processScan(r.deps, t.token, "entry");
     expect(spent).toMatchObject({ kind: "used", offline: true });
-    expect(resultView(spent).title).toBe("No entries left (offline)");
+    expect(resultView(spent).headline).toBe("NO ENTRIES LEFT");
     const queue = await r.store.outboxBatch();
     expect(queue.map((s) => [s.direction, s.result, s.offline])).toEqual([
       ["entry", "admitted", true],
