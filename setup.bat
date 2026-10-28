@@ -98,7 +98,7 @@ if exist ".secrets\signing-key.json" (
 ) else (
   echo.
   echo -- Creating the signing key ^(first run builds the image: several minutes^) --
-  %VM% run --rm tools bun scripts/gen-signing-key.ts || goto :fail
+  %VM% run --rm --build tools bun scripts/gen-signing-key.ts || goto :fail
 )
 
 echo.
@@ -119,7 +119,7 @@ if defined CLOUDFLARE_TUNNEL_TOKEN (
   %VM% logs --tail 5 tunnel
 )
 
-call :create_admin "%VM% run --rm tools bun" "Admin" || goto :fail
+call :create_admin "%VM% run --rm --build tools bun" "Admin" || goto :fail
 
 echo.
 echo Done. Open !PUBLIC_URL!
@@ -187,7 +187,7 @@ if exist ".secrets\signing-key.json" (
 ) else (
   echo.
   echo -- Creating the signing key ^(first run builds the image: several minutes^) --
-  %VM% run --rm tools bun scripts/gen-signing-key.ts || goto :fail
+  %VM% run --rm --build tools bun scripts/gen-signing-key.ts || goto :fail
   echo Back up .secrets\signing-key.json too ^(with its passphrase, kept separately^).
 )
 
@@ -196,7 +196,7 @@ echo -- Starting MariaDB, migrations and the app --
 %VM% up -d --build app || goto :fail
 call :wait_health "http://127.0.0.1:!APP_PORT!/api/health" || goto :fail
 
-call :create_admin "%VM% run --rm tools bun" "" || goto :fail
+call :create_admin "%VM% run --rm --build tools bun" "" || goto :fail
 
 echo.
 echo -- Ticket emails ^(Gmail service account, docs/setup-guide.md section 3^) --
@@ -252,7 +252,7 @@ call :wait_health "http://127.0.0.1:!HUB_PORT!/api/health" || goto :fail
 echo.
 echo A dev web app on this PC is reached from inside the hub container as
 echo http://host.docker.internal:3000 ^(not localhost^).
-call :enroll_hub "%HUB% run --rm tools bun" "http://host.docker.internal:3000" || goto :fail
+call :enroll_hub "%HUB% run --rm --build tools bun" "http://host.docker.internal:3000" || goto :fail
 
 echo.
 echo Done. Open http://localhost:!HUB_PORT!
@@ -302,7 +302,7 @@ echo -- Building and starting the hub ^(first run: several minutes^) --
 %HUB% up -d --build || goto :fail
 call :wait_health "http://127.0.0.1:!HUB_PORT!/api/health" || goto :fail
 
-call :enroll_hub "%HUB% run --rm tools bun" || goto :fail
+call :enroll_hub "%HUB% run --rm --build tools bun" || goto :fail
 
 if defined WANT_DNS (
   echo.
