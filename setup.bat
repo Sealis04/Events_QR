@@ -103,7 +103,14 @@ if exist ".secrets\signing-key.json" (
 
 echo.
 echo -- Building and starting MariaDB, migrations and the app --
-%VM% up -d --build !UP! || goto :fail
+%VM% up -d --build !UP! || (
+  echo.
+  echo If the migrate log says "Access denied for user 'events_qr'", the database was created with
+  echo other passwords: copy the matching .env.bak-... back over .env, or wipe the dev database with
+  echo   %VM% down -v
+  echo and run setup.bat again.
+  goto :fail
+)
 call :wait_health "http://127.0.0.1:!APP_PORT!/api/health" || goto :fail
 if defined CLOUDFLARE_TUNNEL_TOKEN (
   echo.
@@ -351,6 +358,22 @@ if not errorlevel 2 (
   set "WRITE_ENV=0"
   exit /b 0
 )
+rem MariaDB takes its passwords from the env file only when it first creates its volume: new
+rem passwords against an existing dev database end in "Access denied for user 'events_qr'".
+if not "%TARGET%_%ENV%"=="web_dev" goto :env_backup
+docker volume inspect events-qr-dev_mariadb-data >nul 2>&1 || goto :env_backup
+echo.
+echo The dev database already exists and was created with the passwords in the current .env.
+echo New passwords would lock the app out of it ^(Access denied for user 'events_qr'^).
+echo   [W] Wipe the dev database and its data, then start fresh
+echo   [K] Keep the current .env instead
+choice /c WK /n /m "Choose W or K: "
+if errorlevel 2 (
+  set "WRITE_ENV=0"
+  exit /b 0
+)
+docker compose -p events-qr-dev --env-file .env -f docker/compose.vm.yml -f docker/compose.local.yml --profile tunnel down -v || exit /b 1
+:env_backup
 for /f %%t in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%t"
 copy /y "%ENVFILE%" "%ENVFILE%.bak-%STAMP%" >nul || exit /b 1
 echo Saved the old file as %ENVFILE%.bak-%STAMP%
