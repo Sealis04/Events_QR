@@ -182,6 +182,16 @@ The hub links itself to an event from its own web page instead of a command, and
 - **setup.bat:** asks for the server address and writes `HUB_SERVER_URL`; its "Link the hub now" step is dropped in favour of the page. `scripts/hub-enroll.ts` stays as the fallback and defaults to `HUB_SERVER_URL`.
 - **Done when:** a fresh hub goes unlinked → code on `/setup` → login → reset → `/setup` using only the browser; link refused once linked and rate-limited; reset blocked/forced by role and revokes on the server; the wipe leaves no event data, keys or sessions; lint, typecheck, unit and e2e tests pass and the no-scrollbar spec covers `/setup` and the reset dialog.
 
+### M15 — Guided hub network setup (added 2026-10-28)
+From the user's first real hub test on a Windows PC at home (2026-10-28), where every step after "the hub runs" had to be done by hand and failed silently: no hub name asked, port 53 taken on Windows, firewall, router DNS not set, phones on mobile data, a dropped login cookie over `http://`, and a setup QR pointing at `localhost` because `HUB_URL` was empty. User decisions 2026-10-28:
+- **setup.bat, hub (dev and prod):** cannot finish without `HUB_DOMAIN` and `HUB_LAN_IP`. The name must look like a real domain (not `example.org`/`example.com`); the IP must be one of this PC's own IPv4 addresses on a real adapter (not WSL, Hyper-V, Docker or loopback), offered as a pick list. `HUB_DNS_BIND` is always the LAN IP. The DNS service is always started (recreated when the name or IP changed) and checked with `nslookup <name> <IP>`; setup does not end until it answers or the user explicitly chooses to stop and fix it.
+- **Firewall:** setup offers to make the network Private and add inbound rules for TCP 80, 443, 53 and UDP 53 (one elevated PowerShell prompt).
+- **"Do this now" box** at the end of every hub run, including re-runs that keep the env file: the router steps (reserve the IP, Primary DNS = hub IP, Secondary empty), phone tips (mobile data off, Private DNS off, open `https://<name>`), `HUB_URL=https://<name>` for the web app, and the exact commands to restart the DNS service and to test it. The same box is written to a text file next to `setup.bat` so it can be found later.
+- **setup.bat, web app (dev and prod):** asks whether phones will use a venue hub; if yes, `HUB_URL` is required (https, real name).
+- **App warnings:** the Devices and Hub setup tabs warn when the event has a linked hub but `HUB_URL` is empty or points at `localhost`/a private-only name; the login page says "open this page with https://" when the login succeeded but the cookie was dropped on plain http; the phone's setup error names which server it could not reach instead of looping back silently.
+- **Docs:** setup guide section 4 gets a "Testing a hub on a Windows PC" part with these pitfalls.
+- **Done when:** a fresh Windows run of `setup.bat` → Hub ends with the DNS answering and the box shown, and cannot end with the name or IP missing; the app warnings have tests; lint, typecheck, unit and e2e tests pass.
+
 ## Decisions after the test copy (2026-10-26)
 - Staff login on phones lasts until sign-out or the end of the event day ("unli" for now); biometrics only together with an idle timeout, later.
 - "Revoke and rotate" worked as designed; the UI changes so rotation is an explicit checkbox in the revoke dialog.
