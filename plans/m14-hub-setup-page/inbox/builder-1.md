@@ -1,6 +1,6 @@
 # builder-1 — m14-hub-setup-page
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -59,8 +59,10 @@ M14 of `plans/offline-qr-ticketing/plan.md` (read the M14 section). Use the M11 
 The plan's M14 "Done when" holds; `bun run lint`, `bunx tsc --noEmit`, `bun run test`, `bun run test:e2e` pass. Leave phone and desktop screenshots of `/setup` (empty, error, linked) and the reset dialog under `plans/m14-hub-setup-page/screenshots/`.
 
 ## Summary for reviewer
-
-(builder-1 fills this in)
+**Files changed:** `apps/web/src/server/config.ts` (HUB_SERVER_URL); `packages/core/src/api/hub.ts` (status/link/reset schemas); `apps/web/src/hub/{setup,reset}.ts` (new), `hub/routes.ts`, `hub/loops.ts`; `app/api/hub/{status,link,reset}/route.ts`, `app/api/hubs/revoke-self/route.ts`, `server/deviceAdmin.ts` (`revokeSelf`); `app/setup/{layout,page,SetupCard}`, `app/(dash)/layout.tsx`, `app/_components/ResetHub.tsx`, `events/[id]/page.tsx`, `_tabs/Devices.tsx` (Revoke on hub rows), `_tabs/HubSetup.tsx`, `_lib/hubSetup.ts` (text); `middleware.ts`; `apps/worker/src/hubMain.ts`; `scripts/hub-enroll.ts`; `docker/compose.hub.yml`; `setup.bat`; `docs/deploy-hub.md`, `docs/setup-guide.md`; tests `test/m14-hub-setup.test.ts`, `test/hub-helpers.ts`, `e2e/hub-setup-page.spec.ts`, `e2e/noScrollbars.ts` (helper moved out of `no-scrollbars.spec.ts`), `e2e/hub-setup.spec.ts` (code is now the last `.cmd code`), `playwright.config.ts` (hub env `HUB_SERVER_URL`; not in the owned list, needed for e2e).
+**What was done:** A-G as tasked. Link/status/reset routes on the hub; `/setup` page; hub revokes itself via `POST /api/hubs/revoke-self`; Reset hub dialog with unsent counts and admin-only force; setup.bat writes HUB_SERVER_URL and no longer links; docs updated. Unlinked redirect: middleware cannot read SQLite, so the `(dash)` layout (server component) redirects to `/setup` while unlinked; `/setup` redirects to `/login` once linked (not 404, per the task); `/api/hub/link` answers 409.
+**What to check:** (1) Rate limit counts every try (5/min per `x-forwarded-for` client, 30/10 min overall); in-memory, per process. (2) Revoke call treats 401 from the server as "already revoked". (3) If the first pull fails right after a successful code exchange, the hub stays linked and the worker retries. (4) A pull already running in the worker during a reset can fail on FKs once; loops then idle (failure counter resets when unlinked). (5) Devices tab: hub rows get Revoke only, rotate-PINs option kept (dialog text adapted). (6) `e2e` spec leaves a revoked hub row on the VM; later specs still pass (full run: 36/36 plus the fixed small-size run). (7) Screenshots at desktop and 390 wide in `screenshots/`; 360x740 covered by the no-scrollbar checks only. Local note: `bun run test:e2e` needed a Chromium symlink at the path hard-coded in `playwright.config.ts` (environment only).
+**Conflicts resolved:** (none)
 
 ## Fix requests
 
