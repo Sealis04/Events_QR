@@ -33,15 +33,17 @@ On the hub (Linux with Docker and the Compose plugin):
 
 ```bash
 git clone <this repo> events-qr && cd events-qr
-docker compose -f docker/compose.hub.yml up -d --build
+echo 'HUB_SERVER_URL=https://tickets.example.org' > .env     # or run setup.bat on Windows
+docker compose --env-file .env -f docker/compose.hub.yml up -d --build
 curl -s http://127.0.0.1:3000/api/health
 # {"ok":true,"mode":"hub","last_cloud_sync_at":null,"pending_scans":0}
 ```
 
-No `.env` is needed. These optional settings can go in an `.env` next to the compose file and be passed with `--env-file .env`:
+`HUB_SERVER_URL` is required: it is the server this hub links to. It is fixed here (not typed on the setup page), so nobody on the venue network can point the hub at a fake server. To change server, edit it and restart the hub. The other settings are optional; put them in the same `.env`:
 
 | Variable                                    | Default | Meaning                                                                                                                                       |
 | ------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HUB_SERVER_URL`                            | none (required) | The server's base URL, e.g. `https://tickets.example.org`. Shown read-only on the hub's `/setup` page; without it the page says so and cannot link. |
 | `HUB_BIND`, `HUB_PORT`                      | `0.0.0.0`, `3000` | Where the app listens on the host. Use `127.0.0.1` if the TLS proxy runs on this machine and the LAN should only see HTTPS.        |
 | `HUB_TICKET_PULL_SECONDS`                   | `30`    | How often the hub pulls the event, tickets, staff, devices and the VM's scans.                                                                |
 | `HUB_SCAN_PUSH_SECONDS`                     | `5`     | How often the hub uploads its scans and the phones enrolled at it.                                                                            |
@@ -53,22 +55,24 @@ The SQLite file lives on the `hub-data` volume at `/data/hub.sqlite`. **Back it 
 
 ## 3. Bind the hub to an event
 
-Once per event, with internet. A supervisor on the VM creates a one-time setup code (valid 10 minutes; see `docs/deploy-vm.md` section 9 for the `curl`), and on the hub:
+Once per event, with internet. A supervisor on the server opens the event's **Hub setup** tab and makes a one-time setup code (valid 10 minutes, works once). Then, in a browser on any machine that can reach the hub, open `http://<hub address>:3000/setup` (on a hub that is not linked, every page goes there), enter the code and press **Link hub**. The hub exchanges the code for its credential and the key bundle (event key, public keys, gates), stores them in the SQLite file, runs a first full sync, and shows "Linked to <event>: N tickets" with a button to the login page. Once linked, `/setup` is gone and the link route answers 409. Wrong tries are limited (5 a minute per client, 30 per ten minutes overall).
+
+**Fallback without a browser:** run the command on the hub machine. It reads the address from `HUB_SERVER_URL`; a URL argument before the code still overrides it.
 
 ```bash
-docker compose -f docker/compose.hub.yml run --rm tools \
-  bun scripts/hub-enroll.ts https://tickets.example.org <setup code>
+docker compose --env-file .env -f docker/compose.hub.yml run --rm tools \
+  bun scripts/hub-enroll.ts <setup code>
 # hub linked to https://tickets.example.org for event 1: 1204 tickets, 0 scans
 ```
 
-This exchanges the code for the hub's credential and the key bundle (event key, public keys, gates), stores them in the SQLite file, and runs a first full sync. Check it:
+Check it:
 
 ```bash
 curl -s http://127.0.0.1:3000/api/health      # last_cloud_sync_at is now a recent Unix time
 docker compose -f docker/compose.hub.yml logs -f worker
 ```
 
-One hub serves one event. To use the machine for another event, wipe it first (section 8) and enrol it again.
+One hub serves one event. To use the machine for another event, reset it first (section 8) and link it again.
 
 ## 4. HTTPS on `hub.<domain>`
 
@@ -163,16 +167,18 @@ The step-by-step checklist for staff and supervisors is `docs/runbook.md`; the r
 
 ### 7.1 Standby hub
 
-Set up a second machine exactly as above and enrol it with **its own setup code** (`hub-enroll` creates a separate credential). It then pulls the same tickets, staff and devices. Keep it **off the venue network** (or powered off) until needed, because two hubs answering at once would each decide "first scan" alone.
+Set up a second machine exactly as above and link it with **its own setup code** (each link creates a separate credential). It then pulls the same tickets, staff and devices. Keep it **off the venue network** (or powered off) until needed, because two hubs answering at once would each decide "first scan" alone.
 
 To fail over: switch the standby on the venue network, give it the primary's LAN address (or point the router's `hub.example.org` override at its address), and use the same certificate (copy `/etc/letsencrypt/live/hub.example.org` or issue it separately with the same DNS-01 token). Phones need no change; they find the hub by name. Phones that were enrolled at the failed primary are known to the standby once the primary's last push reached the VM and the standby pulled it; devices enrolled at the primary after its last successful push must be enrolled again.
 
 ## 8. After the event
 
 1. Check `pending_scans` is 0 and the VM's stats match.
-2. Wipe the hub: `docker compose -f docker/compose.hub.yml down -v`. This deletes the SQLite volume: the ticket list, the staff list and the event key.
-3. On the VM revoke the hub's credential (`UPDATE devices SET revoked = 1 WHERE kind = 'hub' AND event_id = <id>;`), and consider rotating the event key as the spec's "After the event" section says.
+2. Reset the hub: log in on the hub as a supervisor or admin, open the event and press **Reset hub**. The hub asks the server to revoke its own credential, then deletes the ticket list, staff list, scans, phones, checks, the event key and every session, and returns to `/setup`. While scans, phones or checks are still waiting to upload the button is blocked (let it sync first); an admin can tick "Delete them anyway", which loses those records. If the server cannot be reached a normal reset stops; a forced one wipes anyway and tells you to revoke the hub on the server.
+3. If the reset could not revoke the hub, do it by hand: the event's **Devices** tab → the hub row → **Revoke** (or `UPDATE devices SET revoked = 1 WHERE kind = 'hub' AND event_id = <id>;`). Also consider rotating the event key as the spec's "After the event" section says.
 4. Wipe the phones (revoke them on the VM's Devices tab; "Set up again" on the phone wipes it too, after uploading its queue and, if scans are stuck, a supervisor PIN. If a phone cannot get online, clear the browser's site data by hand).
+
+`docker compose -f docker/compose.hub.yml down -v` still works as the full wipe (it also deletes the volume itself), but then revoke the hub on the server by hand as in step 3.
 
 ## 9. How the sync works
 

@@ -42,7 +42,7 @@ export const STEPS: StepDef[] = [
     part: 1,
     title: "The hub is linked to this event",
     blurb:
-      "Make a one-time setup code, run the command on the hub machine, then check: the hub must have contacted the VM in the last 2 minutes and pulled tickets.",
+      "Make a one-time setup code, enter it on the hub's setup page, then check: the hub must have contacted the VM in the last 2 minutes and pulled tickets.",
     runsOn: "vm",
   },
   {

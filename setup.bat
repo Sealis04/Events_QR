@@ -233,15 +233,21 @@ if "%WRITE_ENV%"=="1" (
   echo -- Details for the dev hub --
   echo 3100 leaves 3000 free for a dev web app on this same PC.
   call :ask HUB_PORT "Port for the hub on this PC" "3100"
+  set "DEV_APP_PORT=3000"
+  if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /i "%%a"=="APP_PORT" set "DEV_APP_PORT=%%b"
+  echo A dev web app on this PC is reached from inside the hub container as host.docker.internal ^(not localhost^).
+  call :ask HUB_SERVER_URL "Server address" "http://host.docker.internal:!DEV_APP_PORT!"
   > .env.hub (
     echo # Written by setup.bat ^(hub, dev^) on %DATE% %TIME%. Runs in Docker project events-qr-hub-dev.
     echo # No secrets: the hub keeps them in its Docker volume.
     echo HUB_BIND=127.0.0.1
     echo HUB_PORT=!HUB_PORT!
+    echo HUB_SERVER_URL=!HUB_SERVER_URL!
   )
   echo Wrote .env.hub
 )
 call :readenv HUB_PORT 3100
+call :ensure_server_url "http://host.docker.internal:3000"
 call :ensure_port HUB_PORT events-qr-hub-dev-app-1 || goto :fail
 set "HUB=docker compose -p events-qr-hub-dev --env-file .env.hub -f docker/compose.hub.yml"
 
@@ -251,12 +257,8 @@ echo -- Building and starting the hub ^(first run: several minutes^) --
 call :wait_health "http://127.0.0.1:!HUB_PORT!/api/health" || goto :fail
 
 echo.
-echo A dev web app on this PC is reached from inside the hub container as
-echo http://host.docker.internal:3000 ^(not localhost^).
-call :enroll_hub "%HUB% run --rm --build tools bun" "http://host.docker.internal:3000" || goto :fail
-
-echo.
-echo Done. Open http://localhost:!HUB_PORT!
+echo Done. Open http://localhost:!HUB_PORT!/setup
+echo and enter a setup code from the event's Hub setup tab ^(valid 10 minutes, works once^).
 echo After a code change, rebuild and restart with:
 echo   %HUB% up -d --build
 echo Stop it with:
@@ -270,6 +272,7 @@ rem ======================================================================
 if "%WRITE_ENV%"=="1" (
   echo -- Details for the production hub --
   call :ask HUB_PORT "Port the hub listens on" "3000"
+  call :ask_required HUB_SERVER_URL "Server address, e.g. https://tickets.example.org"
   echo.
   echo The hub can answer its own name on the venue Wi-Fi ^(docs/setup-guide.md 4.6^), needed
   echo when the router cannot hold a name override.
@@ -282,6 +285,7 @@ if "%WRITE_ENV%"=="1" (
   > .env (
     echo # Written by setup.bat ^(hub, prod^) on %DATE% %TIME%. No secrets: the hub keeps them in its Docker volume.
     echo HUB_PORT=!HUB_PORT!
+    echo HUB_SERVER_URL=!HUB_SERVER_URL!
     if defined WANT_DNS (
       echo HUB_DOMAIN=!HUB_DOMAIN!
       echo HUB_LAN_IP=!HUB_LAN_IP!
@@ -293,6 +297,7 @@ if "%WRITE_ENV%"=="1" (
   findstr /b /c:"HUB_DOMAIN=" .env >nul && set "WANT_DNS=1"
 )
 call :readenv HUB_PORT 3000
+call :ensure_server_url ""
 call :ensure_port HUB_PORT events-qr-hub-app-1 || goto :fail
 set "HUB=docker compose --env-file .env -f docker/compose.hub.yml"
 
@@ -303,7 +308,8 @@ echo -- Building and starting the hub ^(first run: several minutes^) --
 %HUB% up -d --build || goto :fail
 call :wait_health "http://127.0.0.1:!HUB_PORT!/api/health" || goto :fail
 
-call :enroll_hub "%HUB% run --rm --build tools bun" || goto :fail
+echo.
+echo Open http://localhost:!HUB_PORT!/setup and enter a setup code from the event's Hub setup tab.
 
 if defined WANT_DNS (
   echo.
@@ -524,29 +530,16 @@ if errorlevel 3 exit /b 1
 if errorlevel 2 exit /b 0
 goto :create_admin_run
 
-rem :enroll_hub "runner" ["default server URL"]  -> runs `<runner> scripts/hub-enroll.ts <URL> <code>`, retry on failure
-:enroll_hub
-echo.
-echo -- Link the hub to an event --
-echo You need a setup code from the server: as an admin or supervisor, open the event's
-echo Hub setup tab ^(or POST /api/hubs/setup^). A code is valid for 10 minutes and works once.
-choice /c YN /m "Link the hub now"
-if errorlevel 2 (
-  echo Skipped. Link it later with: %~1 scripts/hub-enroll.ts ^<server URL^> ^<setup code^>
-  exit /b 0
-)
-if "%~2"=="" (
-  call :ask_required VM_URL "Server address, e.g. https://tickets.example.org"
+rem :ensure_server_url "default"  -> HUB_SERVER_URL from %ENVFILE%; an older env file without it gets it asked and added.
+:ensure_server_url
+call :readenv HUB_SERVER_URL ""
+if defined HUB_SERVER_URL exit /b 0
+if "%~1"=="" (
+  call :ask_required HUB_SERVER_URL "Server address, e.g. https://tickets.example.org"
 ) else (
-  call :ask VM_URL "Server address" "%~2"
+  call :ask HUB_SERVER_URL "Server address" "%~1"
 )
-:enroll_retry
-call :ask_required SETUP_CODE "Setup code"
-%~1 scripts/hub-enroll.ts "!VM_URL!" "!SETUP_CODE!" && exit /b 0
-echo Linking failed. An expired or used code needs a new one; a network error means this
-echo machine cannot reach !VM_URL! ^(check DNS and the clock^).
-choice /c YN /m "Try again with another code"
-if not errorlevel 2 goto :enroll_retry
+call :setenv HUB_SERVER_URL "!HUB_SERVER_URL!" || exit /b 1
 exit /b 0
 
 :fail
