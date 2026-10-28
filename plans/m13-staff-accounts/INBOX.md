@@ -22,7 +22,11 @@ M13 of `plans/offline-qr-ticketing/plan.md`: a top-level Staff page (create, lis
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+**Environment:** MariaDB was not installed: `apt-get update` then `apt-get install -y mariadb-server`, re-ran `scripts/ccr-session-init.sh`, granted root@127.0.0.1. Playwright: symlinked `/opt/pw-browsers/chromium-1194/chrome-linux` to the installed chromium-1243 build (config path). No SQL Server needed for this repo.
+**E2E results:** `bun run lint` pass, `bunx tsc --noEmit` pass, `bun run test` pass (web 402, worker 31, core). Playwright full suite 28 passed, 6 skipped (screenshot specs): staff.spec (banner for one admin; create, PIN reset, forced change, deactivate, refused session, reactivate; Setup tab only assigns; ticket-type form wording), no-scrollbars at 390x844 and 360x740 incl. Staff page, hub specs. Unit suite m13-staff-accounts covers self/last-admin guards, concurrent mutual demotion, case-insensitive names, hashesForEvent exclusions, 401 on live session, create-admin reset logging.
+**Issues filed:** none.
+**Summary:** Safety rules are enforced inside one transaction with all staff rows locked; audit rows are written in the same transaction and carry no PINs or hashes. Deactivated and admin-reset accounts are excluded from hub payloads. No blocking issues.
 
 ## planner
 
