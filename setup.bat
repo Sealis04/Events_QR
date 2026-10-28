@@ -81,7 +81,16 @@ if "%WRITE_ENV%"=="1" (
 )
 call :readenv APP_PORT 3000
 call :ensure_port APP_PORT events-qr-dev-app-1 || goto :fail
+
+call :readenv CLOUDFLARE_TUNNEL_TOKEN ""
+if not defined CLOUDFLARE_TUNNEL_TOKEN call :ask_tunnel || goto :fail
+call :readenv PUBLIC_URL "http://localhost:!APP_PORT!"
 set "VM=docker compose -p events-qr-dev --env-file .env -f docker/compose.vm.yml -f docker/compose.local.yml"
+set "UP=app"
+if defined CLOUDFLARE_TUNNEL_TOKEN (
+  set "VM=!VM! --profile tunnel"
+  set "UP=app tunnel"
+)
 
 if not exist ".secrets" mkdir ".secrets"
 if exist ".secrets\signing-key.json" (
@@ -94,8 +103,14 @@ if exist ".secrets\signing-key.json" (
 
 echo.
 echo -- Building and starting MariaDB, migrations and the app --
-%VM% up -d --build app || goto :fail
+%VM% up -d --build !UP! || goto :fail
 call :wait_health "http://127.0.0.1:!APP_PORT!/api/health" || goto :fail
+if defined CLOUDFLARE_TUNNEL_TOKEN (
+  echo.
+  echo -- Tunnel log ^(look for "Registered tunnel connection"^) --
+  timeout /t 5 /nobreak >nul
+  %VM% logs --tail 5 tunnel
+)
 
 echo.
 choice /c YN /m "Create an admin account now"
@@ -106,9 +121,10 @@ if not errorlevel 2 (
 )
 
 echo.
-echo Done. Open http://localhost:!APP_PORT!
+echo Done. Open !PUBLIC_URL!
+if defined CLOUDFLARE_TUNNEL_TOKEN echo ^(Log in through that https address: with the tunnel, login cookies are https-only.^)
 echo After a code change, rebuild and restart with:
-echo   %VM% up -d --build app
+echo   %VM% up -d --build !UP!
 echo Stop it with:
 echo   %VM% stop
 echo Ticket emails need the worker and Gmail ^(docs/deploy-vm.md section 6^); dev works without them.
@@ -383,6 +399,37 @@ rem :readenv VAR default  -> VAR from %ENVFILE%, else default
 :readenv
 set "%~1=%~2"
 for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%ENVFILE%") do if /i "%%a"=="%~1" set "%~1=%%b"
+exit /b 0
+
+rem :ask_tunnel  -> optionally puts the dev app behind a Cloudflare Tunnel; writes the settings into .env.
+:ask_tunnel
+echo.
+echo -- Cloudflare Tunnel ^(optional^) --
+echo Gives the dev app a real https address, e.g. https://dev.example.org, so phones can scan with it.
+echo No port forwarding or certificate needed; this PC must stay on and awake while people use it.
+choice /c YN /m "Put the dev app behind a Cloudflare Tunnel"
+if errorlevel 2 exit /b 0
+echo.
+echo In the Cloudflare dashboard: Zero Trust - Networks - Tunnels - Create a tunnel:
+echo   1. Connector type Cloudflared, any name, Save tunnel.
+echo   2. Choose Docker and copy only the long token after "--token " ^(do not run the command^).
+echo   3. Public hostname: your subdomain and domain, Service type HTTP, URL app:3000. Save.
+echo The URL is app:3000, not localhost: cloudflared runs as a container next to the app.
+echo.
+call :ask_required TUNNEL_URL "Public address you chose, e.g. https://dev.example.org"
+call :ask_required TUNNEL_TOKEN "Tunnel token (a secret: saved only in .env)"
+call :setenv PUBLIC_URL "!TUNNEL_URL!" || exit /b 1
+call :setenv DEV_COOKIE_SECURE "true" || exit /b 1
+call :setenv CLOUDFLARE_TUNNEL_TOKEN "!TUNNEL_TOKEN!" || exit /b 1
+set "TUNNEL_TOKEN="
+cls
+echo Saved the tunnel settings in .env ^(screen cleared so the token is not left on it^).
+exit /b 0
+
+rem :setenv VAR "value"  -> sets VAR=value in %ENVFILE%, replacing its line or adding one.
+:setenv
+powershell -NoProfile -Command "$f='%ENVFILE%'; $k='%~1'; $v='%~2'; $l=@(Get-Content $f); if ($l | Where-Object { $_.StartsWith($k + '=') }) { $l = $l | ForEach-Object { if ($_.StartsWith($k + '=')) { $k + '=' + $v } else { $_ } } } else { $l += ($k + '=' + $v) }; Set-Content $f $l" || exit /b 1
+set "%~1=%~2"
 exit /b 0
 
 rem :ensure_port VAR container  -> if port !VAR! is taken by anything but our own container, say what
