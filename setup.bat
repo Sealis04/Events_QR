@@ -112,13 +112,7 @@ if defined CLOUDFLARE_TUNNEL_TOKEN (
   %VM% logs --tail 5 tunnel
 )
 
-echo.
-choice /c YN /m "Create an admin account now"
-if not errorlevel 2 (
-  call :ask ADMIN_NAME "Admin name" "Admin"
-  echo The script asks for a PIN: admins need 8 or more digits.
-  %VM% run --rm tools bun scripts/create-admin.ts --name "!ADMIN_NAME!" || goto :fail
-)
+call :create_admin "%VM% run --rm tools bun" "Admin" || goto :fail
 
 echo.
 echo Done. Open !PUBLIC_URL!
@@ -195,13 +189,7 @@ echo -- Starting MariaDB, migrations and the app --
 %VM% up -d --build app || goto :fail
 call :wait_health "http://127.0.0.1:!APP_PORT!/api/health" || goto :fail
 
-echo.
-choice /c YN /m "Create an admin account now"
-if not errorlevel 2 (
-  call :ask_required ADMIN_NAME "Admin name"
-  echo The script asks for a PIN: admins need 8 or more digits.
-  %VM% run --rm tools bun scripts/create-admin.ts --name "!ADMIN_NAME!" || goto :fail
-)
+call :create_admin "%VM% run --rm tools bun" "" || goto :fail
 
 echo.
 echo -- Ticket emails ^(Gmail service account, docs/setup-guide.md section 3^) --
@@ -471,6 +459,39 @@ for /l %%i in (1,1,60) do (
 )
 echo No answer after 5 minutes. Look at the logs: the same docker compose command with `logs` at the end.
 exit /b 1
+
+rem :create_admin "runner" "default name"  -> asks for the first admin and runs scripts/create-admin.ts.
+rem A taken name (exit code 3) offers: reset that account's PIN, another name, or skip. Other errors
+rem (a PIN too short, the database not ready) offer: try again, skip, or stop the setup.
+:create_admin
+echo.
+choice /c YN /m "Create an admin account now"
+if errorlevel 2 exit /b 0
+:create_admin_name
+if "%~2"=="" (call :ask_required ADMIN_NAME "Admin name") else (call :ask ADMIN_NAME "Admin name" "%~2")
+set "ADMIN_MODE=fail"
+:create_admin_run
+%~1 scripts/create-admin.ts --name "!ADMIN_NAME!" --if-exists !ADMIN_MODE!
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" exit /b 0
+echo.
+if "!RC!"=="3" (
+  echo An account named "!ADMIN_NAME!" already exists ^(from an earlier run^).
+  echo   [R] Reset it: give it a new PIN and make it an admin ^(its history stays^)
+  echo   [N] Use a different name
+  echo   [S] Skip: keep it as it is
+  choice /c RNS /n /m "Choose R, N or S: "
+  if errorlevel 3 exit /b 0
+  if errorlevel 2 goto :create_admin_name
+  set "ADMIN_MODE=reset"
+  goto :create_admin_run
+)
+echo Creating the admin failed ^(see above: a PIN shorter than 8 digits is refused for an admin^).
+echo   [T] Try again   [S] Skip this step   [Q] Stop the setup
+choice /c TSQ /n /m "Choose T, S or Q: "
+if errorlevel 3 exit /b 1
+if errorlevel 2 exit /b 0
+goto :create_admin_run
 
 rem :enroll_hub "runner" ["default server URL"]  -> runs `<runner> scripts/hub-enroll.ts <URL> <code>`, retry on failure
 :enroll_hub
