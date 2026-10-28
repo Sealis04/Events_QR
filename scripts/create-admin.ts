@@ -4,7 +4,9 @@
  * The PIN comes from the PIN env var or, if unset, an interactive prompt (never a CLI argument,
  * so it stays out of shell history).
  * If the name is taken (case-insensitive): `fail` (default) exits with code 3 before asking for a
- * PIN, `skip` leaves the account as it is, `reset` gives it the new PIN and role (setup.bat re-runs).
+ * PIN, `skip` leaves the account as it is, `reset` gives it the new PIN and role, clears a pending PIN
+ * change and reactivates a deactivated account (setup.bat re-runs; also the way back in when no
+ * admin can log in). Creation and reset are written to the activity log with no actor.
  */
 import { parseArgs } from "node:util";
 import { createInterface } from "node:readline/promises";
@@ -53,7 +55,7 @@ try {
     console.log(`kept the existing ${existing.role} "${existing.name}" (${existing.id})`);
   } else if (ifExists === "reset") {
     const staff = await resetStaff(ctx, { name, pin: await askPin(), role });
-    console.log(`reset ${staff.role} "${staff.name}" (${staff.id}): new PIN`);
+    console.log(`reset ${staff.role} "${staff.name}" (${staff.id}): new PIN, account active`);
   } else {
     console.error(`a staff member named "${existing.name}" already exists (${existing.role})`);
     process.exitCode = NAME_TAKEN;

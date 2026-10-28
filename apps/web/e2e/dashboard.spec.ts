@@ -64,7 +64,7 @@ test("admin creates an event, generates and prints a ticket, finds it, a phone s
   // The form starts with one type, "GA" (a summary card). The VIP preset opens its editor.
   await expect(page.getByTestId("type-card")).toHaveCount(1);
   await page.getByRole("button", { name: "VIP", exact: true }).click();
-  await page.getByLabel("Places").fill("2");
+  await page.getByLabel("Tickets available").fill("2");
   await page.getByRole("button", { name: "Up to a number" }).click();
   await page.getByLabel("Maximum entries").fill("3");
   await page.getByRole("button", { name: "Done" }).click();

@@ -1,10 +1,61 @@
-import { and, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { api, bytesToHex, mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { loadEvent } from "./events";
 
-const { scans, tickets, staff, devices } = mysqlSchema;
+const { scans, tickets, staff, devices, auditLog } = mysqlSchema;
+
+/**
+ * Scans made by an account that was deactivated at the scan's time (an offline phone keeps the
+ * PIN hash until it syncs), as scan id -> start of the deactivation window that covers it. Such
+ * scans are stored as usual; the Conflicts list shows them for review. Windows come from the
+ * audit log (`staff.deactivated` opens one, `staff.reactivated` / `staff.recovered` closes it).
+ * Pass an event id (all its scans) or scan ids.
+ */
+export async function deactivatedScans(
+  ctx: Pick<AppContext, "db">,
+  scope: number | string[],
+): Promise<Map<string, number>> {
+  const rows = await ctx.db
+    .select({ id: scans.id, staffId: scans.staffId, at: scans.scannedAt })
+    .from(scans)
+    .innerJoin(tickets, eq(scans.ticketId, tickets.id))
+    .where(
+      and(
+        sql`${scans.staffId} IS NOT NULL`,
+        typeof scope === "number" ? eq(tickets.eventId, scope) : inArray(scans.id, scope),
+      ),
+    );
+  const out = new Map<string, number>();
+  const staffIds = [...new Set(rows.map((r) => r.staffId!))];
+  if (!staffIds.length) return out;
+  const log = await ctx.db
+    .select({ staffId: auditLog.targetId, action: auditLog.action, at: auditLog.at })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.targetKind, "staff"),
+        inArray(auditLog.targetId, staffIds),
+        inArray(auditLog.action, ["staff.deactivated", "staff.reactivated", "staff.recovered"]),
+      ),
+    )
+    .orderBy(auditLog.at, auditLog.id);
+  const windows = new Map<string, { from: number; to: number }[]>();
+  for (const l of log) {
+    const list = windows.get(l.staffId) ?? [];
+    const open = list[list.length - 1];
+    if (l.action === "staff.deactivated") {
+      if (!open || open.to !== Infinity) list.push({ from: l.at, to: Infinity });
+    } else if (open && open.to === Infinity) open.to = l.at;
+    windows.set(l.staffId, list);
+  }
+  for (const r of rows) {
+    const w = windows.get(r.staffId!)?.find((x) => r.at >= x.from && r.at < x.to);
+    if (w) out.set(r.id, w.from);
+  }
+  return out;
+}
 
 const ADMIT_RESULTS = ["admitted", "override"];
 
@@ -111,9 +162,13 @@ export async function listConflicts(
   query: z.infer<typeof api.conflictsQuery>,
 ): Promise<z.infer<typeof api.conflictsResponse>> {
   await loadEvent(ctx.db, eventId);
+  const flagged = await deactivatedScans(ctx, eventId);
+  const isListed = flagged.size
+    ? or(eq(scans.conflict, true), inArray(scans.id, [...flagged.keys()]))
+    : eq(scans.conflict, true);
   const where = and(
     eq(tickets.eventId, eventId),
-    eq(scans.conflict, true),
+    isListed,
     query.before !== undefined ? sql`${scans.scannedAt} < ${query.before}` : undefined,
   );
   const rows = await ctx.db
@@ -127,7 +182,7 @@ export async function listConflicts(
     .select({ total: sql<number>`COUNT(*)` })
     .from(scans)
     .innerJoin(tickets, eq(scans.ticketId, tickets.id))
-    .where(and(eq(tickets.eventId, eventId), eq(scans.conflict, true)));
+    .where(and(eq(tickets.eventId, eventId), isListed));
 
   const canonical = new Map<string, typeof scans.$inferSelect>();
   const ids = [...new Set(rows.map((r) => r.scan.ticketId))];
@@ -177,7 +232,9 @@ export async function listConflicts(
   );
   return {
     conflicts: rows.map(({ scan: s, holder, status }) => {
-      const first = canonical.get(bytesToHex(s.ticketId));
+      const candidate = canonical.get(bytesToHex(s.ticketId));
+      const first = candidate && candidate.id !== s.id ? candidate : undefined;
+      const from = flagged.get(s.id);
       return {
         scan_id: s.id,
         ticket_id: bytesToHex(s.ticketId),
@@ -203,6 +260,8 @@ export async function listConflicts(
             }
           : null,
         reviewed_at: s.reviewedAt,
+        result: s.result,
+        deactivated_account: from === undefined ? null : { deactivated_at: from },
       };
     }),
     total: Number(total),

@@ -160,6 +160,18 @@ For the IT person. A "Hub setup" page on each event (a hub is enrolled per event
 - Fix from M11: the New event / Setup sticky bar matches the mockup (dark, card width).
 - **Done when:** a reviewer takes a fresh simulated hub from step 1 to step 8 using only the page; every check has a passing and a failing test; lint, typecheck, unit and e2e tests pass and the no-scrollbar spec covers the new page.
 
+### M13 — Staff accounts page, activity log, clearer ticket-type form (added 2026-10-28)
+Accounts are global (one name, PIN and role across events); event assignment stays on each event. User decisions 2026-10-28:
+- **Staff page** in the VM dashboard (admin only, not on the hub): create, list, change role, reset PIN, deactivate, reactivate. The event Setup tab keeps Add / Remove for assignment and links to the Staff page; "Create and add" moves to the Staff page.
+- **New accounts:** the PIN the admin sets works at once (no forced change), so staff can scan on day one.
+- **PIN reset:** the admin sets a temporary PIN and the person must choose a new one at their next dashboard login (same flow as `weak` / `rotate`). A temporary PIN never reaches phones or the hub.
+- **Deactivate:** refused on the dashboard at the next request; dropped from phones and the hub at the next sync. Tickets, scans and assignments stay. Reactivation is allowed.
+- **Safety rules:** an admin cannot deactivate or demote themselves; the last active admin cannot be deactivated or demoted; names stay unique including deactivated accounts.
+- **Lockout:** `scripts/create-admin.ts --if-exists reset` also reactivates the account; the Staff page warns when only one active admin exists. No recovery codes.
+- **Activity log:** new `audit_log` table; this milestone logs staff-account changes only (created, role changed, PIN reset, deactivated, reactivated, recovered by server command), shown as a history list on the Staff page. Generic columns so other admin actions can be added later without a schema change.
+- **Ticket-type form:** "Places" becomes "Tickets available"; "How many times" becomes "Entries per ticket"; a summary line ("2 tickets · up to 3 entries each"); the early-entry box only shows once the type has a time slot, worded "Let them in up to N minutes before their time starts". Rule logic unchanged.
+- **Done when:** each safety rule, deactivation (login, next request, sync), PIN reset flow, audit rows and the script's reactivation have tests; setup guide 1.7, 5.2 and the forgotten-PIN row are updated; lint, typecheck, unit and e2e tests pass and the no-scrollbar spec covers the Staff page.
+
 ## Decisions after the test copy (2026-10-26)
 - Staff login on phones lasts until sign-out or the end of the event day ("unli" for now); biometrics only together with an idle timeout, later.
 - "Revoke and rotate" worked as designed; the UI changes so rotation is an explicit checkbox in the revoke dialog.

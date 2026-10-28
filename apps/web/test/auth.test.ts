@@ -6,7 +6,9 @@ import { setContext } from "../src/server/context";
 import { POST as login } from "../src/app/api/auth/login/route";
 import { POST as logout } from "../src/app/api/auth/logout/route";
 import { GET as me } from "../src/app/api/auth/me/route";
-import { POST as createStaff } from "../src/app/api/staff/route";
+import { GET as listStaff, POST as createStaff } from "../src/app/api/staff/route";
+import { PATCH as patchStaff } from "../src/app/api/staff/[id]/route";
+import { GET as staffLog } from "../src/app/api/staff/log/route";
 import { GET as listEvents, POST as createEvent } from "../src/app/api/events/route";
 import { GET as getEvent, PATCH as patchEvent } from "../src/app/api/events/[id]/route";
 import { POST as addType } from "../src/app/api/events/[id]/ticket-types/route";
@@ -56,6 +58,14 @@ const staffEndpoints: {
 }[] = [
   { name: "GET /auth/me", handler: me, need: "staff" },
   { name: "POST /staff", handler: createStaff, need: "admin", opts: { body: {} } },
+  { name: "GET /staff", handler: listStaff, need: "admin" },
+  { name: "GET /staff/log", handler: staffLog, need: "admin" },
+  {
+    name: "PATCH /staff/{id}",
+    handler: patchStaff,
+    need: "admin",
+    opts: { method: "PATCH", params: { id: "x" }, body: {} },
+  },
   { name: "GET /events", handler: listEvents, need: "staff" },
   { name: "POST /events", handler: createEvent, need: "admin", opts: { body: {} } },
   { name: "GET /events/{id}", handler: getEvent, need: "staff", opts: { params: { id: "1" } } },

@@ -100,8 +100,18 @@ describe("ticket type drafts", () => {
     ).toMatchObject({
       field: "maxAdmits",
     });
+    // The early-entry box only exists for a type with a time slot, so only then is it checked.
+    expect(
+      draftToInput({
+        ...emptyDraft(1),
+        name: "A",
+        early: "5",
+        slots: [{ day: 0, from: "18:00", until: "" }],
+      }),
+    ).toMatchObject({ field: "early" });
     expect(draftToInput({ ...emptyDraft(1), name: "A", early: "5" })).toMatchObject({
-      field: "early",
+      ok: true,
+      value: { early_entry_min: 15 },
     });
   });
   it("writes the sentence the editor previews", () => {

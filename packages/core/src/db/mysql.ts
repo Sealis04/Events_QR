@@ -61,11 +61,16 @@ export const staff = mysqlTable(
     name: varchar("name", { length: 255 }).notNull(),
     pinHash: text("pin_hash").notNull(),
     role: varchar("role", { length: 16 }).notNull(),
-    /** Why this person must set a new PIN before anything else works: `weak` (too short for the role) or `rotate` (a phone holding their hash was lost). */
+    /** Why this person must set a new PIN before anything else works: `weak` (too short for the role), `rotate` (a phone holding their hash was lost) or `admin` (an admin set a temporary PIN). */
     pinReset: varchar("pin_reset", { length: 8 }),
+    /** Unix seconds when an admin deactivated the account; null = active. The row and its history stay. */
+    deactivatedAt: unixCol("deactivated_at"),
   },
   (t) => [
-    check("ck_staff_pin_reset", sql`${t.pinReset} IS NULL OR ${t.pinReset} IN ('weak', 'rotate')`),
+    check(
+      "ck_staff_pin_reset",
+      sql`${t.pinReset} IS NULL OR ${t.pinReset} IN ('weak', 'rotate', 'admin')`,
+    ),
     check("ck_staff_role", sql`${t.role} IN (${sql.raw(sqlList(STAFF_ROLES))})`),
   ],
 );
@@ -311,5 +316,26 @@ export const hubChecks = mysqlTable(
     check("ck_hub_checks_step", sql`${t.step} IN (${sql.raw(sqlList(HUB_CHECK_STEPS))})`),
     check("ck_hub_checks_result", sql`${t.result} IN (${sql.raw(sqlList(HUB_CHECK_RESULTS))})`),
     check("ck_hub_checks_source", sql`${t.source} IN (${sql.raw(sqlList(HUB_CHECK_SOURCES))})`),
+  ],
+);
+
+/**
+ * Append-only activity log of admin actions (staff-account changes so far). `actorStaffId` is null
+ * for a server command (`scripts/create-admin.ts`). `detail` never holds PINs or hashes.
+ */
+export const auditLog = mysqlTable(
+  "audit_log",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    at: unixCol("at").notNull(),
+    actorStaffId: uuidCol("actor_staff_id").references(() => staff.id),
+    action: varchar("action", { length: 32 }).notNull(),
+    targetKind: varchar("target_kind", { length: 16 }).notNull(),
+    targetId: varchar("target_id", { length: 64 }).notNull(),
+    detail: json("detail").$type<Record<string, string | number | boolean | null>>(),
+  },
+  (t) => [
+    index("ix_audit_log_target").on(t.targetKind, t.targetId, t.at),
+    index("ix_audit_log_at").on(t.at),
   ],
 );

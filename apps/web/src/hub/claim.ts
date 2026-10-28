@@ -60,6 +60,10 @@ function checkRequest(
       .where(eq(staff.id, body.staff_id))
       .get();
     if (!member) throw badRequest("unknown staff_id");
+    // A sync replaces the hash of anyone the VM no longer lists (deactivated or unassigned) with
+    // "", so an empty hash is how the hub learns an account was deactivated.
+    if (!member.pinHash)
+      throw new HttpError(403, "staff_deactivated", "this account was deactivated");
     if (body.override && (RANK[member.role] ?? 0) < RANK.supervisor!) {
       throw new HttpError(403, "forbidden", "an override needs a supervisor");
     }

@@ -68,11 +68,13 @@ async function checkRequest(
   }
   if (body.staff_id) {
     const [member] = await ctx.db
-      .select({ role: staff.role, pinReset: staff.pinReset })
+      .select({ role: staff.role, pinReset: staff.pinReset, deactivatedAt: staff.deactivatedAt })
       .from(staff)
       .where(eq(staff.id, body.staff_id))
       .limit(1);
     if (!member) throw badRequest("unknown staff_id");
+    if (member.deactivatedAt !== null)
+      throw new HttpError(403, "staff_deactivated", "this account was deactivated");
     if (body.override && (RANK[member.role] ?? 0) < RANK.supervisor!) {
       throw new HttpError(403, "forbidden", "an override needs a supervisor");
     }

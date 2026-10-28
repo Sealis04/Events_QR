@@ -138,9 +138,14 @@ export default function Home() {
       title="Events"
       actions={(me) =>
         me.role === "admin" && me.mode === "server" ? (
-          <a className="btn" href="/events/new">
-            + New event
-          </a>
+          <>
+            <a className="btn secondary" href="/staff">
+              Staff
+            </a>
+            <a className="btn" href="/events/new">
+              + New event
+            </a>
+          </>
         ) : null
       }
     >

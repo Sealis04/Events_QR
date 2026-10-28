@@ -101,14 +101,18 @@ export function draftToInput(d: TypeDraft): Built {
     return {
       ok: false,
       field: "capacity",
-      error: "Places: a whole number of 1 or more, or blank.",
+      error: "Tickets available: a whole number of 1 or more, or blank.",
     };
   const max = Number(d.maxAdmits);
   if (d.mode === "limited" && (!Number.isInteger(max) || max < 2 || max > 63))
     return { ok: false, field: "maxAdmits", error: "Enter a number from 2 to 63." };
-  const early = Number(d.early);
-  if (!Number.isInteger(early) || early < 15 || early > 30)
-    return { ok: false, field: "early", error: "Early entry is 15 to 30 minutes." };
+  // The early-entry box is only shown for types with a time slot; without one a stray value is not an error.
+  let early = Number(d.early);
+  if (!Number.isInteger(early) || early < 15 || early > 30) {
+    if (d.slots.length > 0)
+      return { ok: false, field: "early", error: "Early entry is 15 to 30 minutes." };
+    early = 15;
+  }
   const slots: { start: number; end: number }[] = [];
   for (const s of d.slots) {
     const from = clockToMinutes(s.from);
@@ -160,6 +164,19 @@ const ruleText = (d: TypeDraft): string =>
     : d.mode === "unlimited"
       ? "Any number (re-entry)"
       : `Up to ${d.maxAdmits || "N"} times`;
+
+/** "N tickets · up to M entries each", for the type editor. */
+export function summaryText(d: TypeDraft): string {
+  const cap = d.capacity.trim();
+  const tickets = cap === "" ? "No limit" : `${cap} ticket${cap === "1" ? "" : "s"}`;
+  const entries =
+    d.mode === "single"
+      ? "one entry"
+      : d.mode === "unlimited"
+        ? "re-entry any number of times"
+        : `up to ${d.maxAdmits || "N"} entries each`;
+  return `${tickets} · ${entries}`;
+}
 
 const gateText = (d: TypeDraft, gates: string[]): string => {
   const names = gates.filter((_, i) => d.gates[i]);
@@ -266,11 +283,11 @@ function Editor({
           <ProblemText problems={problems} index={index} field="name" />
         </label>
         <label className="field">
-          Places
+          Tickets available
           <input
             value={draft.capacity}
             inputMode="numeric"
-            aria-label="Places"
+            aria-label="Tickets available"
             aria-invalid={bad("capacity")}
             onChange={(e) => set({ capacity: e.target.value })}
           />
@@ -302,7 +319,7 @@ function Editor({
         </div>
         {draft.mode === "limited" && (
           <label className="field" style={{ maxWidth: 200 }}>
-            How many times (2–63)
+            Entries per ticket (2–63)
             <input
               value={draft.maxAdmits}
               inputMode="numeric"
@@ -401,19 +418,27 @@ function Editor({
             + Add another time
           </button>
         </div>
-        <label className="row early">
-          Let them in
-          <input
-            value={draft.early}
-            inputMode="numeric"
-            aria-label="Early entry minutes"
-            aria-invalid={bad("early")}
-            style={{ width: 64 }}
-            onChange={(e) => set({ early: e.target.value })}
-          />
-          minutes early
-        </label>
-        <ProblemText problems={problems} index={index} field="early" />
+        {draft.slots.length > 0 && (
+          <>
+            <label className="row early">
+              Let them in up to
+              <input
+                value={draft.early}
+                inputMode="numeric"
+                aria-label="Early entry minutes"
+                aria-invalid={bad("early")}
+                style={{ width: 64 }}
+                onChange={(e) => set({ early: e.target.value })}
+              />
+              minutes before their time starts
+            </label>
+            <ProblemText problems={problems} index={index} field="early" />
+          </>
+        )}
+      </div>
+
+      <div className="muted" data-testid="type-summary">
+        {summaryText(draft)}
       </div>
 
       <div className="preview" data-testid="type-preview">
@@ -491,7 +516,7 @@ export function TypesEditor({
               <span className="tag-chip">{ruleText(t)}</span>
               <span className="tag-chip">{gateText(t, gates)}</span>
               <span className="tag-chip">
-                {t.capacity.trim() ? `${t.capacity.trim()} places` : "No limit"}
+                {t.capacity.trim() ? `${t.capacity.trim()} tickets` : "No limit"}
               </span>
               {t.slots.map((s, k) => (
                 <span key={k} className="tag-chip">

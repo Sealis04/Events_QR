@@ -25,17 +25,19 @@ const vmLogin = route({ access: "public", body: api.loginRequest }, async ({ req
     .from(mysqlSchema.staff)
     .where(eq(mysqlSchema.staff.name, body.name))
     .limit(1);
-  if (!(await verifyPin(body.pin, row?.pinHash)) || !row) {
+  // A deactivated account is refused exactly like a wrong PIN.
+  const active = row && row.deactivatedAt === null ? row : undefined;
+  if (!(await verifyPin(body.pin, active?.pinHash)) || !active) {
     loginLimiter.fail(key, now);
     loginIpLimiter.fail(ip, now);
     throw new HttpError(401, "invalid_credentials", "wrong name or PIN");
   }
   loginLimiter.reset(key);
-  const pinReset = await settleLogin(ctx, row, body.pin);
+  const pinReset = await settleLogin(ctx, active, body.pin);
   // A phone gets no restricted session: it has to wait until the PIN is changed on the dashboard.
   if (pinReset && body.for === "scanner") throw pinChangeRequired();
-  return json({ id: row.id, name: row.name, role: row.role, pin_reset: pinReset }, 200, {
-    "set-cookie": sessionCookie(ctx, createSessionValue(ctx, row.id)),
+  return json({ id: active.id, name: active.name, role: active.role, pin_reset: pinReset }, 200, {
+    "set-cookie": sessionCookie(ctx, createSessionValue(ctx, active.id)),
   });
 });
 

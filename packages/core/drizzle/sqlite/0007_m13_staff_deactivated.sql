@@ -1,0 +1,1 @@
+ALTER TABLE `staff` ADD `deactivated_at` integer;

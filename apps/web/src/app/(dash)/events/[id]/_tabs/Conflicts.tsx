@@ -26,6 +26,8 @@ interface Conflict {
   canonical_detail?: Side | null;
   ticket_status: string;
   reviewed_at?: number | null;
+  deactivated_account?: { deactivated_at: number } | null;
+  result?: string;
 }
 
 const deviceName = (label: string | null | undefined, id: string | null) =>
@@ -121,11 +123,25 @@ export function Conflicts({ eventId, me }: { eventId: number; me: Me }) {
             <strong>{c.holder_name ?? c.ticket_id.slice(-6).toUpperCase()}</strong>
             <span className="row">
               <span className="tag">{c.ticket_status.replace("_", " ")}</span>
+              {c.deactivated_account ? (
+                <span className="tag warn">
+                  {c.result === "override" ? "Override" : "Scan"} by a deactivated account
+                </span>
+              ) : null}
               {c.reviewed_at ? <span className="tag ok">reviewed</span> : null}
             </span>
           </div>
           <div className="versus" style={{ margin: "8px 0" }}>
-            {c.canonical_detail ? (
+            {c.deactivated_account && !c.canonical_detail ? (
+              <div>
+                <strong>Account</strong>
+                <p className="muted">
+                  {c.staff_name ?? "Unknown"} was deactivated at{" "}
+                  {formatTime(c.deactivated_account.deactivated_at)}, before this scan was made
+                  offline. The person was admitted and the record is unchanged.
+                </p>
+              </div>
+            ) : c.canonical_detail ? (
               <Scan title="Stays valid (first)" s={c.canonical_detail} />
             ) : (
               <div>

@@ -316,7 +316,9 @@ export function EventForm({
             <h2>Ticket types</h2>
           </div>
           <span className="small muted">
-            {places === null ? "No overall limit" : `${places.toLocaleString()} places in total`}
+            {places === null
+              ? "No overall limit"
+              : `${places.toLocaleString()} tickets available in total`}
           </span>
         </div>
         <TypesEditor
