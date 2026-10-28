@@ -24,6 +24,7 @@ bun run lint          # ESLint + Prettier check
 bunx tsc --noEmit     # typecheck (root tsconfig with project references)
 bun run test          # Vitest across all workspaces
 bun dev               # Next.js dev server on :3000 (from M2 on)
+setup.bat             # Windows: guided setup (web app or hub, dev or prod), writes .env
 ```
 
 Test copy on the VM (separate Docker project `events-qr-test`, Mailpit instead of Gmail, red TEST banner): `docker/compose.test.yml`, `scripts/test-reset.ts`, `docs/test-setup.md` (section 5: on a Windows PC behind a Cloudflare Tunnel, `--profile tunnel`).
