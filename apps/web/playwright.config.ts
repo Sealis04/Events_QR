@@ -67,6 +67,8 @@ export default defineConfig({
         APP_MODE: "hub",
         COOKIE_SECURE: "false",
         HUB_DB_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub.sqlite"),
+        // The server the hub's /setup page links to (the VM directly, no proxy).
+        HUB_SERVER_URL: `http://127.0.0.1:${PORT}`,
         // A throwaway certificate for the hub's health page to report an expiry date from.
         HUB_CERT_PATH: resolve(import.meta.dirname, "e2e/.tmp/hub-cert.pem"),
         SYNC_HORIZON_SECONDS: "1",

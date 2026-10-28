@@ -160,7 +160,7 @@ test("Part 1 at the office: each step fails with its fix, then passes", async ()
   await runCheck(vmPage, "link_hub");
   await expectResult(vmPage, "link_hub", "fail");
   await step(vmPage, "link_hub").getByRole("button", { name: "Make a setup code" }).click();
-  const command = await step(vmPage, "link_hub").locator(".cmd code").innerText();
+  const command = await step(vmPage, "link_hub").locator(".cmd code").last().innerText();
   expect(command).toContain("hub-enroll.ts");
   const setupCode = command.trim().split(/\s+/).at(-1)!;
   // On the hub machine (through the hub's uplink, so it can be cut later).

@@ -15,6 +15,7 @@ import { POST as cancelRoute } from "../src/app/api/tickets/[id]/cancel/route";
 import { POST as enrollRoute } from "../src/app/api/devices/enroll/route";
 import { POST as hubSetup } from "../src/app/api/hubs/setup/route";
 import { POST as hubEnroll } from "../src/app/api/hubs/enroll/route";
+import { POST as hubRevokeSelf } from "../src/app/api/hubs/revoke-self/route";
 import { GET as syncMeta } from "../src/app/api/sync/meta/route";
 import { GET as syncTickets } from "../src/app/api/sync/tickets/route";
 import { GET as syncScansGet, POST as syncScansPost } from "../src/app/api/sync/scans/route";
@@ -42,6 +43,7 @@ type Handler = (
 
 const VM_ROUTES: Record<string, Handler> = {
   "POST /api/hubs/enroll": hubEnroll,
+  "POST /api/hubs/revoke-self": hubRevokeSelf,
   "GET /api/sync/meta": syncMeta,
   "GET /api/sync/tickets": syncTickets,
   "GET /api/sync/scans": syncScansGet,
