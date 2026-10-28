@@ -113,3 +113,10 @@ export function guessHubAddress(pageHost: string): string {
   if (labels.length < 3 || /^\d+$/.test(labels[labels.length - 1]!)) return "";
   return `https://hub.${labels.slice(1).join(".")}`;
 }
+
+/** The warning for a linked hub when `HUB_URL` would give phones an address they cannot use. */
+export function hubUrlWarningText(w: { status: "unset" | "local"; value: string | null }): string {
+  return `Phones set up from this page will not find the hub: HUB_URL is ${
+    w.status === "unset" ? "unset" : w.value
+  }. Set HUB_URL=https://<hub name> in the server's .env and restart it.`;
+}

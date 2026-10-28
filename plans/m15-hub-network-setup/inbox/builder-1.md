@@ -1,6 +1,6 @@
 # builder-1 — m15-hub-network-setup
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -61,8 +61,34 @@ M15 of `plans/offline-qr-ticketing/plan.md` (read the M15 section and `PROJECT_S
 The plan's M15 "Done when" holds; `bun run lint`, `bunx tsc --noEmit`, `bun run test`, `bun run test:e2e` pass. In your summary, walk through each setup.bat path in words (what it asks, what it refuses, where it ends), since the reviewer cannot run it.
 
 ## Summary for reviewer
+**Files changed:**
+- `setup.bat`, new `scripts/setup-hub-network.ps1` (PowerShell 5.1 helper, called as `powershell -NoProfile -ExecutionPolicy Bypass -File ...`), `.gitignore` (`HUB_NEXT_STEPS.txt`).
+- Server: new `apps/web/src/server/hubUrl.ts` (classifier + warning), `server/deviceAdmin.ts` and `server/hubSetup.ts` (`hub_url_warning` in the Devices panel and Hub setup view), `packages/core/src/api/cloud.ts` (optional `hub_url_warning` on `devicePanelResponse`).
+- UI: `_tabs/Devices.tsx`, `_tabs/HubSetup.tsx` (banner, plus a failing notice inside step 7), `_lib/hubSetup.ts` (`hubUrlWarningText`), new `_lib/loginHelp.ts` and `(dash)/login/page.tsx`.
+- Phone: `scanner/sync.ts` (new `sync_failed` EnrollFailed), `scan/ScannerApp.tsx`.
+- Docs: `docs/setup-guide.md` (new "Testing a hub on a Windows PC" in section 4, pointers in 4.3 and 4.6), `docs/deploy-hub.md` (section 5).
+- Tests: `apps/web/test/m15-hub-warnings.test.ts`, `apps/web/e2e/m15-hub-warnings.spec.ts`.
 
-(builder-1 fills this in)
+**What was done:**
+- A/B (setup.bat): see the walk-through below. Logic that is awkward in batch (name/IP validation, IP pick list, nslookup check, firewall elevation, the box) is in the PowerShell helper; the batch keeps the flow and the Retry/Stop menus.
+- C: `classifyHubUrl` (unset / local / ok). The warning is added only when the event has a linked (not revoked) hub. Devices tab and Hub setup tab show it (`data-testid="hub-url-warning"`); Hub setup also shows a failing notice in step 7 (the step's stored result is unchanged). Login: `noSessionMessage` gives the https message on `http:` for any host but `localhost`/`127.0.0.1`. Phone: a failed first sync after the code was exchanged wipes the half-made device and throws `EnrollFailed("sync_failed")`, whose message names hub and cloud addresses, says to check HUB_URL and that a new code is needed; ScannerApp clears its device state and keeps that message on the setup screen.
+- D: docs as listed. E: unit tests for the classifier, the warning gating, the login message and the phone failure; e2e for the Devices/Hub setup warning at 390x844 and 360x740 (with no-scrollbar checks), and the login message.
+
+**setup.bat walk-through** (I could not run Windows or PowerShell here; this is from reading the code):
+- Hub (dev and prod) after the env file is written or kept: `:hub_network` reads HUB_DOMAIN, HUB_LAN_IP, HUB_DNS_BIND from the env file (`.env.hub` for dev, `.env` for prod). A name that fails the check (empty, no dot, has `http`, `/` or a space, `example.org`/`example.com` and subdomains) is asked again until valid; same for the IP: it must be an IPv4 address of this PC on an up adapter that is not loopback, `169.254.*` or matches vEthernet/WSL/Hyper-V/Docker/VirtualBox/VMware/Loopback. The IP is chosen from a numbered list (a single address asks Enter to confirm); a typed number outside the list is refused. If no usable adapter exists the helper fails and setup ends via `:fail`. HUB_DNS_BIND is forced equal to HUB_LAN_IP. With Keep, valid values are kept silently; a missing or invalid one is asked and written with `:setenv`. The hub stack is only built after all three are valid.
+- After the stack is healthy: `:hub_dns_up` runs `--profile dns up -d --force-recreate dns`. On failure it prints what holds UDP 53 (netstat + process name) and the hotspot/ICS hint, then Retry or Stop (Stop -> `:fail`). `:hub_dns_check` runs `nslookup <name> <IP>` up to 5 times, 2 s apart, and needs the answer to contain the IP after `Name:`; on failure Retry / Show logs / Stop (Stop -> `:fail`). `:hub_firewall` asks Y/N; Y runs one elevated PowerShell (temp script file, `Start-Process -Verb RunAs -Wait -PassThru`) that sets the hub network's profile to Private and adds the four `Events_QR hub ...` inbound rules if missing; N, a declined UAC or a failure only prints a warning.
+- Hub prod: the old "Run the hub's DNS service" question is gone; the Nginx Proxy Manager offer stays. Both end with `:hub_box`: the box (steps 1 to 6 of the task) is printed and written to `HUB_NEXT_STEPS.txt` next to `setup.bat` (no secrets), then "Press any key" (`:done`).
+- Web app (dev and prod): the HUB_URL question moved out of the env-writing block into `:ensure_hub_url`, which runs for new and kept files. If `HUB_URL=` is absent from the env file it asks "Will phones use a venue hub?"; Y requires `https://<real name>` (no path or trailing slash; the same name rules), N writes an empty `HUB_URL=` (the app treats empty as unset, and the line marks the question as answered). A kept file with a present but invalid HUB_URL is asked again. At the end both web paths print the hub address and that HUB_DOMAIN must match it.
+
+**What to check:**
+- The batch/PowerShell was not executed (no Windows here). Please read `:hub_network`, `:ask_via_ps` (answers go through a temp file, since console prompts and `for /f` capture do not mix) and the `choice` errorlevel orders (R/L/S = 1/2/3).
+- `check-dns` parses `nslookup` text: the IP must appear after the first `Name:`. Localised Windows may print other labels; I did not find one that translates `Name:`, but that is the weakest point.
+- `.localhost` hostnames in the e2e login test rely on Chromium resolving `*.localhost` to loopback; `/api/auth/me` is mocked as 401 there (the e2e server cookie is not Secure, so a real drop cannot be produced).
+- The Devices/Hub setup "only with a linked hub" rule is unit-tested on `hubUrlWarning` and checked end to end on the API response in e2e (before and after revoking the hub), not with a separate DB-backed vitest.
+- The no-scrollbar check for the banner is in my own e2e spec at 390x844 and 360x740, not added to `no-scrollbars.spec.ts` (that file runs after mine and hubs are revoked by then).
+- `docker/compose.hub.yml` needed no change.
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 

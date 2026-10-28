@@ -6,11 +6,15 @@ rem   Web app, dev  : compose.vm.yml + compose.local.yml, project events-qr-dev,
 rem   Web app, prod : compose.vm.yml, see docs/setup-guide.md sections 1-3
 rem   Hub, dev      : compose.hub.yml with .env.hub, project events-qr-hub-dev, http://localhost:3100
 rem   Hub, prod     : compose.hub.yml, see docs/setup-guide.md section 4
+rem   A hub always asks for its name and LAN address, starts and checks its DNS service, offers the
+rem   firewall rules and ends with a "Do this now" box (also saved as HUB_NEXT_STEPS.txt).
 rem Dev builds the images from this folder: after a code change, run the command it prints at the end.
 rem Secrets are generated here and written only to .env (gitignored). Back .env up afterwards.
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 set "ROOT=%CD:\=/%"
+rem Hub helper (name and address questions, DNS check, firewall, the "Do this now" box).
+set "HUBPS=powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-hub-network.ps1"
 
 echo.
 echo ============================================================
@@ -81,6 +85,7 @@ if "%WRITE_ENV%"=="1" (
 )
 call :readenv APP_PORT 3000
 call :ensure_port APP_PORT events-qr-dev-app-1 || goto :fail
+call :ensure_hub_url || goto :fail
 
 call :readenv CLOUDFLARE_TUNNEL_TOKEN ""
 if not defined CLOUDFLARE_TUNNEL_TOKEN call :ask_tunnel || goto :fail
@@ -124,6 +129,7 @@ call :create_admin "%VM% run --rm --build tools bun" "Admin" || goto :fail
 
 echo.
 echo Done. Open !PUBLIC_URL!
+call :show_hub_url
 if defined CLOUDFLARE_TUNNEL_TOKEN echo ^(Log in through that https address: with the tunnel, login cookies are https-only.^)
 echo After a code change, rebuild and restart with:
 echo   %VM% up -d --build !UP!
@@ -140,7 +146,6 @@ if "%WRITE_ENV%"=="1" (
   echo -- Details for the production web app --
   echo The public address is what people and hubs open, e.g. https://tickets.example.org
   call :ask_required PUBLIC_URL "Public address of this server"
-  call :ask HUB_URL "Venue hub address, e.g. https://hub.example.org (blank = set later)" ""
   call :ask EVENT_TIMEZONE "Event time zone (IANA name)" "Asia/Manila"
   echo Nginx Proxy Manager forwards to the app. Use 127.0.0.1 if it runs on this machine,
   echo 0.0.0.0 if it runs elsewhere.
@@ -167,7 +172,6 @@ if "%WRITE_ENV%"=="1" (
     echo SIGNING_KEY_PASSPHRASE=!SIGNING_KEY_PASSPHRASE!
     echo EVENT_TIMEZONE=!EVENT_TIMEZONE!
     echo PUBLIC_URL=!PUBLIC_URL!
-    if defined HUB_URL echo HUB_URL=!HUB_URL!
     echo APP_BIND=!APP_BIND!
     echo APP_PORT=!APP_PORT!
   )
@@ -179,7 +183,7 @@ if "%WRITE_ENV%"=="1" (
 )
 call :readenv APP_PORT 3000
 call :ensure_port APP_PORT events-qr-app-1 || goto :fail
-call :readenv HUB_URL ""
+call :ensure_hub_url || goto :fail
 set "VM=docker compose --env-file .env -f docker/compose.vm.yml"
 
 if not exist ".secrets" mkdir ".secrets"
@@ -219,6 +223,7 @@ echo Worker started. Check it with: %VM% logs worker
 :web_prod_end
 echo.
 echo Done. The app answers on http://127.0.0.1:!APP_PORT!.
+call :show_hub_url
 echo Still to do by hand ^(docs/setup-guide.md^):
 echo   - section 1.8  nightly database backup, and back up .env and .secrets\signing-key.json
 echo   - section 2    Nginx Proxy Manager, certificate, Cloudflare record, router ports 80/443
@@ -249,6 +254,7 @@ if "%WRITE_ENV%"=="1" (
 call :readenv HUB_PORT 3100
 call :ensure_server_url "http://host.docker.internal:3000"
 call :ensure_port HUB_PORT events-qr-hub-dev-app-1 || goto :fail
+call :hub_network || goto :fail
 set "HUB=docker compose -p events-qr-hub-dev --env-file .env.hub -f docker/compose.hub.yml"
 
 echo.
@@ -263,6 +269,11 @@ echo After a code change, rebuild and restart with:
 echo   %HUB% up -d --build
 echo Stop it with:
 echo   %HUB% stop
+
+call :hub_dns_up || goto :fail
+call :hub_dns_check || goto :fail
+call :hub_firewall
+call :hub_box
 goto :done
 
 
@@ -273,32 +284,17 @@ if "%WRITE_ENV%"=="1" (
   echo -- Details for the production hub --
   call :ask HUB_PORT "Port the hub listens on" "3000"
   call :ask_required HUB_SERVER_URL "Server address, e.g. https://tickets.example.org"
-  echo.
-  echo The hub can answer its own name on the venue Wi-Fi ^(docs/setup-guide.md 4.6^), needed
-  echo when the router cannot hold a name override.
-  choice /c YN /m "Run the hub's DNS service"
-  if not errorlevel 2 (
-    set "WANT_DNS=1"
-    call :ask_required HUB_DOMAIN "Hub name, e.g. hub.example.org"
-    call :ask_required HUB_LAN_IP "This machine's fixed LAN address, e.g. 192.168.50.10"
-  )
   > .env (
     echo # Written by setup.bat ^(hub, prod^) on %DATE% %TIME%. No secrets: the hub keeps them in its Docker volume.
     echo HUB_PORT=!HUB_PORT!
     echo HUB_SERVER_URL=!HUB_SERVER_URL!
-    if defined WANT_DNS (
-      echo HUB_DOMAIN=!HUB_DOMAIN!
-      echo HUB_LAN_IP=!HUB_LAN_IP!
-      echo HUB_DNS_BIND=!HUB_LAN_IP!
-    )
   )
   echo Wrote .env
-) else (
-  findstr /b /c:"HUB_DOMAIN=" .env >nul && set "WANT_DNS=1"
 )
 call :readenv HUB_PORT 3000
 call :ensure_server_url ""
 call :ensure_port HUB_PORT events-qr-hub-app-1 || goto :fail
+call :hub_network || goto :fail
 set "HUB=docker compose --env-file .env -f docker/compose.hub.yml"
 
 echo.
@@ -311,12 +307,9 @@ call :wait_health "http://127.0.0.1:!HUB_PORT!/api/health" || goto :fail
 echo.
 echo Open http://localhost:!HUB_PORT!/setup and enter a setup code from the event's Hub setup tab.
 
-if defined WANT_DNS (
-  echo.
-  echo -- Starting the hub DNS service --
-  %HUB% --profile dns up -d dns || goto :fail
-  echo Set the venue router's DHCP primary DNS to !HUB_LAN_IP! and leave secondary DNS empty.
-)
+call :hub_dns_up || goto :fail
+call :hub_dns_check || goto :fail
+call :hub_firewall
 
 echo.
 echo HTTPS for phones: Nginx Proxy Manager with a Let's Encrypt certificate by Cloudflare DNS
@@ -331,8 +324,7 @@ if not errorlevel 2 (
 
 echo.
 echo Done. Check it on the event's Hub setup tab ^(admin^), at the office and at the venue.
-echo Also: a Cloudflare A record for the hub name to its LAN address, grey cloud ^(setup guide 4.4^),
-echo and HUB_URL in the server's .env.
+call :hub_box
 goto :done
 
 
@@ -540,6 +532,129 @@ if "%~1"=="" (
   call :ask HUB_SERVER_URL "Server address" "%~1"
 )
 call :setenv HUB_SERVER_URL "!HUB_SERVER_URL!" || exit /b 1
+exit /b 0
+
+rem :hub_network  -> the hub's name, LAN address and DNS bind address are set and valid in %ENVFILE%.
+rem Asks for what is missing or no longer valid (a Keep'd file whose IP left this PC); never returns without all three.
+:hub_network
+call :readenv HUB_DOMAIN ""
+call :readenv HUB_LAN_IP ""
+call :readenv HUB_DNS_BIND ""
+set "NET_OK="
+if defined HUB_DOMAIN %HUBPS% -Action check-name -Value "!HUB_DOMAIN!" && set "NET_OK=1"
+if not defined NET_OK (
+  if defined HUB_DOMAIN echo The hub name in %ENVFILE% ^(!HUB_DOMAIN!^) cannot be used.
+  call :ask_via_ps ask-name HUB_DOMAIN || exit /b 1
+  call :setenv HUB_DOMAIN "!HUB_DOMAIN!" || exit /b 1
+)
+set "NET_OK="
+if defined HUB_LAN_IP %HUBPS% -Action check-ip -Value "!HUB_LAN_IP!" && set "NET_OK=1"
+if not defined NET_OK (
+  if defined HUB_LAN_IP echo The LAN address in %ENVFILE% ^(!HUB_LAN_IP!^) is not on this PC ^(any more^).
+  call :ask_via_ps ask-ip HUB_LAN_IP || exit /b 1
+  call :setenv HUB_LAN_IP "!HUB_LAN_IP!" || exit /b 1
+)
+rem On Windows the DNS service always binds to the LAN address: 0.0.0.0:53 is often taken already.
+if not "!HUB_DNS_BIND!"=="!HUB_LAN_IP!" call :setenv HUB_DNS_BIND "!HUB_LAN_IP!" || exit /b 1
+exit /b 0
+
+rem :ask_via_ps ACTION VAR  -> the helper asks (and re-asks until valid), VAR gets the answer from a temp file.
+:ask_via_ps
+set "ANSWER_FILE=%TEMP%\eqr-setup-answer.txt"
+del "%ANSWER_FILE%" >nul 2>&1
+%HUBPS% -Action %~1 -OutFile "%ANSWER_FILE%" || exit /b 1
+set "%~2="
+if exist "%ANSWER_FILE%" set /p "%~2="<"%ANSWER_FILE%"
+del "%ANSWER_FILE%" >nul 2>&1
+if not defined %~2 exit /b 1
+exit /b 0
+
+rem :hub_dns_up  -> starts (recreates) the DNS service; on the port error says what holds UDP 53.
+:hub_dns_up
+echo.
+echo -- Starting the hub DNS service --
+%HUB% --profile dns up -d --force-recreate dns && exit /b 0
+echo.
+echo The DNS service did not start. If the message says port 53 is "not available" or
+echo "already in use", something else on this PC holds it:
+%HUBPS% -Action port53
+echo Free it ^(often Windows Mobile hotspot or Internet Connection Sharing: turn it off in
+echo Settings - Network ^& internet - Mobile hotspot^), then retry.
+choice /c RS /n /m "[R]etry or [S]top: "
+if errorlevel 2 exit /b 1
+goto :hub_dns_up
+
+rem :hub_dns_check  -> nslookup <HUB_DOMAIN> <HUB_LAN_IP> must return HUB_LAN_IP; Retry / Show logs / Stop.
+:hub_dns_check
+echo.
+echo -- Checking the hub DNS service --
+%HUBPS% -Action check-dns -Name "!HUB_DOMAIN!" -Ip "!HUB_LAN_IP!" && exit /b 0
+echo.
+echo The DNS service does not answer for !HUB_DOMAIN!.
+echo   [R] Retry   [L] Show the DNS service log   [S] Stop
+choice /c RLS /n /m "Choose R, L or S: "
+if errorlevel 3 exit /b 1
+if errorlevel 2 (
+  %HUB% --profile dns logs --tail 30 dns
+)
+goto :hub_dns_check
+
+rem :hub_firewall  -> optional, one prompt: Private network profile and inbound rules (needs admin). A failure only warns.
+:hub_firewall
+echo.
+choice /c YN /m "Open the Windows firewall for the hub (needs admin)"
+if errorlevel 2 (
+  echo Skipped. If phones cannot reach this PC, run setup.bat again and answer Y, or allow TCP 80, 443, 53 and UDP 53.
+  exit /b 0
+)
+%HUBPS% -Action firewall -Ip "!HUB_LAN_IP!" && (
+  echo Firewall: this network is Private and the hub ports ^(TCP 80, 443, 53, UDP 53^) are open.
+  exit /b 0
+)
+echo WARNING: the firewall was not changed ^(admin approval declined or failed^). Phones may not reach this PC.
+exit /b 0
+
+rem :hub_box  -> the "Do this now" box, also saved as HUB_NEXT_STEPS.txt next to setup.bat.
+:hub_box
+echo.
+%HUBPS% -Action next-steps -Name "!HUB_DOMAIN!" -Ip "!HUB_LAN_IP!" -Port "!HUB_PORT!" -Setup %ENV% -HubCmd "%HUB%" -OutFile "HUB_NEXT_STEPS.txt"
+exit /b 0
+
+rem :ask_hub_url  -> "Will phones use a venue hub?"; Y asks for HUB_URL (https, a real name), N leaves it empty.
+:ask_hub_url
+echo.
+echo Phones that scan a setup QR get the hub's address from HUB_URL. Without it the QR points
+echo at localhost and the phone cannot finish setting up.
+choice /c YN /m "Will phones use a venue hub"
+if errorlevel 2 (
+  set "HUB_URL="
+  exit /b 0
+)
+:ask_hub_url_value
+call :ask_required HUB_URL "Hub address, e.g. https://hub.yourdomain.com"
+%HUBPS% -Action check-url -Value "!HUB_URL!" || goto :ask_hub_url_value
+exit /b 0
+
+rem :ensure_hub_url  -> HUB_URL in %ENVFILE%. Missing: ask once and write the answer (N writes an empty HUB_URL=).
+rem Present but unusable: ask again.
+:ensure_hub_url
+findstr /b /c:"HUB_URL=" "%ENVFILE%" >nul || (
+  call :ask_hub_url
+  call :setenv HUB_URL "!HUB_URL!" || exit /b 1
+  exit /b 0
+)
+call :readenv HUB_URL ""
+if not defined HUB_URL exit /b 0
+%HUBPS% -Action check-url -Value "!HUB_URL!" && exit /b 0
+echo The HUB_URL in %ENVFILE% cannot be used by phones.
+call :ask_hub_url_value
+call :setenv HUB_URL "!HUB_URL!" || exit /b 1
+exit /b 0
+
+rem :show_hub_url  -> end of a web app run: the hub address phones are given.
+:show_hub_url
+if not defined HUB_URL exit /b 0
+echo Phones are given the hub address !HUB_URL!. The hub's name ^(HUB_DOMAIN^) must be exactly that name.
 exit /b 0
 
 :fail

@@ -328,6 +328,11 @@ export function ScannerApp() {
           await readCounts(store, next, serverNow(next)).catch(() => ({ day: 0, in: 0, out: 0 })),
         );
       } catch (err) {
+        // The store was emptied (the code is spent): the screen must match it and keep the message.
+        if (err instanceof EnrollFailed && err.reason === "sync_failed") {
+          setDevice(undefined);
+          setStaff(null);
+        }
         setNotice(err instanceof EnrollFailed ? err.message : "Setup failed. Try the code again.");
       } finally {
         busy.current = false;
