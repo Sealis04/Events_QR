@@ -33,7 +33,7 @@ const HUB_DASHBOARD = [
   /^\/api\/auth\/(logout|me)$/,
   /^\/api\/hub\/pull$/,
   /^\/api\/events$/,
-  /^\/api\/events\/\d+(\/(stats|conflicts|devices|tickets|admit|overrides))?$/,
+  /^\/api\/events\/\d+(\/(stats|conflicts|devices|tickets|admit|overrides|hub-setup(\/checks)?))?$/,
 ];
 
 const CORS = {

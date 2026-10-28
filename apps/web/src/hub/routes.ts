@@ -4,6 +4,7 @@
  */
 import { api } from "@events-qr/core";
 import { HttpError, json } from "../server/errors";
+import { certExpiresAt } from "../server/hubCert";
 import { claimTicket, exitTicket } from "./claim";
 import { exchangeHubEnrolment } from "./enroll";
 import { hubRoute } from "./http";
@@ -45,6 +46,10 @@ export const health = hubRoute({ access: "public" }, ({ ctx }) => {
     mode: "hub",
     last_cloud_sync_at: last ? Number(last) : null,
     pending_scans: pendingScanCount(ctx),
+    // The hub setup page reads the certificate's expiry from here (only when HUB_CERT_PATH is set).
+    ...(ctx.config.HUB_CERT_PATH
+      ? { cert_expires_at: certExpiresAt(ctx.config.HUB_CERT_PATH) }
+      : {}),
     ...(ctx.config.INSTANCE_LABEL ? { instance_label: ctx.config.INSTANCE_LABEL } : {}),
   });
 });

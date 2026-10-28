@@ -73,6 +73,11 @@ export class VmClient {
   pushScans = (scans: z.infer<typeof api.syncScansRequest>["scans"]) =>
     this.request("POST", "/api/sync/scans", api.syncScansResponse, { scans });
 
+  pushChecks = (checks: z.infer<typeof api.syncHubChecksRequest>["checks"]) =>
+    this.request("POST", "/api/sync/hub-checks", api.syncHubChecksResponse, { checks });
+
+  counts = () => this.request("GET", "/api/sync/counts", api.syncCountsResponse);
+
   pushDevices = (devices: z.infer<typeof api.syncDevicesRequest>["devices"]) =>
     this.request("POST", "/api/sync/devices", api.syncDevicesResponse, { devices });
 }

@@ -50,6 +50,16 @@ const schema = z.object({
   /** Per-request timeout towards the VM. */
   HUB_VM_TIMEOUT_SECONDS: z.coerce.number().positive().default(10),
 
+  /** Hub setup page, step 2: the public resolver the VM asks about the hub's name. */
+  HUB_CHECK_DNS_SERVER: z.string().min(1).default("1.1.1.1"),
+  /**
+   * Test copy only: fixed DNS answers for the hub setup page, `name=ip;ip,name2=` (an empty list
+   * means "no record"). A name listed here is not looked up on the network.
+   */
+  HUB_CHECK_DNS_ANSWERS: z.string().min(1).optional(),
+  /** Hub: the certificate file the proxy serves for the hub name (mounted read-only), so the setup page can show its expiry. */
+  HUB_CERT_PATH: z.string().min(1).optional(),
+
   /**
    * Marks a non-production copy (e.g. `TEST`): shown as a banner on every dashboard page and on the
    * scanner, and put in front of ticket email subjects. Leave unset in production.
@@ -96,7 +106,12 @@ export function findRepoRoot(from: string = process.cwd()): string {
   }
 }
 
-const FILE_PATH_SETTINGS = ["SIGNING_KEY_PATH", "GMAIL_SA_KEY_PATH", "HUB_DB_PATH"] as const;
+const FILE_PATH_SETTINGS = [
+  "SIGNING_KEY_PATH",
+  "GMAIL_SA_KEY_PATH",
+  "HUB_DB_PATH",
+  "HUB_CERT_PATH",
+] as const;
 
 export function loadConfig(
   env: Record<string, string | undefined> = process.env,

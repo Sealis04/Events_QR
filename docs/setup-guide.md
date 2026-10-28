@@ -314,6 +314,8 @@ shows `status` `sent`.
 
 ## 4. The venue hub
 
+> **Check it in the app.** Once the VM is up (section 1), the event's **Hub setup** tab (admin only) walks through sections 4.2 to 4.6 and 5.7 with a **Check** button per step: the hub answers, the `hub.<domain>` record is private and grey, the certificate and its days left, the hub is linked and pulling, the name works on the venue Wi-Fi, tickets and staff match the VM, a phone reports through the hub, and a scan survives the uplink being unplugged. Each failed step names the section below that fixes it, and what passed is kept as the record that the hub was tested. Part 1 is done at the office on the VM's page, Part 2 at the venue on the hub's own page (`https://hub.<domain>/events/<id>?tab=hub-setup`).
+
 ### 4.1 Install the operating system and Docker
 
 On the hub machine install Ubuntu Server 24.04 LTS (64-bit; Raspberry Pi OS Lite 64-bit also works on a Pi 5), onto the SSD, wired to the venue router. Give it a **fixed LAN address** with a DHCP reservation on the router (this guide uses `192.168.50.10`), then install Docker as in step 1.1 (on the hub).

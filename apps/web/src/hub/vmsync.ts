@@ -9,14 +9,22 @@
  */
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import type { z } from "zod";
-import { api, bytesToHex, hexToBytes, sqliteSchema } from "@events-qr/core";
+import {
+  api,
+  bytesToHex,
+  hexToBytes,
+  sqliteSchema,
+  type HubCheckResult,
+  type HubCheckStep,
+  type Outage,
+} from "@events-qr/core";
 import { immediate, type HubContext } from "./context";
 import { recomputeTicket } from "./recompute";
 import { getEventId, getLink, getState, setState } from "./state";
 import { VmClient, VmRefused, VmUnreachable } from "./vmclient";
 
 const { events, ticketTypes, staff, devices, enrolmentCodes, tickets, scans } = sqliteSchema;
-const { hubScanOutbox, hubDeviceOutbox } = sqliteSchema;
+const { hubScanOutbox, hubDeviceOutbox, hubChecks, hubCheckOutbox } = sqliteSchema;
 
 type SyncTicket = z.infer<typeof api.syncTicket>;
 type Meta = z.infer<typeof api.syncMetaResponse>;
@@ -409,6 +417,39 @@ export const pendingScanCount = (ctx: HubContext): number =>
     .where(isNull(hubScanOutbox.ackedAt))
     .get()?.n ?? 0;
 
+const MAX_OUTAGES = 10;
+
+/** Finished uplink outages (newest last), then the one still going on, if any: the hub setup page's offline check reads these. */
+export function uplinkOutages(ctx: Pick<HubContext, "db">): Outage[] {
+  const raw = getState(ctx, "cloud_outages");
+  const done: Outage[] = raw ? (JSON.parse(raw) as Outage[]) : [];
+  const downSince = getState(ctx, "cloud_down_since");
+  return downSince ? [...done, { from: Number(downSince), to: null }] : done;
+}
+
+/**
+ * Keeps the uplink outage log. Only calls that really reached (or failed to reach) the VM count:
+ * a push with nothing to send touches no network, so it says nothing either way. An outage starts
+ * at the last contact that worked (the hub cannot know sooner than its next call that the cable
+ * was pulled) and ends at the first one that works again.
+ */
+function trackUplink(ctx: HubContext, up: boolean): void {
+  const now = ctx.now();
+  if (up) {
+    const downSince = getState(ctx, "cloud_down_since");
+    if (downSince) {
+      const raw = getState(ctx, "cloud_outages");
+      const done: Outage[] = raw ? (JSON.parse(raw) as Outage[]) : [];
+      done.push({ from: Number(downSince), to: now });
+      setState(ctx, "cloud_outages", JSON.stringify(done.slice(-MAX_OUTAGES)));
+      setState(ctx, "cloud_down_since", null);
+    }
+    setState(ctx, "cloud_last_ok_at", String(now));
+  } else if (!getState(ctx, "cloud_down_since")) {
+    setState(ctx, "cloud_down_since", getState(ctx, "cloud_last_ok_at") ?? String(now));
+  }
+}
+
 function markCloud(ctx: HubContext, error: unknown): void {
   if (error === null) {
     setState(ctx, "last_cloud_sync_at", String(ctx.now()));
@@ -418,6 +459,39 @@ function markCloud(ctx: HubContext, error: unknown): void {
   }
 }
 
+/** Uploads hub setup results recorded on this hub; the VM keeps them as the record that the hub was tested. */
+export async function pushChecks(ctx: HubContext, vm: VmClient): Promise<number> {
+  const rows = ctx.db
+    .select({ check: hubChecks })
+    .from(hubCheckOutbox)
+    .innerJoin(hubChecks, eq(hubChecks.id, hubCheckOutbox.checkId))
+    .where(isNull(hubCheckOutbox.ackedAt))
+    .limit(100)
+    .all();
+  if (!rows.length) return 0;
+  const res = await vm.pushChecks(
+    rows.map(({ check: c }) => ({
+      id: c.id,
+      device_id: c.deviceId,
+      step: c.step as HubCheckStep,
+      result: c.result as HubCheckResult,
+      code: c.code,
+      summary: c.summary,
+      details: c.details,
+      checked_at: c.checkedAt,
+      checked_by: c.checkedBy,
+      checked_by_name: c.checkedByName,
+    })),
+  );
+  if (res.acknowledged.length)
+    ctx.db
+      .update(hubCheckOutbox)
+      .set({ ackedAt: ctx.now() })
+      .where(inArray(hubCheckOutbox.checkId, res.acknowledged))
+      .run();
+  return res.acknowledged.length;
+}
+
 /** One pull pass: meta, tickets, then the VM's scans. Throws VmUnreachable / VmRefused. */
 export async function pullCycle(ctx: HubContext, vm: VmClient) {
   try {
@@ -425,10 +499,12 @@ export async function pullCycle(ctx: HubContext, vm: VmClient) {
     const ticketsIn = await pullTickets(ctx, vm);
     const scansIn = await pullScans(ctx, vm);
     markCloud(ctx, null);
+    trackUplink(ctx, true);
     setState(ctx, "last_pull_at", String(ctx.now()));
     return { tickets: ticketsIn, scans: scansIn };
   } catch (err) {
     markCloud(ctx, err);
+    trackUplink(ctx, false);
     throw err;
   }
 }
@@ -438,10 +514,13 @@ export async function pushCycle(ctx: HubContext, vm: VmClient) {
   try {
     const devicesOut = await pushDevices(ctx, vm);
     const scansOut = await pushScans(ctx, vm);
+    const checksOut = await pushChecks(ctx, vm);
     markCloud(ctx, null);
-    return { devices: devicesOut, scans: scansOut };
+    if (devicesOut + scansOut + checksOut > 0) trackUplink(ctx, true);
+    return { devices: devicesOut, scans: scansOut, checks: checksOut };
   } catch (err) {
     markCloud(ctx, err);
+    trackUplink(ctx, false);
     throw err;
   }
 }

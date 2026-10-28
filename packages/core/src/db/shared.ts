@@ -23,6 +23,20 @@ export const SCAN_RESULTS = [
   "override",
 ] as const;
 export const EMAIL_STATUSES = ["pending", "sending", "sent", "failed"] as const;
+/** The eight steps of the hub setup checklist (M12), in the order the page shows them. */
+export const HUB_CHECK_STEPS = [
+  "hub_running",
+  "dns_record",
+  "certificate",
+  "link_hub",
+  "local_dns",
+  "data_match",
+  "phone_via_hub",
+  "offline_scan",
+] as const;
+export const HUB_CHECK_RESULTS = ["pass", "warn", "fail", "skipped"] as const;
+/** Where a check ran: on the VM or on the hub's own dashboard. */
+export const HUB_CHECK_SOURCES = ["vm", "hub"] as const;
 
 export const TICKET_ID_BYTES = 16;
 export const NONCE_BYTES = 12;

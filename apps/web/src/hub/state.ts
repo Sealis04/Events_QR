@@ -21,7 +21,11 @@ export type StateKey =
   | "pull_requested_at" // when the last request was accepted (rate limit)
   | "pull_handled" // id of the last request the worker answered
   | "pull_result" // JSON `PullNowResult` of that request
-  | "session_secret"; // HMAC key for dashboard sessions on this hub
+  | "session_secret" // HMAC key for dashboard sessions on this hub
+  | "cloud_down_since" // unix seconds of the first failed sync of the current outage (hub setup, step 8)
+  | "cloud_last_ok_at" // last sync call that reached the VM
+  | "cloud_outages" // JSON `Outage[]`: the last finished outages
+  | "offline_test_started_at"; // when "Start the offline test" was pressed
 
 export function getState(ctx: Pick<HubContext, "db">, key: StateKey): string | undefined {
   return ctx.db.select().from(hubState).where(eq(hubState.key, key)).get()?.value;

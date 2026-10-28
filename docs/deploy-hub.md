@@ -17,6 +17,8 @@ The hub is one small machine at the venue. During the event it is the only autho
  phones ──────────────────────────────────────────▶ VM                  only if the hub does not answer in 800 ms
 ```
 
+> **Prove it from the app.** The event's **Hub setup** tab (admin only, on the VM and on the hub's own dashboard) checks the steps below one by one and keeps the results: hub running, DNS record, certificate, linked and pulling, local DNS, tickets and staff match, a phone through the hub, an offline scan. See `docs/setup-guide.md` section 4.
+
 ## 1. Hardware and network
 
 - **The machine.** A mini PC or a Raspberry Pi 5 with an **SSD** (not an SD card: the hub writes every scan with `synchronous = FULL`). 5,000 tickets and 10,000 scans is trivial load; 4 GB of RAM is plenty. Put it on a **small UPS** and wire it to the router with Ethernet.
@@ -45,6 +47,7 @@ No `.env` is needed. These optional settings can go in an `.env` next to the com
 | `HUB_SCAN_PUSH_SECONDS`                     | `5`     | How often the hub uploads its scans and the phones enrolled at it.                                                                            |
 | `SYNC_HORIZON_SECONDS`                      | `2`     | Rows younger than this are held back from sync pages, so a change committed in the same second can never fall behind a cursor.               |
 | `HUB_MAX_BACKOFF_SECONDS`, `HUB_VM_TIMEOUT_SECONDS` | `60`, `10` | Longest wait between retries while the VM is unreachable, and the timeout of each request to it.                                  |
+| `HUB_CERT_PATH`                             | unset   | A readable copy of the certificate file the proxy serves for `hub.<domain>` (add a volume for it to the `app` service). The Hub setup page then reports its expiry from `/api/health` (`cert_expires_at`); unset, it shows the `openssl` command instead. |
 
 The SQLite file lives on the `hub-data` volume at `/data/hub.sqlite`. **Back it up or not, as you like, but never copy it to the VM or into the repo:** it contains the event key and the hub's credential.
 

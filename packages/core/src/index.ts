@@ -5,3 +5,4 @@ export * from "./setup";
 export * from "./rules";
 export * as api from "./api";
 export * from "./db";
+export * from "./hubSetup";

@@ -79,6 +79,7 @@ for (const size of SIZES) {
         "devices",
         "conflicts",
         "admit",
+        "hub-setup",
         "setup",
       ]) {
         await page.goto(`/events/${id}?tab=${tab}`);
@@ -86,6 +87,21 @@ for (const size of SIZES) {
         await page.waitForLoadState("networkidle");
         await expectNoScrollbars(page, `event tab ${tab}`);
       }
+
+      // The hub setup page with its longest content: a setup code in a command, and a failed check
+      // with its fix text (M12).
+      await page.goto(`/events/${id}?tab=hub-setup`);
+      await expect(page.getByTestId("hub-setup")).toBeVisible();
+      await page.getByRole("button", { name: "Make a setup code" }).click();
+      await expect(page.locator(".cmd code").first()).toBeVisible();
+      await page.getByLabel(/Hub address/).fill("https://hub.cf.test");
+      await page
+        .getByTestId("step-dns_record")
+        .getByRole("button", { name: /^Check:/ })
+        .click();
+      await expect(page.getByTestId("step-dns_record")).toHaveAttribute("data-result", "fail");
+      await page.getByText(/Record of checks/).click();
+      await expectNoScrollbars(page, "hub setup with a failed check and a setup code");
 
       const issued = await admin.post(`/api/events/${id}/tickets`, {
         data: {
@@ -99,6 +115,32 @@ for (const size of SIZES) {
       await page.goto(`/events/${id}/print?ids=${ticketId}`);
       await page.waitForLoadState("networkidle");
       await expectNoScrollbars(page, "print page");
+    });
+
+    test("hub setup on the hub's own dashboard", async ({ browser }) => {
+      test.setTimeout(60_000);
+      const hubUrl = "http://127.0.0.1:3200";
+      const events = await (await (await loggedIn("e2e-admin")).get("/api/events")).json();
+      const id = events.find((e: { name: string }) => e.name === "E2E Fest").id as number;
+      const context = await browser.newContext({ viewport: size });
+      const page = await context.newPage();
+      await page.goto(`${hubUrl}/login`);
+      await page.getByPlaceholder("Name").fill("e2e-admin");
+      await page.getByPlaceholder("PIN").fill(E2E_PIN);
+      await page.getByRole("button", { name: "Log in" }).click();
+      await expect(page.getByTestId("who")).toContainText("e2e-admin");
+      await page.goto(`${hubUrl}/events/${id}?tab=hub-setup`);
+      await expect(page.getByTestId("hub-setup")).toBeVisible();
+      await page
+        .getByTestId("step-offline_scan")
+        .getByRole("button", { name: /^Check:/ })
+        .click();
+      await expect(page.getByTestId("step-offline_scan")).not.toHaveAttribute(
+        "data-result",
+        "none",
+      );
+      await expectNoScrollbars(page, "hub setup on the hub");
+      await context.close();
     });
 
     test("every scanner state", async ({ page }) => {

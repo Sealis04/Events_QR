@@ -32,6 +32,7 @@ const tables = [
   "scans",
   "emailQueue",
   "eventStaff",
+  "hubChecks",
 ] as const;
 
 describe("schemas", () => {

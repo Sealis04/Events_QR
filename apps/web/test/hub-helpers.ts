@@ -19,6 +19,8 @@ import { GET as syncMeta } from "../src/app/api/sync/meta/route";
 import { GET as syncTickets } from "../src/app/api/sync/tickets/route";
 import { GET as syncScansGet, POST as syncScansPost } from "../src/app/api/sync/scans/route";
 import { POST as syncDevices } from "../src/app/api/sync/devices/route";
+import { POST as syncHubChecks } from "../src/app/api/sync/hub-checks/route";
+import { GET as syncCounts } from "../src/app/api/sync/counts/route";
 import { POST as vmClaim } from "../src/app/api/claim/route";
 import { POST as vmExit } from "../src/app/api/exit/route";
 import { GET as vmSync } from "../src/app/api/sync/route";
@@ -45,6 +47,8 @@ const VM_ROUTES: Record<string, Handler> = {
   "GET /api/sync/scans": syncScansGet,
   "POST /api/sync/scans": syncScansPost,
   "POST /api/sync/devices": syncDevices,
+  "POST /api/sync/hub-checks": syncHubChecks,
+  "GET /api/sync/counts": syncCounts,
   "POST /api/claim": vmClaim,
   "POST /api/exit": vmExit,
   "GET /api/sync": vmSync,
