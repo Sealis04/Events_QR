@@ -318,6 +318,19 @@ shows `status` `sent`.
 
 > **Check it in the app.** Once the VM is up (section 1), the event's **Hub setup** tab (admin only) walks through sections 4.2 to 4.6 and 5.7 with a **Check** button per step: the hub answers, the `hub.<domain>` record is private and grey, the certificate and its days left, the hub is linked and pulling, the name works on the venue Wi-Fi, tickets and staff match the VM, a phone reports through the hub, and a scan survives the uplink being unplugged. Each failed step names the section below that fixes it, and what passed is kept as the record that the hub was tested. Part 1 is done at the office on the VM's page, Part 2 at the venue on the hub's own page (`https://hub.<domain>/events/<id>?tab=hub-setup`).
 
+### Testing a hub on a Windows PC
+
+For a rehearsal at home or in the office the hub can run on a Windows PC with Docker Desktop. Run `setup.bat`, choose **Hub**, then dev or prod. It asks for the **hub name** (the name you put in Cloudflare, e.g. `hub.yourdomain.com`; `example.org` and anything with `http` or a slash is refused) and for **this PC's LAN address** (a numbered list that leaves out WSL, Hyper-V, Docker and loopback adapters; reserve it in the router). It then starts the DNS service, checks it with `nslookup`, offers to open the Windows firewall, and ends with a **Do this now** box, also saved as `HUB_NEXT_STEPS.txt` next to `setup.bat`. Running it again with **Keep** repeats the checks and shows the box again. These six things went wrong in the first real test; each has a fix:
+
+| What happened                                                                                          | Why                                                                                                                                                       | Fix                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The `dns` service fails with "ports are not available ... 0.0.0.0:53 ... Only one usage of each socket address" | Windows already holds port 53 on a virtual adapter (Mobile hotspot / Internet Connection Sharing).                                                        | `HUB_DNS_BIND=<LAN address>` (`setup.bat` sets it); if it still fails `setup.bat` shows what holds UDP 53: turn Mobile hotspot off.                                |
+| A phone cannot reach the PC at all                                                                     | Mobile data is on (the phone never uses the Wi-Fi's DNS), or the Windows firewall blocks 53/80/443, or the network profile is Public.                      | Mobile data off. Answer Y to the firewall question in `setup.bat` (Private profile and inbound rules for TCP 80, 443, 53 and UDP 53).                               |
+| `DNS_PROBE_FINISHED_NO_INTERNET` on the phone                                                          | The router reserved the IP but its DHCP Primary DNS is still the router, so phones never ask the hub.                                                     | Router, DHCP: Primary DNS = the hub's LAN address, Secondary empty. Switch the phone's Wi-Fi off and on.                                                         |
+| Login over `http://<hub name>` does nothing, then says only supervisors and admins can log in          | The hub's session cookie is Secure in production and browsers keep it only on `https://` (or `localhost`).                                                | Open the page with `https://`. The login page now says so.                                                                                                       |
+| The Nginx Proxy Manager certificate fails                                                              | The HTTP challenge cannot reach a private-IP name.                                                                                                        | Use **Use a DNS Challenge** with the Cloudflare token (step 4.5).                                                                                                |
+| Phone setup loops back to the setup screen                                                             | `HUB_URL` was empty on the web app, so the setup QR said `http://localhost:3000`: the code was spent at the hub but the phone then reached no server.      | `HUB_URL=https://<hub name>` in the web app's `.env` and restart it (`setup.bat` asks). The Devices and Hub setup tabs warn while it is wrong; make a new code.     |
+
 ### 4.1 Install the operating system and Docker
 
 On the hub machine install Ubuntu Server 24.04 LTS (64-bit; Raspberry Pi OS Lite 64-bit also works on a Pi 5), onto the SSD, wired to the venue router. Give it a **fixed LAN address** with a DHCP reservation on the router (this guide uses `192.168.50.10`), then install Docker as in step 1.1 (on the hub).
@@ -356,6 +369,8 @@ rm -f jar
 **If it fails:** `401` is a wrong PIN; `403 forbidden` means the account is not a supervisor or admin; `404` means there is no event with that number (step 5.1).
 
 ### 4.3 Start the hub and bind it to the event
+
+**On a Windows PC** run `setup.bat` and choose Hub instead of the commands below (see "Testing a hub on a Windows PC"): it writes `.env`, starts the hub, asks for the hub name and LAN address, and brings up and checks the DNS service from step 4.6. The commands below are the Linux way.
 
 On the **hub**:
 
@@ -410,7 +425,7 @@ Public DNS is not reachable when the uplink is down, and some routers refuse to 
 
 **a. Give the hub a fixed address.** In the router, reserve one address for the hub's network card (a DHCP reservation, by MAC address). TP-Link Archer: **Advanced → Network → DHCP Server → Address Reservation → Add**, pick the hub from the list (or type its MAC), enter `192.168.50.10`, save. Other routers call it "static lease" or "address reservation". Use the same address as the `A` record in step 4.4. Reconnect the hub (or reboot it) so it takes the address; `ip -4 addr` on the hub shows it.
 
-**b. Start the hub's DNS service.** On Ubuntu, port 53 is normally taken by `systemd-resolved`, so free it first (step d), then on the hub:
+**b. Start the hub's DNS service.** (`setup.bat` on Windows does steps a to c's hub side for you: it always starts the service with `HUB_DNS_BIND` set to the LAN address and checks `nslookup <name> <address>`; only the router settings stay manual and are in its "Do this now" box.) On Ubuntu, port 53 is normally taken by `systemd-resolved`, so free it first (step d), then on the hub:
 
 ```bash
 HUB_DOMAIN=hub.example.org HUB_LAN_IP=192.168.50.10 HUB_DNS_BIND=192.168.50.10 \

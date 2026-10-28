@@ -105,14 +105,15 @@ export async function syncFromBest(
   return { device: await syncAll(store, clients.cloud, nowLocal, "cursor"), link: "cloud" };
 }
 
-export type EnrollError = "not_setup" | "invalid" | "wrong_code" | "network";
+export type EnrollError = "not_setup" | "invalid" | "wrong_code" | "network" | "sync_failed";
 
 export class EnrollFailed extends Error {
   constructor(
     readonly reason: EnrollError,
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
   }
 }
 
@@ -204,9 +205,22 @@ export async function enrollFromSetupQr(
     ticketTypes: parsed.key_bundle.ticket_types,
   };
   await store.setDevice(device);
-  const { device: synced } = await syncFromBest(
-    store,
-    clientsFor(device, { fetch: options.fetch, hubTimeoutMs: options.hubTimeoutMs }),
-  );
-  return synced;
+  try {
+    const { device: synced } = await syncFromBest(
+      store,
+      clientsFor(device, { fetch: options.fetch, hubTimeoutMs: options.hubTimeoutMs }),
+    );
+    return synced;
+  } catch (err) {
+    // The one-time code is spent, so a half-set-up phone is no use: leave nothing behind and say
+    // which servers it tried, so the cause (usually HUB_URL on the server) can be found.
+    await store.wipe().catch(() => undefined);
+    const hub = device.hubUrl ?? serverUrl;
+    const cloud = device.cloudUrl ?? serverUrl;
+    throw new EnrollFailed(
+      "sync_failed",
+      `Set up at ${hub}, but could not download tickets from ${hub} or ${cloud}. Check HUB_URL on the server and that this phone is on the venue Wi-Fi. This setup code is used up: ask for a new one.`,
+      { cause: err },
+    );
+  }
 }

@@ -5,6 +5,7 @@ import type { AppContext } from "./context";
 import { assignments } from "./eventStaff";
 import { loadEvent } from "./events";
 import { badRequest, notFound } from "./http";
+import { hubUrlWarning } from "./hubUrl";
 
 const { devices, scans, staff } = mysqlSchema;
 
@@ -42,6 +43,10 @@ export async function devicePanel(
       last_scan_at: lastScan.get(d.id) ?? null,
     })),
     server_time: ctx.now(),
+    hub_url_warning: hubUrlWarning(
+      ctx.config,
+      rows.filter((d) => d.kind === "hub"),
+    ),
   };
 }
 
