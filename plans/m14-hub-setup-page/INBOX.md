@@ -22,7 +22,11 @@ M14 of `plans/offline-qr-ticketing/plan.md`: the hub's own `/setup` page (setup 
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+**Environment:** ready as-is after the init script, except `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` was missing; symlinked to the installed chromium-1243 (environment only, no repo change). No builder sub-branch exists (expected); reviewed the commits on `m14-hub-setup-page` since `main`.
+**E2E results:** `bun run lint` pass; `bunx tsc --noEmit` pass; `bun run test` pass (web 421 tests incl. `m14-hub-setup.test.ts`, worker 31). Playwright: `hub-setup-page.spec.ts` (unlinked redirect to /setup, link, login, reset, back to /setup), `hub-setup.spec.ts`, `no-scrollbars.spec.ts` (/setup and reset dialog at 390x844 and 360x740): 12/12 pass. Link refusal on a linked hub, missing `HUB_SERVER_URL`, ignored body URL, rate limit, concurrent link, reset gating (supervisor blocked, admin-only force), revoke-self, wipe and relink are covered by the Vitest suite and I confirmed them by reading the code.
+**Issues filed:** none.
+**Summary:** Link, status and reset are gated as specified; the server address only comes from `HUB_SERVER_URL`, reset wipes all tables and `hub_state` (sessions die with the secret), and the loops idle quietly when unlinked. Minor note, not blocking: the per-client rate limit keys on `x-forwarded-for`, which a LAN client can spoof, but the overall 30 per 10 minutes cap still bounds guessing.
 
 ## planner
 
