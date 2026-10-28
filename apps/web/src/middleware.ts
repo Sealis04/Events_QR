@@ -23,12 +23,17 @@ const SCANNER_API = new Set([
 
 /**
  * What a hub also serves besides the scanner API: the read-only dashboard (same pages and URLs as
- * the VM, so the UI code is shared) and the supervisor's manual admit. Routes that do not exist
+ * the VM, so the UI code is shared), the supervisor's manual admit, and the setup page with its
+ * link/status/reset routes. The middleware cannot read SQLite, so "is this hub linked?" is checked
+ * by the pages themselves: the dashboard layout redirects to `/setup` while unlinked, `/setup`
+ * redirects to `/login` once linked, and `/api/hub/link` answers 409. Routes that do not exist
  * on a hub (issuance, setup, cancellation) answer 404 from their own handlers.
  */
 const HUB_DASHBOARD = [
   /^\/$/,
   /^\/login$/,
+  /^\/setup$/,
+  /^\/api\/hub\/(status|link|reset)$/,
   /^\/events(\/.*)?$/,
   /^\/api\/auth\/(logout|me)$/,
   /^\/api\/hub\/pull$/,
@@ -70,5 +75,5 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Static assets, the scanner shell and its service worker are never intercepted.
-  matcher: ["/api/:path*", "/", "/login", "/events/:path*"],
+  matcher: ["/api/:path*", "/", "/login", "/setup", "/events/:path*"],
 };

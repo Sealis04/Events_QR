@@ -172,6 +172,16 @@ Accounts are global (one name, PIN and role across events); event assignment sta
 - **Ticket-type form:** "Places" becomes "Tickets available"; "How many times" becomes "Entries per ticket"; a summary line ("2 tickets · up to 3 entries each"); the early-entry box only shows once the type has a time slot, worded "Let them in up to N minutes before their time starts". Rule logic unchanged.
 - **Done when:** each safety rule, deactivation (login, next request, sync), PIN reset flow, audit rows and the script's reactivation have tests; setup guide 1.7, 5.2 and the forgotten-PIN row are updated; lint, typecheck, unit and e2e tests pass and the no-scrollbar spec covers the Staff page.
 
+### M14 — Hub setup page and reset (added 2026-10-28)
+The hub links itself to an event from its own web page instead of a command, and goes back to that page after the event. User decisions 2026-10-28:
+- **Setup screen:** while the hub is not linked, every hub page redirects to `/setup`, which asks only for the setup code (made on the server's Hub setup tab). Linking runs the existing link + first full sync, then goes to `/login`. Once linked, `/setup` is gone. The hub always has internet at first setup.
+- **Server address:** fixed in the hub's env as `HUB_SERVER_URL` (written by `setup.bat`), shown read-only on the page, never typed there, so nobody on the venue LAN can point the hub at a fake server. Changing server = edit the env file and restart.
+- **One event per hub.** To move on, **Reset hub** on the hub dashboard wipes all event data and keys and returns to `/setup`; every event needs a fresh code.
+- **Who resets:** supervisors and admins. **Blocked while unsent scans (or devices, checks) are waiting**; only an admin can force it, after a warning that those records are lost.
+- **Credential:** the reset asks the server to revoke the hub's own credential (new hub-only endpoint). If the server is unreachable (forced reset only), the hub still wipes and tells the admin to revoke it on the server's Devices tab, which must offer Revoke for hub rows.
+- **setup.bat:** asks for the server address and writes `HUB_SERVER_URL`; its "Link the hub now" step is dropped in favour of the page. `scripts/hub-enroll.ts` stays as the fallback and defaults to `HUB_SERVER_URL`.
+- **Done when:** a fresh hub goes unlinked → code on `/setup` → login → reset → `/setup` using only the browser; link refused once linked and rate-limited; reset blocked/forced by role and revokes on the server; the wipe leaves no event data, keys or sessions; lint, typecheck, unit and e2e tests pass and the no-scrollbar spec covers `/setup` and the reset dialog.
+
 ## Decisions after the test copy (2026-10-26)
 - Staff login on phones lasts until sign-out or the end of the event day ("unli" for now); biometrics only together with an idle timeout, later.
 - "Revoke and rotate" worked as designed; the UI changes so rotation is an explicit checkbox in the revoke dialog.

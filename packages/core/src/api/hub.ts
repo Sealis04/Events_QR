@@ -101,3 +101,33 @@ export const healthResponse = z.object({
   /** Set on a non-production copy (e.g. "TEST"); pages show it as a banner. */
   instance_label: z.string().optional(),
 });
+
+/** `GET /api/hub/status` (hub only, public): what the setup page and the reset dialog may know. No tokens or keys. */
+export const hubUnsent = z.object({
+  scans: z.number().int().min(0),
+  devices: z.number().int().min(0),
+  checks: z.number().int().min(0),
+});
+export const hubStatusResponse = z.object({
+  linked: z.boolean(),
+  /** The server address from the hub's env; null when `HUB_SERVER_URL` is not set. */
+  server_url: z.string().nullable(),
+  event_id: z.number().int().nullable(),
+  event_name: z.string().nullable(),
+  unsent: hubUnsent,
+});
+
+/** `POST /api/hub/link`: the setup code only. The server address always comes from the hub's env. */
+export const hubLinkRequest = z.object({ code: z.string().trim().min(1).max(255) }).strict();
+export const hubLinkResponse = z.object({
+  event_id: z.number().int(),
+  event_name: z.string().nullable(),
+  tickets: z.number().int().min(0),
+});
+
+/** `POST /api/hub/reset`: `force` (admins only) wipes even with unsent records. */
+export const hubResetRequest = z.object({ force: z.boolean().optional() }).strict();
+export const hubResetResponse = z.object({
+  revoked_on_server: z.boolean(),
+  message: z.string(),
+});

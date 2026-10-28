@@ -133,3 +133,8 @@ export async function recordHeartbeat(
     })
     .where(eq(devices.id, deviceId));
 }
+
+/** `POST /api/hubs/revoke-self`: the calling hub's own row only. Setting it twice changes nothing. */
+export async function revokeSelf(ctx: AppContext, deviceId: string): Promise<void> {
+  await ctx.db.update(devices).set({ revoked: true }).where(eq(devices.id, deviceId));
+}

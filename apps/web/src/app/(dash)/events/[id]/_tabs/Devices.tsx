@@ -81,7 +81,8 @@ function RevokeDialog({
   onClose: () => void;
   onDone: (tone: "ok" | "warn", text: string) => void;
 }) {
-  const name = device.label ?? device.id.slice(0, 8);
+  const isHub = device.kind === "hub";
+  const name = isHub ? "the hub" : (device.label ?? device.id.slice(0, 8));
   const [preview, setPreview] = useState<RevokePreview>();
   const [lost, setLost] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -134,10 +135,13 @@ function RevokeDialog({
       }
     >
       <p style={{ margin: 0 }}>
-        It stops scanning at once and erases itself the next time it is online.{" "}
-        {waiting > 0
-          ? `Its ${waiting} waiting scan${waiting === 1 ? "" : "s"} upload first if it comes back.`
-          : "It has no scans waiting to upload."}
+        {isHub
+          ? "It stops syncing with this server at once. Do this for a hub that was reset without reaching the server."
+          : `It stops scanning at once and erases itself the next time it is online. ${
+              waiting > 0
+                ? `Its ${waiting} waiting scan${waiting === 1 ? "" : "s"} upload first if it comes back.`
+                : "It has no scans waiting to upload."
+            }`}
       </p>
       <label className="check" style={{ alignItems: "flex-start" }}>
         <input
@@ -147,14 +151,15 @@ function RevokeDialog({
           style={{ marginTop: 10 }}
         />
         <span>
-          <strong>This phone was lost or stolen</strong>
+          <strong>This {isHub ? "hub" : "phone"} was lost or stolen</strong>
           <br />
           <span className="hint">
             Everyone who can log in on this event
             {preview
               ? ` (${people.length} ${people.length === 1 ? "person" : "people"}${includesMe ? ", including you" : ""})`
               : ""}{" "}
-            will have to choose a new PIN. Only tick this if the phone is out of your hands.
+            will have to choose a new PIN. Only tick this if the {isHub ? "hub" : "phone"} is out of
+            your hands.
           </span>
         </span>
       </label>
@@ -246,14 +251,16 @@ export function Devices({ event, me }: { event: EventView; me: Me }) {
 
   const now = panel?.server_time ?? Math.floor(Date.now() / 1000);
   const tz = event.timezone;
+  // A hub row has no gate to move, only Revoke (a reset hub that could not reach the server leaves its row active).
   const menu = (d: Device) =>
     !hub &&
-    d.kind === "scanner" &&
     !d.revoked && (
       <Menu
-        label={`Actions for ${d.label ?? d.id.slice(0, 8)}`}
+        label={`Actions for ${d.kind === "hub" ? "the hub" : (d.label ?? d.id.slice(0, 8))}`}
         items={[
-          { label: "Move to another gate…", onSelect: () => setDialog({ kind: "move", d }) },
+          ...(d.kind === "scanner"
+            ? [{ label: "Move to another gate…", onSelect: () => setDialog({ kind: "move", d }) }]
+            : []),
           { label: "Revoke…", danger: true, onSelect: () => setDialog({ kind: "revoke", d }) },
         ]}
       />

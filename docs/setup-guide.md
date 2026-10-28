@@ -362,16 +362,17 @@ On the **hub**:
 ```bash
 git clone https://github.com/sealis04/events_qr.git events-qr
 cd events-qr
-docker compose -f docker/compose.hub.yml up -d --build
+echo 'HUB_SERVER_URL=https://tickets.example.org' > .env     # or let setup.bat ask for it
+docker compose --env-file .env -f docker/compose.hub.yml up -d --build
 curl -s http://127.0.0.1:3000/api/health
-docker compose -f docker/compose.hub.yml run --rm tools \
-  bun scripts/hub-enroll.ts https://tickets.example.org <setup code>
 ```
 
-No `.env` is needed on the hub. Paste the setup code from step 4.2 (it is only valid for 10 minutes).
+`HUB_SERVER_URL` (the server this hub links to) is the only setting the hub needs. Then open `http://<hub address>:3000/setup` in a browser, paste the setup code from step 4.2 (valid 10 minutes, works once) and press **Link hub**. Without a browser, run `docker compose --env-file .env -f docker/compose.hub.yml run --rm tools bun scripts/hub-enroll.ts <setup code>` on the hub.
 
-**Check:** the first health call prints `{"ok":true,"mode":"hub","last_cloud_sync_at":null,"pending_scans":0}`; `hub-enroll` prints `hub linked to https://tickets.example.org for event 1: <n> tickets, <n> scans`; and `curl -s http://127.0.0.1:3000/api/health` now shows a recent number in `last_cloud_sync_at` (within a minute; the worker pulls every 30 s).
-**If it fails:** `hub_not_linked` is shown until `hub-enroll` succeeds. `setup code is invalid` means it expired or was used (make a new one). A network error means the hub cannot reach `https://tickets.example.org`: check DNS and the clock. A build error on a Pi means too little memory: add swap (`sudo fallocate -l 2G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`).
+**Check:** the first health call prints `{"ok":true,"mode":"hub","last_cloud_sync_at":null,"pending_scans":0}`; the setup page says "Linked to <event>: <n> tickets" (the command prints `hub linked to https://tickets.example.org for event 1: <n> tickets, <n> scans`); and `curl -s http://127.0.0.1:3000/api/health` now shows a recent number in `last_cloud_sync_at` (within a minute; the worker pulls every 30 s).
+**If it fails:** an unlinked hub sends every page to `/setup` until the link succeeds. "That code was not accepted" means it expired or was used (make a new one). "Cannot reach the server" means the hub cannot reach `https://tickets.example.org`: check DNS and the clock. "This hub has no server address" means `HUB_SERVER_URL` is missing from its `.env`: set it and restart the hub. A build error on a Pi means too little memory: add swap (`sudo fallocate -l 2G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`).
+
+**After the event:** on the hub, log in as a supervisor or admin and press **Reset hub** on the event page. It revokes the hub on the server, deletes the event data and keys, and returns to the setup page (`docs/deploy-hub.md` section 8).
 
 ### 4.4 Cloudflare record for the hub: DNS only
 

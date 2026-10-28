@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Notice, Shell } from "../../../_components/Shell";
 import { PullNow } from "../../../_components/PullNow";
+import { ResetHub } from "../../../_components/ResetHub";
 import { api, ApiError, eventDate } from "../../../_lib/client";
 import { eventStatus } from "../../../_lib/status";
 import { RANK, type EventView, type Me, type Role } from "../../../_lib/types";
@@ -152,6 +153,7 @@ function Workspace({ me, id }: { me: Me; id: string }) {
         </Notice>
       )}
       {hub && <PullNow />}
+      {hub && <ResetHub me={me} />}
       <nav className="tabs" aria-label="Event sections">
         {TABS.filter((t) => RANK[me.role] >= RANK[t.need]).map((t) =>
           hub && t.vmOnly ? (

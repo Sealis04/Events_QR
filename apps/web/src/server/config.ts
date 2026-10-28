@@ -41,6 +41,8 @@ const schema = z.object({
   /** This server's own public base URL; goes into key bundles so phones know where the VM is. */
   PUBLIC_URL: z.string().url().optional(),
 
+  /** Hub: the VM's base URL, fixed in the hub's env (written by `setup.bat`). The setup page never takes an address. */
+  HUB_SERVER_URL: z.string().url().optional(),
   /** Hub (`APP_MODE=hub`): the SQLite file. Holds the hub's credential and the event key, so keep the volume private. */
   HUB_DB_PATH: z.string().min(1).default("data/hub.sqlite"),
   HUB_TICKET_PULL_SECONDS: z.coerce.number().positive().default(30),

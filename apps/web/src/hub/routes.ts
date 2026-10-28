@@ -3,12 +3,14 @@
  * runs as a hub; shapes match the VM's so the scanner client does not change.
  */
 import { api } from "@events-qr/core";
-import { HttpError, json } from "../server/errors";
+import { assertSameOrigin, HttpError, json } from "../server/errors";
 import { certExpiresAt } from "../server/hubCert";
 import { claimTicket, exitTicket } from "./claim";
 import { exchangeHubEnrolment } from "./enroll";
 import { hubRoute } from "./http";
 import { PullRateLimited, requestPull } from "./pullnow";
+import { resetHub } from "./reset";
+import { hubStatus, linkFromWeb } from "./setup";
 import { uploadScans } from "./scans";
 import { getState } from "./state";
 import { syncForDevice } from "./sync";
@@ -70,3 +72,25 @@ export const pullNow = hubRoute({ access: { staff: "supervisor" } }, async ({ ct
     throw err;
   }
 });
+
+/** `GET /api/hub/status`: public; what the setup page shows. No tokens or keys. */
+export const status = hubRoute({ access: "public" }, ({ ctx }) => json(hubStatus(ctx)));
+
+/** Best guess at the caller for rate limiting; the overall cap covers a spoofed header. */
+const clientOf = (req: Request): string =>
+  req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+
+/** `POST /api/hub/link`: the setup page. Only while unlinked; the address is `HUB_SERVER_URL`, never the body. */
+export const link = hubRoute(
+  { access: "public", body: api.hubLinkRequest },
+  async ({ req, ctx, body }) => {
+    assertSameOrigin(req);
+    return json(await linkFromWeb(ctx, body.code, clientOf(req)));
+  },
+);
+
+/** `POST /api/hub/reset`: supervisors and admins; unsent records block it unless an admin forces it. */
+export const reset = hubRoute(
+  { access: { staff: "supervisor" }, body: api.hubResetRequest },
+  async ({ ctx, staff, body }) => json(await resetHub(ctx, staff, { force: body.force })),
+);

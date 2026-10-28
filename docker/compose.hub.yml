@@ -8,6 +8,8 @@ x-hub-env: &hub-env
   APP_MODE: hub
   HUB_DB_PATH: /data/hub.sqlite
   HOME: /tmp
+  # The VM this hub links to, written by setup.bat; the /setup page never asks for an address.
+  HUB_SERVER_URL: ${HUB_SERVER_URL:-}
 
 x-hub-user: &hub-user "1000:1000"
 
@@ -71,7 +73,8 @@ services:
 
   # Binds the hub to an event (once per event):
   #   docker compose --env-file .env -f docker/compose.hub.yml run --rm tools \
-  #     bun scripts/hub-enroll.ts https://tickets.example.org <setup code>
+  #     bun scripts/hub-enroll.ts <setup code>   (the address comes from HUB_SERVER_URL)
+  # The hub's /setup page does the same from a browser; this is the fallback.
   tools:
     profiles: ["tools"]
     build: { context: .., dockerfile: docker/Dockerfile, target: tools }
