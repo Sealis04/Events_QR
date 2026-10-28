@@ -1,0 +1,9 @@
+# Dev on one PC: the VM stack (compose.vm.yml) over plain http on localhost. Layer it on top and use
+# its own project name, so its database volume never mixes with a production stack on the same machine:
+#   docker compose -p events-qr-dev --env-file .env -f docker/compose.vm.yml -f docker/compose.local.yml up -d --build app
+# setup.bat (Web app, Dev) runs this for you. Code changes need the same command again (it rebuilds).
+services:
+  app:
+    environment:
+      # compose.vm.yml forces Secure cookies for https behind Nginx Proxy Manager; dev has no TLS.
+      COOKIE_SECURE: "false"
