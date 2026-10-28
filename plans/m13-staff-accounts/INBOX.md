@@ -28,6 +28,12 @@ M13 of `plans/offline-qr-ticketing/plan.md`: a top-level Staff page (create, lis
 **Issues filed:** none.
 **Summary:** Safety rules are enforced inside one transaction with all staff rows locked; audit rows are written in the same transaction and carry no PINs or hashes. Deactivated and admin-reset accounts are excluded from hub payloads. No blocking issues.
 
+**Re-review after F1 (2026-10-28): APPROVED.**
+**Environment:** MariaDB already installed; `ccr-session-init.sh` ran clean. Playwright: re-linked `/opt/pw-browsers/chromium-1194/chrome-linux` to the chromium-1243 `chrome-linux64` dir (the earlier link pointed at a missing path).
+**E2E results:** `bun run lint`, `bunx tsc --noEmit`, `bun run test` pass (incl. `deactivated-scans.test.ts`: VM refusal 403 `staff_deactivated`, hub refusal after sync, offline override after deactivation stored and flagged, before-deactivation not flagged, reactivation window). Playwright full suite 28 passed, 6 skipped (screenshot specs).
+**Issues filed:** none.
+**Notes (non-blocking):** `deactivatedScans` reads every staff-attributed scan of the event on each Conflicts list call; fine at 5,000 scans. On the hub, an unassigned (not only deactivated) account is now also refused for normal scans, as designed in F1.
+
 ## planner
 
 - 2026-10-28: after approval, the user asked for fix F1 (overrides and scans by deactivated staff) before merge. Builder-1 fired; the reviewer re-checks F1 when fired again. Please do not merge PR #27 until then.
