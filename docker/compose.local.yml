@@ -5,5 +5,20 @@
 services:
   app:
     environment:
-      # compose.vm.yml forces Secure cookies for https behind Nginx Proxy Manager; dev has no TLS.
-      COOKIE_SECURE: "false"
+      # compose.vm.yml forces Secure cookies for https behind Nginx Proxy Manager; dev has no TLS unless
+      # it runs behind the tunnel below (setup.bat then sets DEV_COOKIE_SECURE=true).
+      COOKIE_SECURE: ${DEV_COOKIE_SECURE:-false}
+
+  # Optional: publishes the dev app at https://<name>.<domain> through a Cloudflare Tunnel, so phones
+  # can try it (the camera needs https) with no port forwarding. In the tunnel's Cloudflare settings
+  # point the public hostname at http://app:3000. Add `--profile tunnel` and name `tunnel` in `up`.
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:2026.10.0
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      # From Cloudflare Zero Trust -> Networks -> Tunnels -> your tunnel. A secret: .env only.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      app: { condition: service_started }
