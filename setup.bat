@@ -106,7 +106,8 @@ echo -- Building and starting MariaDB, migrations and the app --
 %VM% up -d --build !UP! || (
   echo.
   echo If the migrate log says "Access denied for user 'events_qr'", the database was created with
-  echo other passwords: copy the matching .env.bak-... back over .env, or wipe the dev database with
+  echo other passwords: copy the matching .env.bak-... back over .env ^(and its .secrets\signing-key.json.bak-...^),
+  echo or wipe the dev database with
   echo   %VM% down -v
   echo and run setup.bat again.
   goto :fail
@@ -377,6 +378,13 @@ docker compose -p events-qr-dev --env-file .env -f docker/compose.vm.yml -f dock
 for /f %%t in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%t"
 copy /y "%ENVFILE%" "%ENVFILE%.bak-%STAMP%" >nul || exit /b 1
 echo Saved the old file as %ENVFILE%.bak-%STAMP%
+rem The signing key file is encrypted with the old SIGNING_KEY_PASSPHRASE; with a new one the app fails
+rem with "Unsupported state or unable to authenticate data". Keep it beside the old .env and make a new one.
+if "%TARGET%"=="web" if exist ".secrets\signing-key.json" (
+  move /y ".secrets\signing-key.json" ".secrets\signing-key.json.bak-%STAMP%" >nul || exit /b 1
+  echo The signing key belongs to the old passphrase: saved it as .secrets\signing-key.json.bak-%STAMP%.
+  echo A new key is made below. To go back, restore both .bak-%STAMP% files.
+)
 exit /b 0
 
 rem :ask VAR "Prompt" "default"
