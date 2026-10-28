@@ -336,13 +336,22 @@ export function HubSetup({ event, me }: { event: EventView; me: Me }) {
               )}
             </div>
             {code ? (
-              <Cmd
-                label="the hub-enroll command"
-                text={`docker compose --env-file .env -f docker/compose.hub.yml run --rm tools bun scripts/hub-enroll.ts ${vmUrl} ${code.code}`}
-              />
+              <>
+                <p className="small" style={{ margin: 0 }}>
+                  Enter this code on the hub&apos;s setup page (<code>/setup</code> on the hub).
+                </p>
+                <Cmd label="the setup code" text={code.code} />
+                <p className="small muted" style={{ margin: 0 }}>
+                  No browser at the hub? Run this on the hub machine instead:
+                </p>
+                <Cmd
+                  label="the hub-enroll command"
+                  text={`docker compose --env-file .env -f docker/compose.hub.yml run --rm tools bun scripts/hub-enroll.ts ${vmUrl} ${code.code}`}
+                />
+              </>
             ) : (
               <p className="small muted">
-                The code is made here and typed into the command below it, on the hub machine.
+                The code is made here and entered on the hub&apos;s setup page.
               </p>
             )}
           </>

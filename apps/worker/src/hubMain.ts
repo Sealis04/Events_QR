@@ -12,7 +12,7 @@ export async function hubMain(config: Config): Promise<void> {
   const ctx = await buildHubContext(config, { migrate: true });
   if (!getLink(ctx)) {
     console.log(
-      "hub: not linked to a VM yet; run scripts/hub-enroll.ts <VM URL> <code>. Waiting for it.",
+      "hub: not linked to a server yet; enter a setup code on the hub's /setup page (or run scripts/hub-enroll.ts <code>). Waiting for it.",
     );
   }
   const loops = startHubLoops(ctx, {

@@ -67,7 +67,11 @@ export function startHubLoops(ctx: HubContext, options: HubLoopOptions = {}): Hu
     while (!abort.signal.aborted) {
       // Built per pass: a hub that gets linked while the worker runs starts syncing by itself.
       const vm = vmClientFor(ctx);
-      if (vm) {
+      if (!vm) {
+        // Not linked (never, or wiped by Reset hub): idle quietly and start fresh at the next link.
+        failures = 0;
+        wasDown = false;
+      } else {
         try {
           const result = await step(vm);
           if (wasDown) log(`hub ${name}: the VM is back`);
