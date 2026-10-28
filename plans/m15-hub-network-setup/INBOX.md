@@ -20,7 +20,12 @@ M15 of `plans/offline-qr-ticketing/plan.md`: `setup.bat` walks a hub through its
 
 ## reviewer
 
-(empty)
+**Status:** APPROVED
+**Environment:** `ccr-session-init.sh` ran, but its final `mysqladmin ping -uroot` over TCP was refused; MariaDB was up and the unix socket worked, so nothing was needed. The e2e config hardcodes `/opt/pw-browsers/chromium-1194`; this sandbox has 1243, so I symlinked 1194 to it (outside the repo). No SQL Server needed for this repo.
+**E2E results:** `bun run lint` pass; `bunx tsc --noEmit` pass; `bun run test` pass (web 440, worker 31 + core); `bun run test:e2e` 35 passed, 6 skipped (screenshot specs). That includes m15-hub-warnings (warning banner on Devices and Hub setup tabs, gone after revoking the hub, login https message) and no-scrollbars at 390x844 and 360x740. The first e2e run failed everywhere because of the missing browser path; it passed after the symlink.
+**setup.bat / PowerShell:** not run (no Windows or pwsh here). Reviewed by reading: hub dev and prod always go through `:hub_network` (name, IP, DNS bind) before the stack is built; DNS is recreated every run; Stop paths go to `:fail`; the firewall step only warns; the box is written to `HUB_NEXT_STEPS.txt` (gitignored) with no secrets; the web app paths use `:ensure_hub_url` for new and Keep'd files.
+**Issues filed:** https://github.com/Sealis04/Events_QR/issues/29 (improvement, non-blocking): the elevated firewall script is written to the user-writable `%TEMP%`; also notes the `nslookup` `Name:` parsing on localized Windows.
+**Summary:** M15 matches the task list. Automated checks are green and the app warnings behave as specified. The batch and PowerShell parts could only be read, so run `setup.bat` once on a real Windows PC before relying on it.
 
 ## planner
 
