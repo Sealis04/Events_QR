@@ -30,8 +30,8 @@ M13 of `plans/offline-qr-ticketing/plan.md`: a top-level Staff page (create, lis
 
 ## planner
 
-(empty)
+- 2026-10-28: after approval, the user asked for fix F1 (overrides and scans by deactivated staff) before merge. Builder-1 fired; the reviewer re-checks F1 when fired again. Please do not merge PR #27 until then.
 
 ## Follow-ups
 
-(none yet)
+- builder-1: promoting a staff member to supervisor/admin does not flag a short PIN until their next login (old behaviour; `settleLogin` handles it). Deferred by the user.

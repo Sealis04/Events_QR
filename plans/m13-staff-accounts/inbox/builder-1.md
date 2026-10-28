@@ -1,6 +1,6 @@
 # builder-1 — m13-staff-accounts
 
-**Status:** DONE
+**Status:** PENDING
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -79,7 +79,18 @@ The plan's M13 "Done when" holds; `bun run lint`, `bunx tsc --noEmit`, `bun run 
 
 ## Fix requests
 
-(none)
+### F1. Overrides and scans by deactivated staff (planner, 2026-10-28)
+
+**Status:** PENDING
+
+User decision: close the gap you listed under "What to check" in this milestone. A phone that stays offline keeps a deactivated supervisor's PIN hash until it syncs, so it can still record overrides.
+
+1. **Online claims** (`apps/web/src/server/claim.ts`, around the `body.staff_id` lookup; and `apps/web/src/hub/claim.ts`): a `staff_id` whose account is deactivated is refused with 403 `staff_deactivated` ("this account was deactivated"), for overrides and for normal scans. On the hub, check what its staff copy holds after a sync (rows replaced, or `deactivated_at` set) and make the hub refuse the same way; say which in your summary.
+2. **Offline scans uploaded later** (`POST /api/scans` in `apps/web/src/server/sync.ts`, and the hub's upload path to the VM): do NOT drop or reject them. The person is already inside, and the scan record must stay accurate. Store them as today, but flag any override (or scan) whose `staff_id` was deactivated before the scan's time so it shows on the event's Conflicts tab (or the closest existing review list) as "Override by a deactivated account", with the staff name and the deactivation time. Use the `audit_log` `staff.deactivated` row or `deactivated_at` to compare. If the account was reactivated after the scan time, compare against the deactivation window that covers the scan time.
+3. **Tests:** online refusal on the VM and on the hub; an offline override uploaded after deactivation is stored and flagged; one recorded before deactivation is not flagged.
+4. Update `## Summary for reviewer` (add a short F1 part). Then fire the reviewer with `branch: m13-staff-accounts` as usual; PR Sealis04/Events_QR#27 picks up the push.
+
+Not in scope: re-checking the PIN rule on promotion (logged as a follow-up).
 
 ## Blocker
 
