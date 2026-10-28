@@ -80,6 +80,7 @@ if "%WRITE_ENV%"=="1" (
   echo Wrote .env
 )
 call :readenv APP_PORT 3000
+call :ensure_port APP_PORT events-qr-dev-app-1 || goto :fail
 set "VM=docker compose -p events-qr-dev --env-file .env -f docker/compose.vm.yml -f docker/compose.local.yml"
 
 if not exist ".secrets" mkdir ".secrets"
@@ -159,6 +160,7 @@ if "%WRITE_ENV%"=="1" (
   pause
 )
 call :readenv APP_PORT 3000
+call :ensure_port APP_PORT events-qr-app-1 || goto :fail
 call :readenv HUB_URL ""
 set "VM=docker compose --env-file .env -f docker/compose.vm.yml"
 
@@ -228,6 +230,7 @@ if "%WRITE_ENV%"=="1" (
   echo Wrote .env.hub
 )
 call :readenv HUB_PORT 3100
+call :ensure_port HUB_PORT events-qr-hub-dev-app-1 || goto :fail
 set "HUB=docker compose -p events-qr-hub-dev --env-file .env.hub -f docker/compose.hub.yml"
 
 echo.
@@ -278,6 +281,7 @@ if "%WRITE_ENV%"=="1" (
   findstr /b /c:"HUB_DOMAIN=" .env >nul && set "WANT_DNS=1"
 )
 call :readenv HUB_PORT 3000
+call :ensure_port HUB_PORT events-qr-hub-app-1 || goto :fail
 set "HUB=docker compose --env-file .env -f docker/compose.hub.yml"
 
 echo.
@@ -380,6 +384,32 @@ rem :readenv VAR default  -> VAR from %ENVFILE%, else default
 set "%~1=%~2"
 for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%ENVFILE%") do if /i "%%a"=="%~1" set "%~1=%%b"
 exit /b 0
+
+rem :ensure_port VAR container  -> if port !VAR! is taken by anything but our own container, say what
+rem holds it, ask for another port and write it into %ENVFILE% (VAR=, and localhost:<port> in addresses).
+:ensure_port
+set "PORT_NOW=!%~1!"
+docker ps --filter "name=%~2" --format "{{.Ports}}" 2>nul | findstr /c:":!PORT_NOW!->" >nul && exit /b 0
+netstat -ano | findstr /r /c:"TCP.*:!PORT_NOW! .*LISTENING" >nul || exit /b 0
+echo.
+echo Port !PORT_NOW! on this PC is already in use by:
+set "HOLDER="
+for /f "delims=" %%n in ('docker ps --filter "publish=!PORT_NOW!" --format "{{.Names}}" 2^>nul') do (
+  echo   Docker container %%n
+  set "HOLDER=1"
+)
+if not defined HOLDER (
+  for /f "tokens=5" %%p in ('netstat -ano ^| findstr /r /c:"TCP.*:!PORT_NOW! .*LISTENING"') do (
+    for /f "tokens=1 delims=," %%t in ('tasklist /fi "PID eq %%p" /fo csv /nh') do echo   program %%~t ^(PID %%p^)
+  )
+)
+echo Stop that program or container, or use another port for this setup.
+call :ask_required NEW_PORT "Port to use instead, e.g. 3005"
+powershell -NoProfile -Command "$f='%ENVFILE%'; (Get-Content $f) | ForEach-Object { if ($_.StartsWith('%~1=')) { '%~1=!NEW_PORT!' } else { $_.Replace('localhost:!PORT_NOW!','localhost:!NEW_PORT!') } } | Set-Content $f" || exit /b 1
+findstr /b /c:"%~1=" "%ENVFILE%" >nul || (echo %~1=!NEW_PORT!>> "%ENVFILE%")
+set "%~1=!NEW_PORT!"
+echo Saved %~1=!NEW_PORT! in %ENVFILE%.
+goto :ensure_port
 
 rem :wait_health url
 :wait_health
