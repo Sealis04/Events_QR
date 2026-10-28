@@ -396,6 +396,9 @@ export const conflictsResponse = z.object({
         .nullable()
         .optional(),
       reviewed_at: unixSeconds.nullable().optional(),
+      result: z.string().optional(),
+      /** Set when `staff_id` was deactivated at the scan's time (an offline scan uploaded later). */
+      deactivated_account: z.object({ deactivated_at: unixSeconds }).nullable().optional(),
     }),
   ),
   total: z.number().int(),

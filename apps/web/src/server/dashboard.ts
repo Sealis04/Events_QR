@@ -8,6 +8,7 @@ import { claimTicket } from "./claim";
 import type { AppContext } from "./context";
 import { loadEvent } from "./events";
 import { HttpError, notFound } from "./http";
+import { deactivatedScans } from "./stats";
 
 const { scans, tickets, staff } = mysqlSchema;
 
@@ -101,7 +102,9 @@ export async function reviewConflict(
   reviewed: boolean,
 ): Promise<void> {
   const [scan] = await ctx.db.select().from(scans).where(eq(scans.id, scanId)).limit(1);
-  if (!scan || !scan.conflict) throw notFound("conflict not found");
+  if (!scan) throw notFound("conflict not found");
+  if (!scan.conflict && !(await deactivatedScans(ctx, [scanId])).has(scanId))
+    throw notFound("conflict not found");
   await ctx.db
     .update(scans)
     .set(

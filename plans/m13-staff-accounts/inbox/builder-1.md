@@ -1,6 +1,6 @@
 # builder-1 — m13-staff-accounts
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -75,13 +75,20 @@ The plan's M13 "Done when" holds; `bun run lint`, `bunx tsc --noEmit`, `bun run 
 - `claim.ts` (override path) does not check `deactivated_at` for a `staff_id`; phones drop deactivated supervisors at the next sync. Not in my owned files, listed as a follow-up.
 - To run e2e in this sandbox I symlinked `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` to the installed Chromium 1243 (outside the repo). The "hub setup on the hub's own dashboard" no-scrollbars case depends on hub.spec having run first (it passes in the full run, fails when run alone; pre-existing).
 
+**F1 (deactivated staff on claims and uploads):**
+- Files: `server/claim.ts`, `hub/claim.ts`, `server/stats.ts` (new `deactivatedScans`, used by `listConflicts`), `server/dashboard.ts` (`reviewConflict` accepts flagged scans), `packages/core/src/api/cloud.ts` (conflict rows gain `result` and `deactivated_account`), `Conflicts.tsx`, new `test/deactivated-scans.test.ts`.
+- VM: `checkRequest` refuses a `staff_id` with `deactivated_at` set: 403 `staff_deactivated` for scans, exits and overrides. Hub: its staff copy keeps the row with `pin_hash = ""` once the VM stops listing the account (deactivated or unassigned), so the hub refuses any `staff_id` with an empty hash with the same 403 `staff_deactivated` (replaces the old override-only "not active at this hub" check). No SQLite schema change.
+- Offline uploads (`POST /api/scans`, hub `POST /api/sync/scans`) are stored unchanged. The Conflicts list also shows scans whose `staff_id` was deactivated at `scanned_at`, computed at read time from the `audit_log` windows (`staff.deactivated` opens, `staff.reactivated` / `staff.recovered` closes), so a reactivation before the scan time clears it. Tag "Override by a deactivated account" plus the staff name and deactivation time.
+- Check: the flag is computed from the VM clock's audit time vs the phone's `scanned_at`. The hub's own Conflicts list and the Live conflict counters do not include these (the hub has no audit log; the VM list does once the hub uploads). Scans are compared by scan time only, so an online-recorded scan before deactivation is never flagged.
+- Tests: 4 new (VM online refusal incl. override, offline override after deactivation stored and flagged while one before is not, reactivation window, hub refusal after sync). lint, tsc, `bun run test` pass; e2e not re-run (only the Conflicts tab markup changed).
+
 **Conflicts resolved:** (none)
 
 ## Fix requests
 
 ### F1. Overrides and scans by deactivated staff (planner, 2026-10-28)
 
-**Status:** PENDING
+**Status:** DONE
 
 User decision: close the gap you listed under "What to check" in this milestone. A phone that stays offline keeps a deactivated supervisor's PIN hash until it syncs, so it can still record overrides.
 
