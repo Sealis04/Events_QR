@@ -1,6 +1,6 @@
 # builder-1 — m13-staff-accounts
 
-**Status:** PENDING
+**Status:** DONE
 **Mode:** sequential (only builder; builder-3 is NOT USED)
 
 ## Owned files
@@ -56,7 +56,26 @@ The plan's M13 "Done when" holds; `bun run lint`, `bunx tsc --noEmit`, `bun run 
 
 ## Summary for reviewer
 
-(builder-1 fills this in)
+**Files changed:**
+- Core: `packages/core/src/db/mysql.ts` (staff.deactivated_at, `pin_reset` check adds `admin`, new `audit_log`), `packages/core/src/db/sqlite.ts` (`deactivated_at` column only), `packages/core/src/api/cloud.ts` (zod: update/list/log), migrations `drizzle/mysql/0008_m13_staff_accounts.sql` + `drizzle/sqlite/0007_m13_staff_deactivated.sql` (+ snapshots/journals).
+- Server: `server/{audit(new),staff,auth,pins,eventStaff}.ts`, `app/api/staff/{route,[id]/route,log/route}.ts`, `app/api/auth/login/route.ts`, `scripts/create-admin.ts`.
+- UI: `app/(dash)/staff/page.tsx` (new), `app/(dash)/page.tsx` (Staff link), `events/[id]/_tabs/Setup.tsx`, `_components/{TypeFields,EventForm,Shell}.tsx`, `_lib/types.ts`, `dashboard.css` (`ul.plain`).
+- Tests/docs: `apps/web/test/m13-staff-accounts.test.ts` (new), `auth.test.ts`, `event-form.test.ts`, `e2e/staff.spec.ts` (new, incl. SHOTS-only screenshots), `e2e/no-scrollbars.spec.ts`, `e2e/dashboard.spec.ts`, `docs/setup-guide.md`. Screenshots under `plans/m13-staff-accounts/screenshots/`.
+
+**What was done:**
+- A: `staff.deactivated_at`, `pin_reset = 'admin'`, `audit_log` (indexes on (target_kind,target_id,at) and at), zod schemas. SQLite: only the `deactivated_at` column was added, because `packages/core/test/db.test.ts` requires column parity; its `pin_reset` check was left as is since the hub never receives deactivated or `admin`-reset staff (`hashesForEvent` filters both).
+- B: `GET /api/staff`, `PATCH /api/staff/[id]` (role | reset_pin | active), `GET /api/staff/log` (paged, newest first). Safety rules run in one transaction that locks every staff row in id order (no deadlock, no two-admin race); each change and `createStaff` writes one audit row in that transaction; refused changes write none. Deactivated: `authenticateStaff` undefined, login refused identically to a wrong PIN, out of `hashesForEvent`/event staff list, Add refused. `resetStaff` (script) clears `deactivated_at` and logs `staff.recovered` with no actor.
+- C: Staff page (table, filter, row menu with in-page dialogs, create dialog, one-admin banner, paginated history); Setup tab lost "Create and add" and links to Staff.
+- D: new labels, summary line (`type-summary`), early-entry box only with a slot. Early entry is only validated when the type has a slot (a stored value stays on save otherwise).
+- E: 14 Vitest cases for the safety rules (incl. concurrent demotion), deactivation, PIN reset flow, hashesForEvent, audit rows, script reactivation; e2e flow, banner, Setup tab, form wording, no-scrollbar spec for Staff page, create dialog and row menu at 390x844 and 360x740. Full `bun run test:e2e` passed (34/34); lint, `tsc --noEmit` and `bun run test` pass.
+
+**What to check:**
+- Last-admin rule is reachable through the route only when the actor is not the target, which the route can't produce (actors are admins and self-changes are refused first); it is unit-tested through `updateStaff` directly. The route-level concurrent test (two admins demoting each other) passes with one 200 and one 403/409.
+- Promoting a staff member to supervisor/admin does not flag a short PIN until their next login (same as before; `settleLogin` handles it). Possible follow-up.
+- `claim.ts` (override path) does not check `deactivated_at` for a `staff_id`; phones drop deactivated supervisors at the next sync. Not in my owned files, listed as a follow-up.
+- To run e2e in this sandbox I symlinked `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` to the installed Chromium 1243 (outside the repo). The "hub setup on the hub's own dashboard" no-scrollbars case depends on hub.spec having run first (it passes in the full run, fails when run alone; pre-existing).
+
+**Conflicts resolved:** (none)
 
 ## Fix requests
 

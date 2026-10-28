@@ -86,6 +86,48 @@ export const createStaffRequest = z.object({
   role: z.enum(STAFF_ROLES),
 });
 
+/** `PATCH /staff/{id}` (admin): exactly one change per request. */
+export const updateStaffRequest = z.union([
+  z.object({ role: z.enum(STAFF_ROLES) }).strict(),
+  /** A temporary PIN; the person must choose their own at their next dashboard login. */
+  z.object({ reset_pin: z.string().min(6).max(128) }).strict(),
+  z.object({ active: z.boolean() }).strict(),
+]);
+export const staffStatus = z.enum(["active", "must_change_pin", "deactivated"]);
+export const staffListItem = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(STAFF_ROLES),
+  status: staffStatus,
+  /** Events this person is assigned to (issued tickets or added; explicit removals excluded). */
+  events: z.array(z.object({ id: z.number().int(), name: z.string() })),
+  created_at: z.number().int().nullable(),
+  /** Time of the latest logged change to this account. */
+  changed_at: z.number().int().nullable(),
+});
+/** `GET /staff` (admin). */
+export const listStaffResponse = z.object({
+  staff: z.array(staffListItem),
+  active_admins: z.number().int(),
+});
+export const auditEntry = z.object({
+  id: z.number().int(),
+  at: z.number().int(),
+  /** Null for a server command. */
+  actor: z.object({ id: z.string(), name: z.string() }).nullable(),
+  action: z.string(),
+  target: z.object({ kind: z.string(), id: z.string(), name: z.string().nullable() }),
+  detail: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).nullable(),
+});
+/** `GET /staff/log?before=<id>` (admin), newest first, 25 per page. */
+export const staffLogQuery = z.object({
+  before: z.coerce.number().int().positive().optional(),
+});
+export const staffLogResponse = z.object({
+  entries: z.array(auditEntry),
+  next_before: z.number().int().nullable(),
+});
+
 /** `POST /events/{id}/tickets` (staff, generator). Idempotency key required. */
 export const createTicketsRequest = z.object({
   idempotency_key: z.string().min(8).max(128),

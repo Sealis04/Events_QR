@@ -5,7 +5,7 @@ export interface Me {
   id: string;
   name: string;
   role: Role;
-  pin_reset: "weak" | "rotate" | null;
+  pin_reset: "weak" | "rotate" | "admin" | null;
   mode: "server" | "hub";
   /** The server's own zone (VM only): the default for a new event. */
   default_timezone?: string;

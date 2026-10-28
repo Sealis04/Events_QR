@@ -1,8 +1,8 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { mysqlSchema } from "@events-qr/core";
 import type { AppContext } from "./context";
 import { loadEvent } from "./events";
-import { notFound } from "./http";
+import { conflict, notFound } from "./http";
 
 const { staff, eventStaff, tickets } = mysqlSchema;
 
@@ -34,7 +34,7 @@ export async function hashesForEvent(ctx: AppContext, eventId: number) {
   const event = await loadEvent(ctx.db, eventId);
   if (ctx.now() > event.endsAt) return [];
   const assigned = await assignments(ctx, eventId);
-  const rows = await ctx.db.select().from(staff);
+  const rows = await ctx.db.select().from(staff).where(isNull(staff.deactivatedAt));
   return rows
     .filter((s) => {
       const a = assigned.get(s.id);
@@ -48,11 +48,15 @@ export async function hashesForEvent(ctx: AppContext, eventId: number) {
     }));
 }
 
-/** Admin view: every staff member with their assignment to this event. */
+/** Admin view: every active staff member with their assignment to this event. */
 export async function listEventStaff(ctx: AppContext, eventId: number) {
   await loadEvent(ctx.db, eventId);
   const assigned = await assignments(ctx, eventId);
-  const rows = await ctx.db.select().from(staff).orderBy(staff.name);
+  const rows = await ctx.db
+    .select()
+    .from(staff)
+    .where(isNull(staff.deactivatedAt))
+    .orderBy(staff.name);
   return rows.map((s) => {
     const a = assigned.get(s.id) ?? null;
     return {
@@ -61,7 +65,7 @@ export async function listEventStaff(ctx: AppContext, eventId: number) {
       role: s.role as "staff" | "supervisor" | "admin",
       assignment: a,
       assigned: a === "issued" || a === "added",
-      pin_reset: (s.pinReset ?? null) as "weak" | "rotate" | null,
+      pin_reset: (s.pinReset ?? null) as "weak" | "rotate" | "admin" | null,
     };
   });
 }
@@ -74,8 +78,16 @@ export async function setAssignment(
   assigned: boolean | null,
 ): Promise<void> {
   await loadEvent(ctx.db, eventId);
-  const [member] = await ctx.db.select({ id: staff.id }).from(staff).where(eq(staff.id, staffId));
+  const [member] = await ctx.db
+    .select({ id: staff.id, deactivatedAt: staff.deactivatedAt })
+    .from(staff)
+    .where(eq(staff.id, staffId));
   if (!member) throw notFound("staff member not found");
+  if (assigned === true && member.deactivatedAt !== null)
+    throw conflict(
+      "deactivated",
+      "this account is deactivated; reactivate it on the Staff page first",
+    );
   if (assigned === null) {
     await ctx.db
       .delete(eventStaff)

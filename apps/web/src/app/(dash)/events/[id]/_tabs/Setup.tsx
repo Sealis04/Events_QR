@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EventForm } from "../../../../_components/EventForm";
 import { Notice } from "../../../../_components/Shell";
 import { api } from "../../../../_lib/client";
@@ -12,7 +12,7 @@ interface StaffRow {
   role: "staff" | "supervisor" | "admin";
   assignment: "issued" | "added" | "removed" | null;
   assigned: boolean;
-  pin_reset: "weak" | "rotate" | null;
+  pin_reset: "weak" | "rotate" | "admin" | null;
 }
 
 const reason = { issued: "issued tickets", added: "added", removed: "removed", null: "" } as const;
@@ -38,30 +38,6 @@ export function Setup({ event, onChanged }: { event: EventView; onChanged: () =>
     try {
       await api(`/api/events/${event.id}/staff/${s.id}`, { method: "PUT", body: { assigned } });
       await loadStaff();
-    } catch (err) {
-      fail(err);
-    }
-  }
-
-  async function addStaff(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
-    try {
-      const created = await api<{ id: string }>("/api/staff", {
-        body: {
-          name: String(f.get("name")).trim(),
-          pin: String(f.get("pin")),
-          role: String(f.get("role")),
-        },
-      });
-      await api(`/api/events/${event.id}/staff/${created.id}`, {
-        method: "PUT",
-        body: { assigned: true },
-      });
-      form.reset();
-      await loadStaff();
-      setMsg({ tone: "ok", text: "Staff member created and added to this event." });
     } catch (err) {
       fail(err);
     }
@@ -133,23 +109,9 @@ export function Setup({ event, onChanged }: { event: EventView; onChanged: () =>
             </tbody>
           </table>
         </div>
-        <form className="row" onSubmit={addStaff} style={{ marginTop: 10 }} aria-label="Add staff">
-          <input name="name" placeholder="New staff name" required aria-label="Staff name" />
-          <select name="role" defaultValue="staff" aria-label="Staff role">
-            <option value="staff">staff (PIN 6+ characters)</option>
-            <option value="supervisor">supervisor (PIN 8+ digits)</option>
-            <option value="admin">admin (PIN 8+ digits)</option>
-          </select>
-          <input
-            name="pin"
-            type="password"
-            placeholder="PIN"
-            required
-            autoComplete="new-password"
-            aria-label="Staff PIN"
-          />
-          <button type="submit">Create and add</button>
-        </form>
+        <p className="small" style={{ marginTop: 10 }}>
+          Need a new account, a PIN reset or a role change? <a href="/staff">Manage accounts</a>
+        </p>
       </div>
     </div>
   );

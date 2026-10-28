@@ -7,16 +7,19 @@ import { badRequest, HttpError } from "./http";
 const { staff } = mysqlSchema;
 
 type StaffRow = typeof staff.$inferSelect;
-export type PinReset = "weak" | "rotate" | null;
+export type PinReset = "weak" | "rotate" | "admin" | null;
 
 /**
  * Called after a correct PIN at login. Brings the stored record up to date and says whether this
  * person must still choose a new PIN: a flagged `weak` PIN is cleared when the one just typed
  * already meets the rule (it is then re-hashed with the current settings); a privileged role whose
- * PIN fails the rule gets flagged; a `rotate` flag stays until `changePin`.
+ * PIN fails the rule gets flagged; a `rotate` or `admin` flag stays until `changePin`.
  */
 export async function settleLogin(ctx: AppContext, row: StaffRow, pin: string): Promise<PinReset> {
-  let reset: PinReset = row.pinReset === "weak" || row.pinReset === "rotate" ? row.pinReset : null;
+  let reset: PinReset =
+    row.pinReset === "weak" || row.pinReset === "rotate" || row.pinReset === "admin"
+      ? row.pinReset
+      : null;
   const meetsRule = pinProblem(row.role, pin) === undefined;
   if (reset === "weak" && meetsRule) reset = null;
   else if (reset === null && !meetsRule) reset = "weak";

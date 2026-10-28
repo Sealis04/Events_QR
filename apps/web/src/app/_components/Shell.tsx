@@ -13,7 +13,7 @@ export function Notice({ tone, children }: { tone: "warn" | "bad" | "ok"; childr
   );
 }
 
-/** Shown instead of the page while a PIN change is required (too short for the role, or rotated after a lost phone). */
+/** Shown instead of the page while a PIN change is required (too short for the role, rotated after a lost phone, or reset by an admin). */
 function ChangePin({ me, onDone }: { me: Me; onDone: () => void }) {
   const [error, setError] = useState("");
   const privileged = me.role !== "staff";
@@ -36,7 +36,9 @@ function ChangePin({ me, onDone }: { me: Me; onDone: () => void }) {
       <p className="muted">
         {me.pin_reset === "rotate"
           ? "A phone that may hold your PIN hash was reported lost. Pick a new PIN before continuing."
-          : "Your PIN is too short for your role."}{" "}
+          : me.pin_reset === "admin"
+            ? "An admin gave you a temporary PIN. Choose your own PIN before continuing."
+            : "Your PIN is too short for your role."}{" "}
         {privileged ? "Supervisor and admin PINs are at least 8 digits." : "At least 6 characters."}
       </p>
       <form className="grid" onSubmit={submit}>

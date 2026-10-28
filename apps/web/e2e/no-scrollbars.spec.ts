@@ -69,6 +69,17 @@ for (const size of SIZES) {
       await expect(page.getByLabel("Event name")).toBeVisible();
       await expectNoScrollbars(page, "new event");
 
+      await page.goto("/staff");
+      await expect(page.getByTestId("staff-table")).toBeVisible();
+      await expectNoScrollbars(page, "staff page");
+      await page.getByRole("button", { name: "Create account" }).first().click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expectNoScrollbars(page, "staff create dialog");
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await page.getByRole("button", { name: /^Actions for e2e-super/ }).click();
+      await expectNoScrollbars(page, "staff row menu");
+      await page.keyboard.press("Escape");
+
       const admin = await loggedIn("e2e-admin");
       const events = await (await admin.get("/api/events")).json();
       const id = events.find((e: { name: string }) => e.name === "E2E Fest").id as number;

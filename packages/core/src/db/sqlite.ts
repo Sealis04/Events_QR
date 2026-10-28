@@ -49,6 +49,8 @@ export const staff = sqliteTable(
     pinHash: text("pin_hash").notNull(),
     role: text("role").notNull(),
     pinReset: text("pin_reset"),
+    /** Parity with MariaDB only: the hub is never sent deactivated staff (nor staff with an `admin` PIN reset), so this stays null there. */
+    deactivatedAt: integer("deactivated_at"),
   },
   (t) => [
     check("ck_staff_pin_reset", sql`${t.pinReset} IS NULL OR ${t.pinReset} IN ('weak', 'rotate')`),

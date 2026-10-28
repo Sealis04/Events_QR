@@ -20,7 +20,7 @@ export interface AuthedStaff {
   name: string;
   role: StaffRole;
   /** Set while this person must choose a new PIN before anything else works. */
-  pinReset: "weak" | "rotate" | null;
+  pinReset: "weak" | "rotate" | "admin" | null;
 }
 
 export interface AuthedDevice {
@@ -148,12 +148,15 @@ export async function authenticateStaff(
   const sid = decodeSession(requireSetting(ctx.config, "SESSION_SECRET"), cookie, ctx.now());
   if (!sid) return undefined;
   const [row] = await ctx.db.select().from(staffTable).where(eq(staffTable.id, sid)).limit(1);
-  if (!row || !(row.role in RANK)) return undefined;
+  if (!row || !(row.role in RANK) || row.deactivatedAt !== null) return undefined;
   return {
     id: row.id,
     name: row.name,
     role: row.role as StaffRole,
-    pinReset: row.pinReset === "weak" || row.pinReset === "rotate" ? row.pinReset : null,
+    pinReset:
+      row.pinReset === "weak" || row.pinReset === "rotate" || row.pinReset === "admin"
+        ? row.pinReset
+        : null,
   };
 }
 
