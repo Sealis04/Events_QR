@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { api, ApiError } from "../../_lib/client";
+import { noSessionMessage } from "../../_lib/loginHelp";
 
 /** What went wrong, in words a gate-team lead can act on. */
 function explain(err: unknown): string {
@@ -28,7 +29,7 @@ export default function LoginPage() {
       await api("/api/auth/login", { body: { name: form.get("name"), pin: form.get("pin") } });
       // A venue hub only lets supervisors and admins in; plain staff pass the PIN check but get no session.
       await api("/api/auth/me").catch(() => {
-        throw new Error("This server only lets supervisors and admins into the dashboard.");
+        throw new Error(noSessionMessage(window.location));
       });
       window.location.href = "/";
     } catch (err) {

@@ -445,6 +445,11 @@ export const devicePanelResponse = z.object({
     }),
   ),
   server_time: unixSeconds,
+  /** Set when the event has a linked hub but `HUB_URL` would give phones an address they cannot use. */
+  hub_url_warning: z
+    .object({ status: z.enum(["unset", "local"]), value: z.string().nullable() })
+    .nullable()
+    .optional(),
 });
 /** `PATCH /devices/{id}` (supervisor): move a phone to another gate or role. */
 export const updateDeviceRequest = z

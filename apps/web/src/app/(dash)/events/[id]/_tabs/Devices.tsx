@@ -6,6 +6,7 @@ import { Dialog, FormDialog } from "../../../../_components/Dialog";
 import { Menu } from "../../../../_components/Menu";
 import { Notice } from "../../../../_components/Shell";
 import { api, formatTime } from "../../../../_lib/client";
+import { hubUrlWarningText } from "../../../../_lib/hubSetup";
 import type { EventView, Me } from "../../../../_lib/types";
 import { hhmm, usePhone } from "./format";
 
@@ -24,6 +25,7 @@ interface Device {
 interface Panel {
   devices: Device[];
   server_time: number;
+  hub_url_warning?: { status: "unset" | "local"; value: string | null } | null;
 }
 interface Codes {
   qrs: { text: string; png: string }[];
@@ -293,6 +295,11 @@ export function Devices({ event, me }: { event: EventView; me: Me }) {
         </Notice>
       )}
       {error && <Notice tone="bad">{error}</Notice>}
+      {panel?.hub_url_warning && (
+        <div data-testid="hub-url-warning">
+          <Notice tone="warn">{hubUrlWarningText(panel.hub_url_warning)}</Notice>
+        </div>
+      )}
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
       {panel?.devices.length === 0 && (
         <div className="card empty">

@@ -8,6 +8,7 @@ import {
   fetchHealth,
   guessHubAddress,
   hostOf,
+  hubUrlWarningText,
   STEPS,
   type StepDef,
 } from "../../../../_lib/hubSetup";
@@ -29,6 +30,7 @@ interface View {
   mode: "server" | "hub";
   now: number;
   hub_url: string | null;
+  hub_url_warning?: { status: "unset" | "local"; value: string | null } | null;
   vm_url: string | null;
   pull_interval_seconds: number;
   hubs: { id: string; label: string | null; revoked: boolean }[];
@@ -293,6 +295,10 @@ export function HubSetup({ event, me }: { event: EventView; me: Me }) {
 
   function extras(step: StepDef) {
     switch (step.key) {
+      case "phone_via_hub":
+        return view?.hub_url_warning ? (
+          <Notice tone="bad">{hubUrlWarningText(view.hub_url_warning)}</Notice>
+        ) : null;
       case "hub_running":
         return (
           <>
@@ -472,6 +478,11 @@ export function HubSetup({ event, me }: { event: EventView; me: Me }) {
   return (
     <div data-testid="hub-setup">
       {error && <Notice tone="bad">{error}</Notice>}
+      {view.hub_url_warning && (
+        <div data-testid="hub-url-warning">
+          <Notice tone="warn">{hubUrlWarningText(view.hub_url_warning)}</Notice>
+        </div>
+      )}
       <section className="card">
         <div className="between">
           <h2 style={{ margin: 0 }}>Hub setup</h2>

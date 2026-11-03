@@ -25,6 +25,7 @@ import type { AppContext } from "./context";
 import { loadEvent } from "./events";
 import { hashesForEvent } from "./eventStaff";
 import { badRequest } from "./http";
+import { hubUrlWarning } from "./hubUrl";
 import {
   parseDnsAnswers,
   parseHubAddress,
@@ -106,6 +107,7 @@ export async function hubSetupView(ctx: AppContext, eventId: number) {
     now: ctx.now(),
     /** The address the browser should use for the hub; the page lets the person change it. */
     hub_url: ctx.config.HUB_URL ?? null,
+    hub_url_warning: hubUrlWarning(ctx.config, hubs),
     vm_url: ctx.config.PUBLIC_URL ?? null,
     pull_interval_seconds: ctx.config.HUB_TICKET_PULL_SECONDS,
     hubs: hubs.map((h) => ({
